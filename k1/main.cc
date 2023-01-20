@@ -1,7 +1,20 @@
+
 #include "rpi.h"
+#include "buffer.h"
 
 
 extern char __bss_start, __bss_end; // defined in linker script
+
+/*
+void kmain() {
+    initialize();  // includes starting the first user task
+    for (;;) {
+        currtask = schedule();
+        request = activate(currtask);
+        handle(request);
+    }
+}
+*/
 
 int main() {
     init_gpio();
