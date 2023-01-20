@@ -66,8 +66,18 @@ el1_entry:
     msr SPSel, #1
     ldr     x0, =stackend
     mov     sp, x0
+
+
+    // Clean the BSS section
+    ldr     x1, =__bss_start     // Start address
+    ldr     w2, =__bss_size      // Size of the section
+3:  cbz     w2, 4f               // Quit loop if zero
+    str     xzr, [x1], #8
+    sub     w2, w2, #1
+    cbnz    w2, 3b               // Loop if non-zero
+
     // Jump to our main() routine in C++ (make sure it doesn't return)
-    bl      main
+4:  bl      main
 
     // use watchdog to reboot
     mov x2, 36
