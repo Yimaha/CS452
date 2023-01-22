@@ -310,3 +310,7 @@ extern "C" void* memcpy(void* __restrict__ dest, const void* __restrict__ src, s
     for (size_t i = 0; i < n; ++i) *(cdest++) = *(sit++);
     return dest;
 }
+
+extern "C" void print(char *c) {
+  uart_puts(0, 0, c, 8);
+}

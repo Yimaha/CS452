@@ -17,7 +17,7 @@ CFLAGS:=-g -pipe -static $(WARNINGS) -ffreestanding -nostartfiles\
 LDFLAGS:=-Wl,-nmagic -Wl,-Tlinker.ld
 
 # Source files and include dirs
-SOURCES := $(wildcard *.cc) $(wildcard *.S)
+SOURCES := $(wildcard *.cc) $(wildcard *.S) $(wildcard /asm/*.S)
 # Create .o and .d files for every .cc and .S (hand-written assembly) file
 OBJECTS := $(patsubst %.cc, %.o, $(patsubst %.S, %.o, $(SOURCES)))
 DEPENDS := $(patsubst %.cc, %.d, $(patsubst %.S, %.d, $(SOURCES)))

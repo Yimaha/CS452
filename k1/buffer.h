@@ -1,6 +1,6 @@
 #pragma once
 
-#define MAX_BUFFER_SIZE 500
+#define MAX_BUFFER_SIZE 512
 
 template <typename T>
 class RingBuffer {

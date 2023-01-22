@@ -13,15 +13,15 @@
 // HCR_EL2, Hypervisor Configuration Register (EL2)
 // Architecture Reference Manual Section D13.2.48
 // ***************************************
-#define HCR_RW (1 << 31)
+#define HCR_RW (1 << 31) // telling that the EL1 is in AArch64
 
 // ***************************************
 // SPSR_EL3, Saved Program Status Register (EL3)
 // Architecture Reference Manual Section C5.2.20
 // ***************************************
-#define SPSR_MASK_ALL (7 << 6)
-#define SPSR_EL1h (5 << 0)
-#define SPSR_VALUE (SPSR_MASK_ALL | SPSR_EL1h)
+#define SPSR_MASK_ALL (7 << 6) // irrlevant for A1, and also for jumping from El1 to El0, cause these 3 bits are ignored in El0
+#define SPSR_EL1h (5 << 0) //make sure you use the stack pointer of this level, can be used to restore stack pointer sp
+#define SPSR_VALUE (SPSR_MASK_ALL | SPSR_EL1h) 
 
 // ***************************************
 // CNTKCTL_EL1, Counter-timer Kernel Control register
@@ -50,7 +50,7 @@ _start:
     ldr x3, =SPSR_VALUE
     msr spsr_el2, x3
 
-    adr x4, el1_entry
+    adr x4, el1_entry // you force the change of address to el1_entry, and thus, force swtich
     msr elr_el2, x4
 
     eret // -> el1_entry
