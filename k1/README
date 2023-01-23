@@ -34,6 +34,10 @@ CS017541
 CS017542
 CS017543
 
+Knowledge
+1. you need to store registers before calling a certain function, under assemb, especially if you are calling a c funtion, otherwise param go bye bye
+2. why is HCR_RW have RW bit set to 1? what does it do
+
 What is done:
 1. Makefile receive every .c -> .cc
 2. based on https://wiki.osdev.org/C%2B%2B, new flag is added -> -nostdlib -fno-rtti -fno-exceptions
@@ -45,3 +49,4 @@ What need to be done
 1. https://piazza.com/class/lar7zlqtolr5xe/post/31
 2. https://piazza.com/class/lar7zlqtolr5xe/post/33 
 3.
+
