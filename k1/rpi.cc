@@ -61,17 +61,9 @@ static char* const MMIO_BASE = (char*) 0xFE000000;
 static char* const GPIO_BASE = (char*)(0xFE000000 + 0x200000);
 static char* const  AUX_BASE = (char*)(0xFE000000 + 0x200000 + 0x15000);
 
-static volatile struct GPIO* gpio(){
-    return (volatile GPIO*)(GPIO_BASE);
-}  
-
-static volatile struct AUX* aux(){
-    return (volatile AUX*)(AUX_BASE);
-}  
-
-static volatile struct SPI* spi (int index) {
-    return index == 0 ? (volatile SPI*)(AUX_BASE + 0x80) : (volatile SPI*)(AUX_BASE + 0xC0);
-}
+static volatile struct GPIO* const gpio  =  (struct GPIO*)(GPIO_BASE);
+static volatile struct AUX*  const aux   =   (struct AUX*)(AUX_BASE);
+static volatile struct SPI*  const spi[] = { (struct SPI*)(AUX_BASE + 0x80), (struct SPI*)(AUX_BASE + 0xC0) };
 
 
 /*************** GPIO ***************/
@@ -92,17 +84,17 @@ static const uint32_t GPIO_PDP  = 0x02;
 static void setup_gpio(uint32_t pin, uint32_t setting, uint32_t resistor) {
   uint32_t reg   =  pin / 10;
   uint32_t shift = (pin % 10) * 3;
-  uint32_t status = gpio()->GPFSEL[reg];   // read status
+  uint32_t status = gpio->GPFSEL[reg];   // read status
   status &= ~(7u << shift);              // clear bits
   status |=  (setting << shift);         // set bits
-  gpio()->GPFSEL[reg] = status;            // write back
+  gpio->GPFSEL[reg] = status;            // write back
 
   reg   =  pin / 16;
   shift = (pin % 16) * 2;
-  status = gpio()->PUP_PDN_CNTRL_REG[reg]; // read status
+  status = gpio->PUP_PDN_CNTRL_REG[reg]; // read status
   status &= ~(3u << shift);              // clear bits
   status |=  (resistor << shift);        // set bits
-  gpio()->PUP_PDN_CNTRL_REG[reg] = status; // write back
+  gpio->PUP_PDN_CNTRL_REG[reg] = status; // write back
 }
 
 void init_gpio() {
@@ -145,17 +137,17 @@ static const uint32_t SPI_STAT_BIT_CNT_MASK = 0x0000003F;
 
 
 void init_spi(uint32_t channel) {
-  uint32_t reg = aux()->ENABLES;
+  uint32_t reg = aux->ENABLES;
   reg |= (2 << channel);
-  aux()->ENABLES = reg;
-  spi(channel)->CNTL0 = SPI_CNTL0_Clear_FIFOs;
+  aux->ENABLES = reg;
+  spi[channel]->CNTL0 = SPI_CNTL0_Clear_FIFOs;
   uint32_t speed = (700000000 / (2 * 0x400000)) - 1; // for maximum bitrate 0x400000
-  spi(channel)->CNTL0 = (speed << SPI_CNTL0_SPEED_SHIFT)
+  spi[channel]->CNTL0 = (speed << SPI_CNTL0_SPEED_SHIFT)
                       | SPI_CNTL0_VAR_WIDTH
                       | SPI_CNTL0_Enable
                       | SPI_CNTL0_In_Rising
                       | SPI_CNTL0_SO_MSB_FST;
-  spi(channel)->CNTL1 = SPI_CNTL1_SI_MSB_FST;
+  spi[channel]->CNTL1 = SPI_CNTL1_SI_MSB_FST;
 }
 
 static void spi_send_recv(uint32_t channel, const char* sendbuf, size_t sendlen, char* recvbuf, size_t recvlen) {
@@ -172,16 +164,16 @@ static void spi_send_recv(uint32_t channel, const char* sendbuf, size_t sendlen,
     data |= (count << 24);
 
     // always need to write something, otherwise no receive
-    while (spi(channel)->STAT & SPI_STAT_TX_FULL) asm volatile("yield");
+    while (spi[channel]->STAT & SPI_STAT_TX_FULL) asm volatile("yield");
     if (sendidx < sendlen) {
-      spi(channel)->TXHOLD_REGa = data; // keep chip-select active, more to come
+      spi[channel]->TXHOLD_REGa = data; // keep chip-select active, more to come
     } else {
-      spi(channel)->IO_REGa = data;
+      spi[channel]->IO_REGa = data;
     }
 
     // read transaction
-    while (spi(channel)->STAT & SPI_STAT_RX_EMPTY) asm volatile("yield");
-    data = spi(channel)->IO_REGa;
+    while (spi[channel]->STAT & SPI_STAT_RX_EMPTY) asm volatile("yield");
+    data = spi[channel]->IO_REGa;
 
     // process data, if needed, assume same byte count in transaction
     size_t max = (recvlen - recvidx) * 8;

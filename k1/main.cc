@@ -8,6 +8,9 @@
 extern char __bss_start, __bss_end; // defined in linker script
 const char hello[] = "Hello world";
 
+extern uintptr_t __init_array_start, __init_array_end; // defined in linker script;
+typedef void (*funcvoid0_t)();
+
 /*
 void kmain() {
     initialize();  // includes starting the first user task
@@ -18,6 +21,12 @@ void kmain() {
     }
 }
 */
+
+extern "C" void user_task() {
+    char msg[] = "user task\r\n";
+    uart_puts(0, 0, msg, sizeof(msg) - 1);
+    while (1) {}
+}
 
 int main() {
     init_gpio();
@@ -36,6 +45,8 @@ int main() {
     for (size_t j = 0; j < sizeof(hello); j++) {
         kernel_stack[j] = hello[j];
     }
+
+    for (funcvoid0_t* ctr = (funcvoid0_t *)&__init_array_start; ctr < (funcvoid0_t *)&__init_array_end; ctr += 1) (*ctr)();
 
     uart_puts(0, 0, msg, sizeof(msg) - 1);
 
