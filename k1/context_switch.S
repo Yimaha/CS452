@@ -60,12 +60,7 @@ in_el1:
 	msr ELR_EL1, x0
 
 	mov x0, #0b1111000000
-	debug_val_print x0
 	msr SPSR_EL1, x0
-
-	// another debug print right before eret
-	mrs x1, SPSR_EL1
-	debug_val_print x1
 
 	eret
 
