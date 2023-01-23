@@ -55,22 +55,22 @@ in_el3:
 in_el2:
 in_el1:
 
-	; // Save kernel registers
-	; sub sp, sp, 10*8
-	; stp x0, x1, [sp, 0*8]
-	; stp x2, x3, [sp, 1*8]
-	; stp x4, x5, [sp, 2*8]
-	; stp x6, x7, [sp, 3*8]
-	; stp x8, x9, [sp, 4*8]
-	; stp x10, x11, [sp, 5*8]
-	; stp x12, x13, [sp, 6*8]
-	; stp x14, x15, [sp, 7*8]
-	; stp x16, x17, [sp, 8*8]
-	; stp x18, x19, [sp, 9*8]
+	// Save kernel registers
+	sub sp, sp, 11*16
+	stp x0, x1, [sp, 0*16]
+	stp x2, x3, [sp, 1*16]
+	stp x4, x5, [sp, 2*16]
+	stp x6, x7, [sp, 3*16]
+	stp x8, x9, [sp, 4*16]
+	stp x10, x11, [sp, 5*16]
+	stp x12, x13, [sp, 6*16]
+	stp x14, x15, [sp, 7*16]
+	stp x16, x17, [sp, 8*16]
+	stp x18, x29, [sp, 9*16]
 
-	; // Save kernel stack pointer
-	; mov x0, sp
-	; stp x0, xzr, [sp, 10*8]
+	mov x0, sp
+	stp x30, x0, [sp, 10*16]
+
 
 	// Switch to EL0
 	adr x0, in_el0
