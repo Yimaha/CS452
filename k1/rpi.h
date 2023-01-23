@@ -13,4 +13,5 @@ void uart_puts(size_t spiChannel, size_t uartChannel, const char* buf, size_t bl
 extern "C" void* memset(void *s, int c, size_t n);
 extern "C" void* memcpy(void* __restrict__ dest, const void* __restrict__ src, size_t n);
 extern "C" void print(char* c);
+extern "C" void val_print(uint64_t c);
 

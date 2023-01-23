@@ -314,3 +314,13 @@ extern "C" void* memcpy(void* __restrict__ dest, const void* __restrict__ src, s
 extern "C" void print(char *c) {
   uart_puts(0, 0, c, 8);
 }
+
+extern "C" void val_print(uint64_t c) {
+  // print out each byte as a char
+  char buf[8];
+  for (int i = 0; i < 8; ++i) {
+    buf[7 - i] = (c >> (i * 8)) & 0xFF;
+  }
+
+  uart_puts(0, 0, buf, 8);
+}
