@@ -2,13 +2,9 @@
 #include "rpi.h"
 
 
-extern "C" void handle_syscall() {
-
-}
-
 void yield() {
     // just give up process right and swap back into kernel
-    // to_kernel(Kernel::HandlerCode::YIELD);
+    to_kernel(Kernel::HandlerCode::YIELD);
 }
 
 

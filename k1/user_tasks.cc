@@ -3,6 +3,7 @@
 extern "C" void Task_0() {
     char msg[] = "user task\r\n";
     uart_puts(0, 0, msg, sizeof(msg) - 1);
+    yield();
     while (1) {}
 }
 
