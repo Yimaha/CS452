@@ -37,9 +37,11 @@ extern "C" void kmain() {
     uart_puts(0, 0, m2, sizeof(m2) - 1);
     for (;;) {
         // kernel.schedule_next_task();
-        uint64_t request = kernel.activate();
+        InterruptFrame* request = kernel.activate();
         char m2[] = "back in kernel! \r\n";
         uart_puts(0, 0, m2, sizeof(m2) - 1);
+        val_print(request->x0);
+        while(1) {}
     }
 }
 

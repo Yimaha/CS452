@@ -12,6 +12,7 @@ class Scheduler {
         int ready_queue[1];
 };
 
+#include <cstdint>
 
 class TaskDescriptor {
     public:
@@ -20,7 +21,8 @@ class TaskDescriptor {
         int task_id;
         int parent_id; // id = -1 means no parent
         int priority;
+        bool initialized;
         void (*pc) (); // program counter
-        char* sp; // stack pointer
+        char * sp; // stack pointer
         char kernel_stack [5000]; // approximate 50 kbytes per stack
 };

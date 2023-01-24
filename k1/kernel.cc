@@ -19,8 +19,10 @@ void Kernel::schedule_next_task() {
 //    active_task = &tasks[scheduler.get_next()];
 }
 
-uint16_t Kernel::activate() {
-    return first_el0_entry(tasks[active_task]->sp, tasks[active_task]->pc); // startup task, has no parameter or handling
+InterruptFrame* Kernel::activate() {
+    InterruptFrame* frame = first_el0_entry(tasks[active_task]->sp, tasks[active_task]->pc); // startup task, has no parameter or handling
+    tasks[active_task]->sp = (char *)frame;
+    return frame;
 }
 
 
