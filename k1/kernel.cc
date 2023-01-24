@@ -4,7 +4,8 @@
 
 void yield() {
     // just give up process right and swap back into kernel
-    to_kernel(Kernel::HandlerCode::YIELD);
+    uint64_t val = to_kernel(Kernel::HandlerCode::YIELD);
+    val_print(val);
 }
 
 
@@ -20,9 +21,16 @@ void Kernel::schedule_next_task() {
 }
 
 InterruptFrame* Kernel::activate() {
-    InterruptFrame* frame = first_el0_entry(tasks[active_task]->sp, tasks[active_task]->pc); // startup task, has no parameter or handling
-    tasks[active_task]->sp = (char *)frame;
-    return frame;
+    if (!tasks[active_task]->initialized) {
+        InterruptFrame* frame = first_el0_entry(tasks[active_task]->sp, tasks[active_task]->pc); // startup task, has no parameter or handling
+        tasks[active_task]->sp = (char *)frame;
+        tasks[active_task]->initialized = true;
+        return frame;
+    } else {
+        InterruptFrame* frame = to_user(tasks[active_task]->sp, 0x1); // startup task, has no parameter or handling
+        tasks[active_task]->sp = (char *)frame;
+        return frame;
+    }
 }
 
 

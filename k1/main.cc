@@ -40,8 +40,6 @@ extern "C" void kmain() {
         InterruptFrame* request = kernel.activate();
         char m2[] = "back in kernel! \r\n";
         uart_puts(0, 0, m2, sizeof(m2) - 1);
-        val_print(request->x0);
-        while(1) {}
     }
 }
 
