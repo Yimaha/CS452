@@ -30,6 +30,42 @@
 // ***************************************
 #define CNTKCTL_VALUE ((1 << 9) | (1 << 8) | (1 << 1) | (1 << 0))
 
+.text
+.global exception_table
+.balign 2048
+exception_table:
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b handle_syscall
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+
 // ensure the linker puts this at the start of the kernel image
 .section ".text.boot"
 .global _start
@@ -68,51 +104,16 @@ el1_entry:
     ldr     x0, =stackend
     mov     sp, x0
 
-    // Clean the BSS section
+    adr x0, exception_table
+    msr VBAR_EL1, x0
+
+    // Clean the BSS sections
     ldr     x1, =__bss_start     // Start address
     ldr     w2, =__bss_size      // Size of the section
 3:  cbz     w2, 4f               // Quit loop if zero
     str     xzr, [x1], #8
     sub     w2, w2, #1
     cbnz    w2, 3b               // Loop if non-zero
-
-.global exception_table
-.balign 2048
-exception_table:
-    b print_exception
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b handle_syscall
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
-
-adr x0, exception_table
-msr VBAR_EL1, x0
 
     // Jump to our main() routine in C++ (make sure it doesn't return)
 4:  bl      main

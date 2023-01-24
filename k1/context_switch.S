@@ -41,9 +41,10 @@ first_el0_entry:
 	// Switch to EL0
 
 	msr SP_EL0, x0 // assuming stack address is passed in x0
+    msr elr_el1, x1 // we need another thing when the function get back since it is bidirectional, but this will do for now
 
 	// Save kernel registers
-	sub sp, sp, 11*16
+	sub sp, sp, 16*16
 
 	stp x0, x1, [sp, 0*16]
 	stp x2, x3, [sp, 1*16]
@@ -63,7 +64,7 @@ first_el0_entry:
 	stp x30, xzr, [sp, 15*16]
 	// does not need to save sp since sp is banked
 
-    msr elr_el1, x1 // we need another thing when the function get back since it is bidirectional, but this will do for now
+
 
 	mov x0, #0b1111000000
 	msr SPSR_EL1, x0
