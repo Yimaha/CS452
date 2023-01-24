@@ -316,3 +316,9 @@ extern "C" void val_print(uint64_t c) {
 
   uart_puts(0, 0, buf, 8);
 }
+
+extern "C" void print_exception() {
+    char m1[] = "reaching invalid location\r\n";
+    uart_puts(0, 0, m1, sizeof(m1) - 1);
+    while(1) {};
+}

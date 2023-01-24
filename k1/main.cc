@@ -2,6 +2,7 @@
 #include "rpi.h"
 #include "buffer.h"
 #include "context_switch.h"
+#include "kernel.h"
 
 #define NL uart_puts(0, 0, "\r\n", 2)
 
@@ -28,34 +29,27 @@ extern "C" void user_task() {
     while (1) {}
 }
 
+extern "C" void kmain() {
+    char m1[] = "init kernel \r\n";
+    uart_puts(0, 0, m1, sizeof(m1) - 1);
+    Kernel kernel = Kernel();
+    char m2[] = "finish kernel \r\n";
+    uart_puts(0, 0, m2, sizeof(m2) - 1);
+    for (;;) {
+        // kernel.schedule_next_task();
+        uint16_t request = kernel.activate();
+    }
+}
+
 int main() {
     init_gpio();
     init_spi(0);
     init_uart(0);
 
-    char msg[] = "stack text\r\n";
-
-    char kernel_stack [6000] = {0}; // placeholder for kernel stack
-    char user_stack [5000] = {0}; // placeholder for user stack
-    for (int i = 0; i < 5000; i++) {
-        kernel_stack[i] = 0x3e;
-        user_stack[i] = 0x3e;
-    }
-    
-    for (size_t j = 0; j < sizeof(hello); j++) {
-        kernel_stack[j] = hello[j];
-    }
 
     for (funcvoid0_t* ctr = (funcvoid0_t *)&__init_array_start; ctr < (funcvoid0_t *)&__init_array_end; ctr += 1) (*ctr)();
-
+    char msg[] = "test print\r\n";
     uart_puts(0, 0, msg, sizeof(msg) - 1);
-
-    // try the el0_entry
-    val_print((uint64_t)user_stack);
-    el0_entry(user_stack);
-
-    uart_puts(0, 0, "el0_entry returned\r\n", 20);
-    uart_puts(0, 0, msg, sizeof(msg) - 1); // This will be garbage
-
+    kmain(); // where the actual magic happens
     return 0;
 }

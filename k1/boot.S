@@ -9,6 +9,7 @@
 #define SCTLR_WFE_WFI_ENABLED (1 << 18 | 1<<16)
 #define SCTLR_VALUE_MMU_DISABLED (SCTLR_RESERVED | USER_MASK_ACCESS | SCTLR_WFE_WFI_ENABLED)
 
+
 // ***************************************
 // HCR_EL2, Hypervisor Configuration Register (EL2)
 // Architecture Reference Manual Section D13.2.48
@@ -67,7 +68,6 @@ el1_entry:
     ldr     x0, =stackend
     mov     sp, x0
 
-
     // Clean the BSS section
     ldr     x1, =__bss_start     // Start address
     ldr     w2, =__bss_size      // Size of the section
@@ -75,6 +75,44 @@ el1_entry:
     str     xzr, [x1], #8
     sub     w2, w2, #1
     cbnz    w2, 3b               // Loop if non-zero
+
+.global exception_table
+.balign 2048
+exception_table:
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b handle_syscall
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+
+adr x0, exception_table
+msr VBAR_EL1, x0
 
     // Jump to our main() routine in C++ (make sure it doesn't return)
 4:  bl      main
@@ -95,8 +133,12 @@ exit:
     wfi
     b    exit
 
+
+
+
 .section ".bss"
 .balign 16
+
 stack:
     .rept 0x10000
     .byte 0

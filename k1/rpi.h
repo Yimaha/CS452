@@ -14,4 +14,5 @@ extern "C" void* memset(void *s, int c, size_t n);
 extern "C" void* memcpy(void* __restrict__ dest, const void* __restrict__ src, size_t n);
 extern "C" void print(char* c);
 extern "C" void val_print(uint64_t c);
+extern "C" void print_exception();
 
