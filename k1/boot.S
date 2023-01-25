@@ -9,6 +9,7 @@
 #define SCTLR_WFE_WFI_ENABLED (1 << 18 | 1<<16)
 #define SCTLR_VALUE_MMU_DISABLED (SCTLR_RESERVED | USER_MASK_ACCESS | SCTLR_WFE_WFI_ENABLED)
 
+
 // ***************************************
 // HCR_EL2, Hypervisor Configuration Register (EL2)
 // Architecture Reference Manual Section D13.2.48
@@ -28,6 +29,42 @@
 // Architecture Reference Manual Section D13.11.15
 // ***************************************
 #define CNTKCTL_VALUE ((1 << 9) | (1 << 8) | (1 << 1) | (1 << 0))
+
+.text
+.global exception_table
+.balign 2048
+exception_table:
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b assert_crash
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b handle_syscall
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
+.balign 0x80
+    b print_exception
 
 // ensure the linker puts this at the start of the kernel image
 .section ".text.boot"
@@ -67,8 +104,10 @@ el1_entry:
     ldr     x0, =stackend
     mov     sp, x0
 
+    adr x0, exception_table
+    msr VBAR_EL1, x0
 
-    // Clean the BSS section
+    // Clean the BSS sections
     ldr     x1, =__bss_start     // Start address
     ldr     w2, =__bss_size      // Size of the section
 3:  cbz     w2, 4f               // Quit loop if zero
@@ -78,6 +117,9 @@ el1_entry:
 
     // Jump to our main() routine in C++ (make sure it doesn't return)
 4:  bl      main
+
+.global reboot
+reboot:
 
     // use watchdog to reboot
     mov x2, 36
@@ -97,6 +139,7 @@ exit:
 
 .section ".bss"
 .balign 16
+
 stack:
     .rept 0x10000
     .byte 0

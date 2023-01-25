@@ -10,4 +10,12 @@ SECTIONS {
 	.text.boot : {        /* boot code must start at 0x80000 */
 		KEEP(*(.text.boot))
 	}
+
+	/* mark constructor initialization array */
+	.init_array : ALIGN(4) {
+		__init_array_start = .;
+			*(.init_array)
+			*(SORT_BY_INIT_PRIORITY(.init_array.*))
+		__init_array_end = .;
+	}
 }

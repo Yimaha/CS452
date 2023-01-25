@@ -46,7 +46,11 @@ What is done:
 5. restrict is replaced by __restrict__
 
 What need to be done
-1. https://piazza.com/class/lar7zlqtolr5xe/post/31
-2. https://piazza.com/class/lar7zlqtolr5xe/post/33 
-3.
+1. (DONE) https://piazza.com/class/lar7zlqtolr5xe/post/31 
+2. (DONE) https://piazza.com/class/lar7zlqtolr5xe/post/33 
+3. k1 test process needed to update the actual key to the return value of create task to see if the value is correct
+4. we need to have a flag based enable debug. This means during make, we can setup flag like "make -DEBUG" that will generate executable with debug enabled, this means we can have weird debug line in our code while production build doesn't get influenced. refer -> https://stackoverflow.com/questions/14251038/debug-macros-in-c. This is incredibly handy in the future and ideally should be available for k1. 
+5. We need an offical space to store documentation and design docs, I will get them setup\
+6. proper slab allocation is needed for kernel.cc, ideally a slab size of 100, need to be tested at least manually
+7. SPSR restore is not yet complete, needed to be done.
 

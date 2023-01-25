@@ -1,8 +1,12 @@
 
 #pragma once
+#include <stdint.h>
+#include "kernel.h"
 
-extern "C" void foo(char* sp); // print the sp value
-extern "C" void bar(); // print the sp value
-extern "C" void setSP(char* sp); // used to set the current sp, which is kinda useful at the beginning
-extern "C" void el0_entry(char * userSP);
- 
+struct InterruptFrame;
+
+extern "C" InterruptFrame *first_el0_entry(char *userSP, void (*pc)());
+extern "C" InterruptFrame *to_user(char *userSP, uint64_t results);
+extern "C" uint64_t to_kernel(uint64_t exception_code);
+extern "C" uint64_t to_kernel_create_tasks(uint64_t exception_code, int priority, void (*function)());
+extern "C" void handle_syscall();
