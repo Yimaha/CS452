@@ -11,9 +11,6 @@
 	add sp, sp, 16
 .endm
 
-
-
-
 .global first_el0_entry
 first_el0_entry:
 
@@ -45,8 +42,6 @@ first_el0_entry:
 	stp x30, xzr, [sp, 15*16]
 	// does not need to save sp since sp is banked
 
-
-
 	mov x0, #0b1111000000
 	msr SPSR_EL1, x0
 
@@ -58,11 +53,6 @@ to_kernel:
 
 .global to_kernel_create_tasks
 to_kernel_create_tasks:
-
-	// x0 = function pc
-	// x1 = stack frame
-	// Switch to EL0
-
 
 	// Save kernel registers
 	sub sp, sp, 16*16
@@ -149,7 +139,7 @@ to_user:
 	// does not need to save sp since sp is banked
 
 
-
+	// need storing and restore
 	mov x0, #0b1111000000
 	msr SPSR_EL1, x0
 
@@ -163,7 +153,7 @@ to_user:
 handle_return_to_user:
 	 
 
-	ldp xzr, x1, [sp, 0*16]
+	ldp xzr, x1, [sp, 0*16] // avoid restore x0
 	ldp x2, x3, [sp, 1*16]
 	ldp x4, x5, [sp, 2*16]
 	ldp x6, x7, [sp, 3*16]
