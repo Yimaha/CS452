@@ -11,22 +11,25 @@ void yield() {
 
 
 Kernel::Kernel() {
-    scheduler.add_task(0, p_id_counter);
+    scheduler.add_task(0, p_id_counter, p_id_counter+1);
     allocate_new_task(-1, 0, &Task_0);
+    allocate_new_task(-1, 0, &Task_1);
     active_task = 0;
 }
 
 void Kernel::schedule_next_task() {
-//    active_task = &tasks[scheduler.get_next()];
+   active_task = scheduler.get_next();
 }
 
 InterruptFrame* Kernel::activate() {
     if (!tasks[active_task]->initialized) {
+        check_tasks(active_task);
+        tasks[active_task]->initialized = true;
         InterruptFrame* frame = first_el0_entry(tasks[active_task]->sp, tasks[active_task]->pc); // startup task, has no parameter or handling
         tasks[active_task]->sp = (char *)frame;
-        tasks[active_task]->initialized = true;
         return frame;
     } else {
+        check_tasks(active_task);
         InterruptFrame* frame = to_user(tasks[active_task]->sp, 0x1); // startup task, has no parameter or handling
         tasks[active_task]->sp = (char *)frame;
         return frame;
@@ -39,7 +42,7 @@ Kernel::~Kernel() {}
 
 void Kernel::handle(uint16_t request) {
     // based on the value of request, send stuff the the right address
-    // ideally, we push the argument onto a caller's stack, and the kernel simply read from user's stack based on the command
+    // ideally, we push the argument onto allocate_new_taska caller's stack, and the kernel simply read from user's stack based on the command
     if(request == HandlerCode::CREATE) {
 
     } else if(request == HandlerCode::MY_TID) {
@@ -57,6 +60,12 @@ void Kernel::allocate_new_task(int parent_id, int priority, void (*pc)()) {
         uart_puts(0, 0, m1, sizeof(m1) - 1);
     }
 }
+
+void Kernel::check_tasks(int task_id) {
+    char m[] = "checking taskDescrpitor...\r\n";
+    uart_puts(0, 0, m, sizeof(m) - 1);
+    tasks[active_task] -> show_info();
+}    
 
  
 // int Kernel::Create(int priority, void (*function)()) {

@@ -9,7 +9,7 @@ class Scheduler {
     public:
         Scheduler();
         int get_next();
-        void add_task(int priority, int task_id);
+        void add_task(int priority, int task_id, int task_id_2);
         
     private:
         RingBuffer<int> ready_queue[NUM_PRIORITIES];
@@ -27,5 +27,7 @@ class TaskDescriptor {
         bool initialized;
         void (*pc) (); // program counter
         char * sp; // stack pointer
-        char kernel_stack [5000]; // approximate 50 kbytes per stack
+        char* kernel_stack [4096]; // approximate 40 kbytes per stack
+
+        void show_info(); // used for debug
 };

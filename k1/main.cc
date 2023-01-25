@@ -35,11 +35,11 @@ extern "C" void kmain() {
     Kernel kernel = Kernel();
     char m2[] = "finish kernel \r\n";
     uart_puts(0, 0, m2, sizeof(m2) - 1);
-    for (;;) {
-        // kernel.schedule_next_task();
-        InterruptFrame* request = kernel.activate();
-        char m2[] = "back in kernel! \r\n";
-        uart_puts(0, 0, m2, sizeof(m2) - 1);
+    for (int i = 0; i < 100; i++) {
+        kernel.schedule_next_task();
+        InterruptFrame* request = kernel.activsate();
+        char m3[] = "back in kernel! \r\n";
+        uart_puts(0, 0, m3, sizeof(m3) - 1);
     }
 }
 

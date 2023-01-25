@@ -1,7 +1,6 @@
 #include "user_tasks.h"
 
 extern "C" void Task_0() {
-
     while (1) {
         char msg[] = "user task 1\r\n";
         uart_puts(0, 0, msg, sizeof(msg) - 1);

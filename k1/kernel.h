@@ -76,12 +76,15 @@ class Kernel {
         Scheduler scheduler;  // scheduler doesn't hold the actual task descrptor, simply an id and the priority
         TaskDescriptor* tasks[30]; // points to the starting location of taskDescriptors
         
-    void allocate_new_task(int parent_id, int priority, void (*pc)());
+        void allocate_new_task(int parent_id, int priority, void (*pc)());
         // int Create(int priority, void (*function)());
         // int MyTid();
         // int MyParentTid();
         // void Yield();
         // void Exit();
+    protected:
+        void check_tasks(int task_id);
+
 };
 
 
