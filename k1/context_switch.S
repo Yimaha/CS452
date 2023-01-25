@@ -1,15 +1,4 @@
 
-// print a char to the display
-.macro debug_print, c
-	sub sp, sp, 16
-	str x30, [sp]
-	str x0, [sp, 8]
-	mov x0, \c
-	bl print
-	ldr x0, [sp, 8]
-	ldr x30, [sp]
-	add sp, sp, 16
-.endm
 
 .macro debug_val_print, c
 	sub sp, sp, 16
@@ -22,14 +11,6 @@
 	add sp, sp, 16
 .endm
 
-
-.global check_sp
-check_sp:
-	// the goal is just to set the sp to the right value
-	// debug_print x0 // print
-	mov x0, sp
-	debug_val_print x0
-	ret
 
 
 
@@ -176,8 +157,10 @@ to_user:
 
 	eret // ready to jump
 
+// this is a private function
+// unlike handle_syscall which is needed by the exception table
+// there is no reason why this label exists outside of this file
 handle_return_to_user:
-
 	 
 
 	ldp xzr, x1, [sp, 0*16]
