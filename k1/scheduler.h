@@ -1,6 +1,9 @@
 
 #pragma once
+#include "buffer.h"
+#define NUM_PRIORITIES 3
 
+extern const int NO_TASKS = -1;
 
 class Scheduler {
     public:
@@ -9,7 +12,7 @@ class Scheduler {
         void add_task(int priority, int task_id);
         
     private:
-        int ready_queue[1];
+        RingBuffer<int> ready_queue[NUM_PRIORITIES];
 };
 
 #include <cstdint>
