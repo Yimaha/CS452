@@ -12,17 +12,18 @@ typedef void (*funcvoid0_t)();
 
 extern "C" void kmain()
 {
-    char m1[] = "init kernel \r\n";
+    char m1[] = "init kernel\r\n";
     uart_puts(0, 0, m1, sizeof(m1) - 1);
     Kernel kernel = Kernel();
     char m2[] = "finish kernel init, start scheduling user task\r\n";
+
     uart_puts(0, 0, m2, sizeof(m2) - 1);
-    for (;;) // infinite loop, kernel never need to exit until killed by power switch
+    for (;;) // infinite loop, kernel never needs to exit until killed by power switch
     {
-        kernel.schedule_next_task();              // tell kernel to schedule next task
-        kernel.activate();                        // tell kernel to activate the scheduled task
-        kernel.handle();                          // tell kernel to handle the request from task
-        char m3[] = "complete kernel cycle \r\n"; // logging that is useful, but should be removed later
+        kernel.schedule_next_task();             // tell kernel to schedule next task
+        kernel.activate();                       // tell kernel to activate the scheduled task
+        kernel.handle();                         // tell kernel to handle the request from task
+        char m3[] = "complete kernel cycle\r\n"; // logging that is useful, but should be removed later
         uart_puts(0, 0, m3, sizeof(m3) - 1);
     }
 }

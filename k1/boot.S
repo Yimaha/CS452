@@ -42,7 +42,7 @@ exception_table:
 .balign 0x80
     b print_exception
 .balign 0x80
-    b print_exception
+    b assert_crash
 .balign 0x80
     b print_exception
 .balign 0x80
@@ -118,6 +118,9 @@ el1_entry:
     // Jump to our main() routine in C++ (make sure it doesn't return)
 4:  bl      main
 
+.global reboot
+reboot:
+
     // use watchdog to reboot
     mov x2, 36
     mov x0, 28
@@ -133,9 +136,6 @@ el1_entry:
 exit:
     wfi
     b    exit
-
-
-
 
 .section ".bss"
 .balign 16

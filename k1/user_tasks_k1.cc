@@ -2,12 +2,13 @@
 
 
 // the sample task requested by k1
-// todo, since you do receive an int on create, we should check if create returned something like -1
+// TODO: since you do receive an int on create,
+// we should check if create returned something like -1
 extern "C" void Task_0()
 {
     while (1)
     {
-        char msg[] = "entry to user task 0\r\n";
+        char msg[] = "Entered into user task 0\r\n";
         uart_puts(0, 0, msg, sizeof(msg) - 1);
         Create(2, &Sub_Task);
         char msg1[] = "Created: task 1\r\n";

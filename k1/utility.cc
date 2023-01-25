@@ -1,4 +1,7 @@
+
 #include "utility.h"
+
+
 int get_length(uint64_t val)
 {
     int counter = 1;
@@ -34,9 +37,10 @@ void reverse_arr(char s[], int length)
         r--;
     }
 }
+
 /*
-*   Convert a long into readable format string, base 10
-*/
+ *  Convert a long into readable format string, base 10
+ */
 char *itoa_10(uint64_t val, char *str)
 {
     int i = 0;

@@ -16,7 +16,7 @@ public:
     bool initialized;
     void (*pc)();             // program counter, but typically only used as a reference value to see where the start of the program is
     char *sp;                 // stack pointer
-    char *kernel_stack[4096]; // approximate 40 kbytes per stack
+    char *kernel_stack[4096]; // approximately 4 kbytes per stack
 
     void show_info(); // used for debug
     bool is_alive();

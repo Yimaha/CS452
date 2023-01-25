@@ -15,3 +15,5 @@ extern "C" void *memset(void *s, int c, size_t n);
 extern "C" void *memcpy(void *__restrict__ dest, const void *__restrict__ src, size_t n);
 extern "C" void val_print(uint64_t c);
 extern "C" void print_exception();
+extern "C" void assert_crash(const char *msg = nullptr, const size_t len = 0);
+void kernel_assert(bool cond, const char *msg = nullptr, const size_t len = 0);

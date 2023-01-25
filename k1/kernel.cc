@@ -36,7 +36,7 @@ void Kernel::schedule_next_task()
     active_task = scheduler.get_next();
     while (active_task == NO_TASKS)
     {
-        char m[] = "no task avaialble....\r\n";
+        char m[] = "no tasks available....\r\n";
         uart_puts(0, 0, m, sizeof(m) - 1);
         for (int i = 0; i < 3000000; ++i)
             asm volatile("yield");
@@ -49,11 +49,13 @@ void Kernel::activate()
     if (!tasks[active_task]->initialized)
     {
         tasks[active_task]->initialized = true;
-        active_request = first_el0_entry(tasks[active_task]->sp, tasks[active_task]->pc); // startup task, has no parameter or handling
+
+        // startup task, has no parameter or handling
+        active_request = first_el0_entry(tasks[active_task]->sp, tasks[active_task]->pc);
     }
     else
     {
-        active_request = to_user(tasks[active_task]->sp, tasks[active_task]->prepared_response); // startup task, has no parameter or handling
+        active_request = to_user(tasks[active_task]->sp, tasks[active_task]->prepared_response);
     }
     tasks[active_task]->sp = (char *)active_request;
 }
@@ -69,7 +71,8 @@ void Kernel::handle()
         int priority = active_request->x1;
         void (*user_task)() = (void (*)())active_request->x2;
         tasks[active_task]->prepared_response = p_id_counter;
-        // note allocate_new_task should be called at the end after you decided everything is good
+
+        // NOTE: allocate_new_task should be called at the end after everything is good
         allocate_new_task(tasks[active_task]->task_id, priority, user_task);
     }
     else if (request == HandlerCode::MY_TID)
@@ -89,8 +92,8 @@ void Kernel::handle()
         tasks[active_task]->prepared_response = 0x0;
         tasks[active_task]->kill();
     }
-    // we successfully handle the exception, now queue task back if needed
-    queue_task(); // this behaviour will probably change in the future deliverable, so I leave it here
+    // we successfully handled the exception, now queue task back if needed
+    queue_task(); // this behaviour will probably change in future deliverables
 }
 
 void Kernel::queue_task()
@@ -101,7 +104,7 @@ void Kernel::queue_task()
     }
 }
 
-// todo, do proper, slab allocation
+// TODO: proper slab allocation
 void Kernel::allocate_new_task(int parent_id, int priority, void (*pc)())
 {
     if (p_id_counter < 30)
@@ -120,7 +123,7 @@ void Kernel::allocate_new_task(int parent_id, int priority, void (*pc)())
 
 void Kernel::check_tasks(int task_id)
 {
-    char m[] = "checking taskDescrpitor...\r\n";
+    char m[] = "checking taskDescriptor...\r\n";
     uart_puts(0, 0, m, sizeof(m) - 1);
     tasks[task_id]->show_info();
 }
