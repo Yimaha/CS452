@@ -26,7 +26,7 @@ DEPENDS := $(patsubst %.cc, %.d, $(patsubst %.S, %.d, $(SOURCES)))
 all: kernel8.img
 
 clean:
-	rm -f $(OBJECTS) $(DEPENDS) kernel8.elf kernel8.img
+	rm -f $(OBJECTS) $(DEPENDS) kernel8.elf kernel8.img buffer.o buffer.d
 
 kernel8.img: kernel8.elf
 	$(OBJCOPY) $< -O binary $@
