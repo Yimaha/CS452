@@ -1,5 +1,7 @@
 #include "scheduler.h"
 #include "rpi.h"
+#include "buffer.h"
+
 
 
 Scheduler::Scheduler() {}
@@ -19,9 +21,21 @@ void Scheduler::add_task(int priority, int task_id) {
 }
 
 TaskDescriptor::TaskDescriptor() {}
-TaskDescriptor::TaskDescriptor(int id, int parent_id, int priority, void (*pc)()): task_id{id}, parent_id{parent_id}, initialized{false},
-priority{priority}, pc{pc} {
+TaskDescriptor::TaskDescriptor(int id, int parent_id, int priority, void (*pc)()): task_id{id}, parent_id{parent_id}, 
+priority{priority}, prepared_response{0x0}, alive{true}, initialized{false}, pc{pc} {
     sp = (char*)&kernel_stack[4096]; // point to the end of the kernel_stack
+}
+
+bool TaskDescriptor::is_alive() {
+    return alive;
+}
+
+bool TaskDescriptor::kill() {
+    if (alive) {
+        alive = false;
+        return true;
+    }
+    return false;
 }
 
 void TaskDescriptor::show_info() {

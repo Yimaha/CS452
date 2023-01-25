@@ -6,17 +6,15 @@
 
 #include "scheduler.h"
 #include "context_switch.h"
-#include "user_tasks.h"
-
-#define KERNAL_STACK_FRAME 80000000
+#include "user_tasks_k1.h"
 
 
 // trigger functions, written in assembly, should 
-// int Create(int priority, void (*function)());
-// int MyTid();
-// int MyParentTid();
-void yield();
-// void Exit();
+int Create(int priority, void (*function)());
+int MyTid();
+int MyParentTid();
+void Yield();
+void Exit();
 
 struct InterruptFrame {
     uint64_t x0;
@@ -56,6 +54,7 @@ struct InterruptFrame {
 class Kernel {
     public:
         enum HandlerCode {
+            NONE = 0,
             CREATE = 1,
             MY_TID = 2,
             MY_PARENT_ID = 3,
@@ -64,24 +63,24 @@ class Kernel {
         };
         Kernel();
         ~Kernel();
-        void handle(uint16_t request);
         void schedule_next_task();
-        InterruptFrame* activate();
+        void activate();
+        void handle();
+
 
     private:
         int p_id_counter = 0;  
-        int active_task; 
-        char* task_slab_address = (char*) 0x10000000;
-
+        int active_task = 0; 
+        InterruptFrame* active_request = nullptr;
         Scheduler scheduler;  // scheduler doesn't hold the actual task descrptor, simply an id and the priority
+
+        char* task_slab_address = (char*) 0x10000000;
         TaskDescriptor* tasks[30]; // points to the starting location of taskDescriptors
         
         void allocate_new_task(int parent_id, int priority, void (*pc)());
+        void queue_task();
         // int Create(int priority, void (*function)());
-        // int MyTid();
-        // int MyParentTid();
-        // void Yield();
-        // void Exit();
+
     protected:
         void check_tasks(int task_id);
 
