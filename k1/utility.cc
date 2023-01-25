@@ -1,7 +1,6 @@
 
 #include "utility.h"
 
-
 int get_length(uint64_t val)
 {
     int counter = 1;

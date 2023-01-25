@@ -1,7 +1,7 @@
 
 #pragma once
-#include "rpi.h"
 #include "kernel.h"
+#include "rpi.h"
 #include "utility.h"
 
 extern "C" void Task_0();
