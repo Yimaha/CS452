@@ -47,26 +47,26 @@ struct SPI
 {
 	uint32_t CNTL0; // Control register 0
 	uint32_t CNTL1; // Control register 1
-	uint32_t STAT;	// Status
-	uint32_t PEEK;	// Peek
+	uint32_t STAT; // Status
+	uint32_t PEEK; // Peek
 	uint32_t _unused[4];
-	uint32_t IO_REGa;	  // Data
-	uint32_t IO_REGb;	  // Data
-	uint32_t IO_REGc;	  // Data
-	uint32_t IO_REGd;	  // Data
+	uint32_t IO_REGa; // Data
+	uint32_t IO_REGb; // Data
+	uint32_t IO_REGc; // Data
+	uint32_t IO_REGd; // Data
 	uint32_t TXHOLD_REGa; // Extended Data
 	uint32_t TXHOLD_REGb; // Extended Data
 	uint32_t TXHOLD_REGc; // Extended Data
 	uint32_t TXHOLD_REGd; // Extended Data
 };
 
-static char *const MMIO_BASE = (char *)0xFE000000;
-static char *const GPIO_BASE = (char *)(0xFE000000 + 0x200000);
-static char *const AUX_BASE = (char *)(0xFE000000 + 0x200000 + 0x15000);
+static char* const MMIO_BASE = (char*)0xFE000000;
+static char* const GPIO_BASE = (char*)(0xFE000000 + 0x200000);
+static char* const AUX_BASE = (char*)(0xFE000000 + 0x200000 + 0x15000);
 
-static volatile struct GPIO *const gpio = (struct GPIO *)(GPIO_BASE);
-static volatile struct AUX *const aux = (struct AUX *)(AUX_BASE);
-static volatile struct SPI *const spi[] = {(struct SPI *)(AUX_BASE + 0x80), (struct SPI *)(AUX_BASE + 0xC0)};
+static volatile struct GPIO* const gpio = (struct GPIO*)(GPIO_BASE);
+static volatile struct AUX* const aux = (struct AUX*)(AUX_BASE);
+static volatile struct SPI* const spi[] = { (struct SPI*)(AUX_BASE + 0x80), (struct SPI*)(AUX_BASE + 0xC0) };
 
 /*************** GPIO ***************/
 
@@ -88,15 +88,15 @@ static void setup_gpio(uint32_t pin, uint32_t setting, uint32_t resistor)
 	uint32_t reg = pin / 10;
 	uint32_t shift = (pin % 10) * 3;
 	uint32_t status = gpio->GPFSEL[reg]; // read status
-	status &= ~(7u << shift);			 // clear bits
-	status |= (setting << shift);		 // set bits
-	gpio->GPFSEL[reg] = status;			 // write back
+	status &= ~(7u << shift); // clear bits
+	status |= (setting << shift); // set bits
+	gpio->GPFSEL[reg] = status; // write back
 
 	reg = pin / 16;
 	shift = (pin % 16) * 2;
 	status = gpio->PUP_PDN_CNTRL_REG[reg]; // read status
-	status &= ~(3u << shift);			   // clear bits
-	status |= (resistor << shift);		   // set bits
+	status &= ~(3u << shift); // clear bits
+	status |= (resistor << shift); // set bits
 	gpio->PUP_PDN_CNTRL_REG[reg] = status; // write back
 }
 
@@ -150,7 +150,7 @@ void init_spi(uint32_t channel)
 	spi[channel]->CNTL1 = SPI_CNTL1_SI_MSB_FST;
 }
 
-static void spi_send_recv(uint32_t channel, const char *sendbuf, size_t sendlen, char *recvbuf, size_t recvlen)
+static void spi_send_recv(uint32_t channel, const char* sendbuf, size_t sendlen, char* recvbuf, size_t recvlen)
 {
 	size_t sendidx = 0;
 	size_t recvidx = 0;
@@ -196,24 +196,24 @@ static void spi_send_recv(uint32_t channel, const char *sendbuf, size_t sendlen,
 
 /*************** SPI ***************/
 
-static const char UART_RHR = 0x00;		// R
-static const char UART_THR = 0x00;		// W
-static const char UART_IER = 0x01;		// R/W
-static const char UART_IIR = 0x02;		// R
-static const char UART_FCR = 0x02;		// W
-static const char UART_LCR = 0x03;		// R/W
-static const char UART_MCR = 0x04;		// R/W
-static const char UART_LSR = 0x05;		// R
-static const char UART_MSR = 0x06;		// R
-static const char UART_SPR = 0x07;		// R/W
-static const char UART_TXLVL = 0x08;	// R
-static const char UART_RXLVL = 0x09;	// R
-static const char UART_IODir = 0x0A;	// R/W
-static const char UART_IOState = 0x0B;	// R/W
+static const char UART_RHR = 0x00; // R
+static const char UART_THR = 0x00; // W
+static const char UART_IER = 0x01; // R/W
+static const char UART_IIR = 0x02; // R
+static const char UART_FCR = 0x02; // W
+static const char UART_LCR = 0x03; // R/W
+static const char UART_MCR = 0x04; // R/W
+static const char UART_LSR = 0x05; // R
+static const char UART_MSR = 0x06; // R
+static const char UART_SPR = 0x07; // R/W
+static const char UART_TXLVL = 0x08; // R
+static const char UART_RXLVL = 0x09; // R
+static const char UART_IODir = 0x0A; // R/W
+static const char UART_IOState = 0x0B; // R/W
 static const char UART_IOIntEna = 0x0C; // R/W
 static const char UART_reserved = 0x0D;
 static const char UART_IOControl = 0x0E; // R/W
-static const char UART_EFCR = 0x0F;		 // R/W
+static const char UART_EFCR = 0x0F; // R/W
 
 static const char UART_DLL = 0x00; // R/W - only accessible when EFR[4] = 1 and MCR[2] = 1
 static const char UART_DLH = 0x01; // R/W - only accessible when EFR[4] = 1 and MCR[2] = 1
@@ -234,7 +234,7 @@ static const char UART_IOControl_RESET = 0x08;
 
 static void uart_write_register(size_t spiChannel, size_t uartChannel, char reg, char data)
 {
-	char req[2] = {0};
+	char req[2] = { 0 };
 	req[0] = (uartChannel << UART_CHANNEL_SHIFT) | (reg << UART_ADDR_SHIFT);
 	req[1] = data;
 	spi_send_recv(spiChannel, req, 2, NULL, 0);
@@ -242,8 +242,8 @@ static void uart_write_register(size_t spiChannel, size_t uartChannel, char reg,
 
 static char uart_read_register(size_t spiChannel, size_t uartChannel, char reg)
 {
-	char req[2] = {0};
-	char res[2] = {0};
+	char req[2] = { 0 };
+	char res[2] = { 0 };
 	req[0] = (uartChannel << UART_CHANNEL_SHIFT) | (reg << UART_ADDR_SHIFT) | UART_READ_ENABLE;
 	spi_send_recv(spiChannel, req, 2, res, 2);
 	return res[1];
@@ -287,7 +287,7 @@ void uart_putc(size_t spiChannel, size_t uartChannel, char c)
 	uart_write_register(spiChannel, uartChannel, UART_THR, c);
 }
 
-void uart_puts(size_t spiChannel, size_t uartChannel, const char *buf, size_t blen)
+void uart_puts(size_t spiChannel, size_t uartChannel, const char* buf, size_t blen)
 {
 	static const size_t max = 32;
 	char temp[max];
@@ -317,18 +317,18 @@ void uart_puts(size_t spiChannel, size_t uartChannel, const char *buf, size_t bl
 }
 
 // define our own memset to avoid SIMD instructions emitted from the compiler
-extern "C" void *memset(void *s, int c, size_t n)
+extern "C" void* memset(void* s, int c, size_t n)
 {
-	for (char *it = (char *)s; n > 0; --n)
+	for (char* it = (char*)s; n > 0; --n)
 		*it++ = c;
 	return s;
 }
 
 // define our own memcpy to avoid SIMD instructions emitted from the compiler
-extern "C" void *memcpy(void *__restrict__ dest, const void *__restrict__ src, size_t n)
+extern "C" void* memcpy(void* __restrict__ dest, const void* __restrict__ src, size_t n)
 {
-	char *sit = (char *)src;
-	char *cdest = (char *)dest;
+	char* sit = (char*)src;
+	char* cdest = (char*)dest;
 	for (size_t i = 0; i < n; ++i)
 		*(cdest++) = *(sit++);
 	return dest;
@@ -351,13 +351,12 @@ extern "C" void print_exception()
 	char m1[] = "reaching invalid location\r\n";
 	uart_puts(0, 0, m1, sizeof(m1) - 1);
 	while (1)
-	{
-	};
+	{ };
 }
 
 // Function that crashes the system
 // Called when an assert fails
-extern "C" void assert_crash(const char *msg, const size_t len)
+extern "C" void assert_crash(const char* msg, const size_t len)
 {
 
 	if (msg != nullptr)
@@ -373,14 +372,14 @@ extern "C" void assert_crash(const char *msg, const size_t len)
 		asm volatile("yield");
 
 	// Crash the system
-	asm volatile ("b reboot");
+	asm volatile("b reboot");
 }
 
 // Assert function
 // If cond is false, the system crashes
 // Also takes an optional message to print
 // (will only print first `len` chars of message)
-void kernel_assert(const bool cond, const char *msg, const size_t len)
+void kernel_assert(const bool cond, const char* msg, const size_t len)
 {
 	if (!cond)
 		assert_crash(msg, len);
