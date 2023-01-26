@@ -71,7 +71,8 @@ void print(const char s[], int length)
 
 void print_int(uint64_t val)
 {
-	char msg[get_length(val)];
+	char msg[30]; // max of uint64_t goes up to 20 digit, including the /0 you have 21 max
+	int length = get_length(val);
 	itoa_10(val, msg);
-	print(msg, sizeof(msg) - 1);
+	print(msg, length);
 }
