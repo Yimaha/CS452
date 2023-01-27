@@ -104,14 +104,13 @@ void Kernel::queue_task()
 	}
 }
 
-// TODO: proper slab allocation
 void Kernel::allocate_new_task(int parent_id, int priority, void (*pc)())
 {
-	if (p_id_counter < 30)
+	TaskDescriptor* task_ptr = task_allocator.get(p_id_counter, parent_id, priority, pc);
+	if (task_ptr != nullptr)
 	{
+		tasks[p_id_counter] = task_ptr;
 		scheduler.add_task(priority, p_id_counter);
-		tasks[p_id_counter] = new (task_slab_address) TaskDescriptor(p_id_counter, parent_id, priority, pc);
-		task_slab_address += sizeof(TaskDescriptor);
 		p_id_counter += 1;
 	}
 	else
