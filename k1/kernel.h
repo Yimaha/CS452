@@ -1,12 +1,16 @@
 
 
 #pragma once
+
+#define USER_TASK_START_ADDRESS 0X10000000 // dedicated user task space
+#define USER_TASK_LIMIT 100 // dedicated amount of user task
 #include <new>
 #include <stdint.h>
 
 #include "context_switch.h"
 #include "descriptor.h"
 #include "scheduler.h"
+#include "slab_allocator.h"
 #include "user_tasks_k1.h"
 
 /**
@@ -90,8 +94,10 @@ private:
 	Scheduler scheduler; // scheduler doesn't hold the actual task descrptor,
 						 // simply an id and the priority
 
-	char* task_slab_address = (char*)0x10000000; // the starting address of our task_slab
-	TaskDescriptor* tasks[30]; // points to the starting location of taskDescriptors
+	TaskDescriptor* tasks[USER_TASK_LIMIT]; // points to the starting location of taskDescriptors
+
+	// define the type, and follow by the contrustor variable you want to pass to i
+	SlabAllocator<TaskDescriptor, int, int, int, void (*)()> task_allocator = SlabAllocator<TaskDescriptor, int, int, int, void (*)()>((char*)USER_TASK_START_ADDRESS, USER_TASK_LIMIT);
 
 	void allocate_new_task(int parent_id, int priority, void (*pc)()); // create, and push a new task onto the actual scheduler
 	void queue_task(); // support function that queues the active task only if the active task is not dead
