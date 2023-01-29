@@ -15,7 +15,7 @@ extern "C" void kmain()
     char m1[] = "init kernel\r\n";
     uart_puts(0, 0, m1, sizeof(m1) - 1);
     Kernel kernel = Kernel();
-    char m2[] = "finish kernel init, start scheduling user task\r\n";
+    char m2[] = "finished kernel init, started scheduling user tasks\r\n";
 
     uart_puts(0, 0, m2, sizeof(m2) - 1);
     for (;;) // infinite loop, kernel never needs to exit until killed by power switch

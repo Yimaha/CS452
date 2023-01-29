@@ -1,9 +1,10 @@
 #include "user_tasks_k1.h"
 
 
-// the sample task requested by k1
-// TODO: since you do receive an int on create,
-// we should check if create returned something like -1
+// The sample task requested by k1
+// TODO: since you receive an int on create,
+// we should check if create returns something,
+// maybe a sentinel value like -1
 extern "C" void Task_0()
 {
     while (1)
