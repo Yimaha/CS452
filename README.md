@@ -2,7 +2,12 @@
 
 this course is really hard
 
-## K1 Instructions
+## Group Members
+
+* Justin Cai (t28cai@uwaterloo.ca)
+* Colin He (cqhe@uwaterloo.ca)
+
+## K1 Build Instructions
 
 To build the main executable:
 

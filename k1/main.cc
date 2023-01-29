@@ -7,7 +7,7 @@
 #define NL uart_puts(0, 0, "\r\n", 2)
 
 extern char __bss_start, __bss_end;                    // defined in linker script
-extern uintptr_t __init_array_start, __init_array_end; // defined in linker script;
+extern uintptr_t __init_array_start, __init_array_end; // defined in linker script
 typedef void (*funcvoid0_t)();
 
 extern "C" void kmain()
@@ -15,7 +15,7 @@ extern "C" void kmain()
     char m1[] = "init kernel\r\n";
     uart_puts(0, 0, m1, sizeof(m1) - 1);
     Kernel kernel = Kernel();
-    char m2[] = "finish kernel init, start scheduling user task\r\n";
+    char m2[] = "finished kernel init, started scheduling user tasks\r\n";
 
     uart_puts(0, 0, m2, sizeof(m2) - 1);
     for (;;) // infinite loop, kernel never needs to exit until killed by power switch

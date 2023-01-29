@@ -10,9 +10,10 @@
 #include "descriptor.h"
 
 /**
- * User communication Interface, all user task should used thses function to talk to kernel
- * to signifi the importance as these all trigger context swtich, they follow Capitalized Camel Case
- * unlike all other function within our code
+ * User communication interface, all user tasks should use these functions to talk to the kernel
+ * to signify the importance as these all trigger context switches,
+ * note that they follow Capitalized Camel Case
+ * unlike all other functions within our code
  */
 int Create(int priority, void (*function)());
 int MyTid();
@@ -21,10 +22,11 @@ void Yield();
 void Exit();
 
 /**
- * A reconstruction of user stack into readable, both human and machine, and extratable
- * uint64_t that is stored on stack.
+ * A reconstruction of the user stack registers into a readable struct,
+ * both by human and machine, and extractable
+ * uint64_t's that are stored on the stack.
  *
- * When used, we simple cast address given to as into this struct and extract varables accordingly
+ * When used, we simply cast addresses given to us into this struct and extract varables accordingly
  */
 struct InterruptFrame
 {
@@ -63,7 +65,7 @@ struct InterruptFrame
 };
 
 /**
- * Kernel state class, stores important information about kernel and control the flow
+ * Kernel state class, stores important information about the kernel and control the flow
  * */
 class Kernel
 {
@@ -84,20 +86,23 @@ public:
     void handle();
 
 private:
-    int p_id_counter = 0;                     // keep track of new task creation id
-    int active_task = 0;                      // keep track of the active_task id
-    InterruptFrame *active_request = nullptr; // a storage that saves the active user request=
-    Scheduler scheduler;                      // scheduler doesn't hold the actual task descrptor,
+    int p_id_counter = 0;                     // keeps track of new task creation id
+    int active_task = 0;                      // keeps track of the active_task id
+    InterruptFrame *active_request = nullptr; // a storage that saves the active user request
+    Scheduler scheduler;                      // scheduler doesn't hold the actual task descriptor,
                                               // simply an id and the priority
 
     char *task_slab_address = (char *)0x10000000; // the starting address of our task_slab
     TaskDescriptor *tasks[30];                    // points to the starting location of taskDescriptors
 
-    void allocate_new_task(int parent_id, int priority, void (*pc)()); // create, and push a new task onto the actual scheduler
-    void queue_task();                                                 // support function that queues the active task only if the active task is not dead
+    // create, and push a new task onto the actual scheduler
+    void allocate_new_task(int parent_id, int priority, void (*pc)());
+    // support function that queues the active task only if the active task is not dead
+    void queue_task();
 
 protected:
-    // all debug function will either be public or protected, so in future
-    // if we need to write any sort of unit test, unit test can have access to the class function
+    // all debug functions will either be public or protected, so in the future
+    // if we need to write any sort of unit tests,
+    // unit tests can have access to the class functions
     void check_tasks(int task_id); // check the state of a particular task descriptor
 };
