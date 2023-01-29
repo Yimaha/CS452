@@ -1,7 +1,7 @@
 #pragma once
-#include <cstdint>
 #include "rpi.h"
 #include "utility.h"
+#include <cstdint>
 
 class TaskDescriptor
 {
