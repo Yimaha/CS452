@@ -42,12 +42,9 @@ extern "C" void Sub_Task()
 	int id = MyTid();
 	int p_id = MyParentTid();
 
-    Yield();
-    print("my task id: ", 12);
-    print_int(id);
-    print("; my parent id: ", 16);
-    print_int(p_id);
-    print("\r\n", 2);
+	helper_sub(id, p_id);
+	Yield();
+	helper_sub(id, p_id);
 
 	Exit();
 }
