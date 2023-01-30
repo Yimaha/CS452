@@ -2,7 +2,7 @@
 
 #pragma once
 
-#define USER_TASK_START_ADDRESS 0X10000000 // dedicated user task space
+#define USER_TASK_START_ADDRESS 0x10000000 // dedicated user task space
 #define USER_TASK_LIMIT 100 // dedicated amount of user task
 #include <new>
 #include <stdint.h>
@@ -14,9 +14,10 @@
 #include "user_tasks_k1.h"
 
 /**
- * User communication Interface, all user task should used thses function to talk to kernel
- * to signifi the importance as these all trigger context swtich, they follow Capitalized Camel Case
- * unlike all other function within our code
+ * User communication interface, all user tasks should use these functions to talk to the kernel
+ * to signify the importance as these all trigger context switches,
+ * note that they follow Capitalized Camel Case
+ * unlike all other functions within our code
  */
 int Create(int priority, void (*function)());
 int MyTid();
@@ -25,10 +26,12 @@ void Yield();
 void Exit();
 
 /**
- * A reconstruction of user stack into readable, both human and machine, and extratable
- * uint64_t that is stored on stack.
+ * A reconstruction of the user stack registers into a readable struct,
+ * both by human and machine, and extractable
+ * uint64_t's that are stored on the stack.
  *
- * When used, we simple cast address given to as into this struct and extract varables accordingly
+ * When used, we simply cast addresses given to us into this struct and extract varables accordingly
+ * Credit: https://krinkinmu.github.io/2021/01/10/aarch64-interrupt-handling.html
  */
 struct InterruptFrame
 {
@@ -67,7 +70,7 @@ struct InterruptFrame
 };
 
 /**
- * Kernel state class, stores important information about kernel and control the flow
+ * Kernel state class, stores important information about the kernel and control the flow
  * */
 class Kernel
 {
@@ -88,11 +91,11 @@ public:
 	void handle();
 
 private:
-	int p_id_counter = 0; // keep track of new task creation id
-	int active_task = 0; // keep track of the active_task id
-	InterruptFrame* active_request = nullptr; // a storage that saves the active user request=
-	Scheduler scheduler; // scheduler doesn't hold the actual task descrptor,
-						 // simply an id and the priority
+	int p_id_counter = 0; // keeps track of new task creation id
+	int active_task = 0;  // keeps track of the active_task id
+	InterruptFrame* active_request = nullptr; // a storage that saves the active user request
+	Scheduler scheduler;  // scheduler doesn't hold the actual task descriptor,
+						  // simply an id and the priority
 
 	TaskDescriptor* tasks[USER_TASK_LIMIT]; // points to the starting location of taskDescriptors
 

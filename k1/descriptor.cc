@@ -41,21 +41,21 @@ bool TaskDescriptor::kill()
 
 /**
  * Debug function used to print out helpful state of a Task descriptor
- * note that this need an update to fill all missing field
+ * note that this need an update to fill all missing fields
  */
 void TaskDescriptor::show_info()
 {
-	char m1[] = "printing status of TaskDescriptor \r\n";
+	char m1[] = "printing status of TaskDescriptor\r\n";
 	uart_puts(0, 0, m1, sizeof(m1) - 1);
-	char m2[] = "ID:";
+	char m2[] = "ID: ";
 	uart_puts(0, 0, m2, sizeof(m2) - 1);
 	print_int(task_id);
 	print("\r\n", 2);
-	char m3[] = "Parent ID:";
+	char m3[] = "Parent ID: ";
 	uart_puts(0, 0, m3, sizeof(m3) - 1);
 	print_int(parent_id);
 	print("\r\n", 2);
-	char m4[] = "priority:";
+	char m4[] = "priority: ";
 	uart_puts(0, 0, m4, sizeof(m4) - 1);
 	print_int(priority);
 	print("\r\n", 2);
@@ -63,15 +63,15 @@ void TaskDescriptor::show_info()
 	uart_puts(0, 0, m5, sizeof(m5) - 1);
 	print_int((uint64_t)initialized);
 	print("\r\n", 2);
-	char m6[] = "pc:";
+	char m6[] = "pc: ";
 	uart_puts(0, 0, m6, sizeof(m6) - 1);
 	print_int((uint64_t)pc);
 	print("\r\n", 2);
-	char m7[] = "sp:";
+	char m7[] = "sp: ";
 	uart_puts(0, 0, m7, sizeof(m7) - 1);
 	print_int((uint64_t)sp);
 	print("\r\n", 2);
-	char m8[] = "kernel_stack:";
+	char m8[] = "kernel_stack: ";
 	uart_puts(0, 0, m8, sizeof(m8) - 1);
 	print_int((uint64_t)kernel_stack);
 	print("\r\n", 2);

@@ -1,0 +1,43 @@
+init kernel
+finished kernel init, started scheduling user tasks
+entered into user task 0
+completed kernel cycle
+created: task 1
+completed kernel cycle
+created: task 2
+completed kernel cycle
+completed kernel cycle
+completed kernel cycle
+my task id: 3; my parent id: 0
+completed kernel cycle
+my task id: 3; my parent id: 0
+completed kernel cycle
+created: task 3
+completed kernel cycle
+completed kernel cycle
+completed kernel cycle
+my task id: 4; my parent id: 0
+completed kernel cycle
+my task id: 4; my parent id: 0
+completed kernel cycle
+created: task 4
+exiting task 0
+completed kernel cycle
+completed kernel cycle
+completed kernel cycle
+completed kernel cycle
+completed kernel cycle
+my task id: 1; my parent id: 0
+completed kernel cycle
+my task id: 2; my parent id: 0
+completed kernel cycle
+my task id: 1; my parent id: 0
+completed kernel cycle
+my task id: 2; my parent id: 0
+completed kernel cycle
+no tasks available...
+no tasks available...
+no tasks available...
+no tasks available...
+no tasks available...
+

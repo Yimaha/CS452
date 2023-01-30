@@ -1,4 +1,6 @@
 
+# Much of this context switch was assisted by Mike Krinkin's excellent blog post on ARMv8:
+# https://krinkinmu.github.io/2021/01/10/aarch64-interrupt-handling.html
 
 .macro debug_val_print, c
 	sub sp, sp, 16

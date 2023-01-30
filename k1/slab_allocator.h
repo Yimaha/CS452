@@ -1,6 +1,6 @@
 
 
-// this should be templated class that allocate space based on the object passed to it automatically.
+// this should be templated class that allocates space based on the object passed to it automatically.
 // relying on a ring buffer.
 
 #pragma once
@@ -14,8 +14,8 @@ class SlabAllocator
 public:
 	SlabAllocator(char* starting_location, int total_slabs);
 	~SlabAllocator();
-	T* get(Args... arguments); // when you are
-	void del(T* target); // when you done with the memory please push it back
+	T* get(Args... arguments);
+	void del(T* target); 	   // when you done with the memory please push it back
 	int get_remaining_size();
 
 private:
@@ -66,5 +66,5 @@ void SlabAllocator<T, Args...>::del(T* target)
 template <typename T, typename... Args>
 int SlabAllocator<T, Args...>::get_remaining_size()
 {
-	return slabs.size; // how many slab we have left
+	return slabs.size; // how many slabs we have left
 }
