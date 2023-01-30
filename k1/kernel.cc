@@ -33,15 +33,15 @@ Kernel::Kernel()
 
 void Kernel::schedule_next_task()
 { // kernel busy waiting on available tasks
-    active_task = scheduler.get_next();
-    while (active_task == NO_TASKS)
-    {
-        char m[] = "no tasks available...\r\n";
-        uart_puts(0, 0, m, sizeof(m) - 1);
-        for (int i = 0; i < 3000000; ++i)
-            asm volatile("yield");
-        active_task = scheduler.get_next();
-    }
+	active_task = scheduler.get_next();
+	while (active_task == NO_TASKS)
+	{
+		char m[] = "no tasks available...\r\n";
+		uart_puts(0, 0, m, sizeof(m) - 1);
+		for (int i = 0; i < 3000000; ++i)
+			asm volatile("yield");
+		active_task = scheduler.get_next();
+	}
 }
 
 void Kernel::activate()

@@ -91,11 +91,11 @@ public:
 	void handle();
 
 private:
-    int p_id_counter = 0;                     // keeps track of new task creation id
-    int active_task = 0;                      // keeps track of the active_task id
-    InterruptFrame *active_request = nullptr; // a storage that saves the active user request
-    Scheduler scheduler;                      // scheduler doesn't hold the actual task descriptor,
-                                              // simply an id and the priority
+	int p_id_counter = 0; // keeps track of new task creation id
+	int active_task = 0;  // keeps track of the active_task id
+	InterruptFrame* active_request = nullptr; // a storage that saves the active user request
+	Scheduler scheduler;  // scheduler doesn't hold the actual task descriptor,
+						  // simply an id and the priority
 
 	TaskDescriptor* tasks[USER_TASK_LIMIT]; // points to the starting location of taskDescriptors
 
