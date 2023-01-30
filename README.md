@@ -25,4 +25,4 @@ To build the main executable:
 
 * Run `make` to build the code into a loadable, executable image.
 
-More complete instructions can be located in cs452-microkernel/k1/CS_452_K1_Writeup.pdf.
+A report summarizing and outlining our work can be found in cs452-microkernel/k1/K1_report.pdf.
