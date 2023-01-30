@@ -52,15 +52,15 @@ BinPackParameters: false
 BreakBeforeBraces: Custom
 # Control of individual brace wrapping cases
 BraceWrapping: {
-    AfterClass: 'true'
-    AfterControlStatement: 'true'
-    AfterEnum : 'true'
-    AfterFunction : 'true'
+    AfterClass: 'false'
+    AfterControlStatement: 'false'
+    AfterEnum : 'false'
+    AfterFunction : 'false'
     AfterNamespace : 'true'
-    AfterStruct : 'true'
+    AfterStruct : 'false'
     AfterUnion : 'true'
     BeforeCatch : 'true'
-    BeforeElse : 'true'
+    BeforeElse : 'false'
     IndentBraces : 'false'
     AfterExternBlock : 'true'
     SplitEmptyFunction : 'false'
