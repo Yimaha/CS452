@@ -25,6 +25,9 @@ DEPENDS := $(patsubst %.cc, %.d, $(patsubst %.S, %.d, $(SOURCES)))
 # The first rule is the default, ie. "make", "make all" and "make kernel8.img" mean the same
 all: kernel8.img
 
+debug: CFLAGS += -DDEBUG
+debug: kernel8.img
+
 clean:
 	rm -f $(OBJECTS) $(DEPENDS) kernel8.elf kernel8.img buffer.o buffer.d
 

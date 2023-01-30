@@ -35,6 +35,11 @@ int main() {
 	for (funcvoid0_t* ctr = (funcvoid0_t*)&__init_array_start; ctr < (funcvoid0_t*)&__init_array_end; ctr += 1)
 		(*ctr)();
 
+#ifdef DEBUG
+	print_int(69696969);
+	NL;
+#endif
+
 	kmain(); // where the actual magic happens
 	return 0;
 }
