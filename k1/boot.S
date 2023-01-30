@@ -20,8 +20,8 @@
 // SPSR_EL3, Saved Program Status Register (EL3)
 // Architecture Reference Manual Section C5.2.20
 // ***************************************
-#define SPSR_MASK_ALL (7 << 6) // irrlevant for A1, and also for jumping from El1 to El0, cause these 3 bits are ignored in El0
-#define SPSR_EL1h (5 << 0) //make sure you use the stack pointer of this level, can be used to restore stack pointer sp
+#define SPSR_MASK_ALL (7 << 6) // irrelevant for A1, and also for jumping from EL1 to EL0, cause these 3 bits are ignored in EL0
+#define SPSR_EL1h (5 << 0)     // make sure you use the stack pointer of this level, can be used to restore stack pointer sp
 #define SPSR_VALUE (SPSR_MASK_ALL | SPSR_EL1h) 
 
 // ***************************************
@@ -30,6 +30,7 @@
 // ***************************************
 #define CNTKCTL_VALUE ((1 << 9) | (1 << 8) | (1 << 1) | (1 << 0))
 
+# Exception Vector Table, as in https://krinkinmu.github.io/2021/01/10/aarch64-interrupt-handling.html
 .text
 .global exception_table
 .balign 2048

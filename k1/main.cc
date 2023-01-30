@@ -23,7 +23,7 @@ extern "C" void kmain()
 		kernel.schedule_next_task(); // tell kernel to schedule next task
 		kernel.activate();           // tell kernel to activate the scheduled task
 		kernel.handle();             // tell kernel to handle the request from task
-		char m3[] = "complete kernel cycle\r\n"; // logging that is useful, but should be removed later
+		char m3[] = "completed kernel cycle\r\n"; // logging that is useful, but should be removed later
 		uart_puts(0, 0, m3, sizeof(m3) - 1);
 	}
 }

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#define USER_TASK_START_ADDRESS 0X10000000 // dedicated user task space
+#define USER_TASK_START_ADDRESS 0x10000000 // dedicated user task space
 #define USER_TASK_LIMIT 100 // dedicated amount of user task
 #include <new>
 #include <stdint.h>
@@ -31,6 +31,7 @@ void Exit();
  * uint64_t's that are stored on the stack.
  *
  * When used, we simply cast addresses given to us into this struct and extract varables accordingly
+ * Credit: https://krinkinmu.github.io/2021/01/10/aarch64-interrupt-handling.html
  */
 struct InterruptFrame
 {
