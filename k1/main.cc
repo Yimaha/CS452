@@ -35,9 +35,6 @@ int main() {
 	for (funcvoid0_t* ctr = (funcvoid0_t*)&__init_array_start; ctr < (funcvoid0_t*)&__init_array_end; ctr += 1)
 		(*ctr)();
 
-	// Let's try playing with the timer
-	print_int(clo());
-
 	kmain(); // where the actual magic happens
 	return 0;
 }
