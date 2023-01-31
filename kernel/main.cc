@@ -1,6 +1,4 @@
 
-#include "buffer.h"
-#include "context_switch.h"
 #include "kernel.h"
 #include "rpi.h"
 
@@ -19,11 +17,13 @@ extern "C" void kmain() {
 	uart_puts(0, 0, m2, sizeof(m2) - 1);
 	for (;;) // infinite loop, kernel never needs to exit until killed by power switch
 	{
-		kernel.schedule_next_task();			  // tell kernel to schedule next task
-		kernel.activate();						  // tell kernel to activate the scheduled task
-		kernel.handle();						  // tell kernel to handle the request from task
+		kernel.schedule_next_task(); // tell kernel to schedule next task
+		kernel.activate();			 // tell kernel to activate the scheduled task
+		kernel.handle();			 // tell kernel to handle the request from task
+#ifdef DEBUG
 		char m3[] = "completed kernel cycle\r\n"; // logging that is useful, but should be removed later
-		uart_puts(0, 0, m3, sizeof(m3) - 1);
+		print(m3, sizeof(m3) - 1);
+#endif
 	}
 }
 
@@ -34,11 +34,6 @@ int main() {
 
 	for (funcvoid0_t* ctr = (funcvoid0_t*)&__init_array_start; ctr < (funcvoid0_t*)&__init_array_end; ctr += 1)
 		(*ctr)();
-
-#ifdef DEBUG
-	print_int(69696969);
-	NL;
-#endif
 
 	kmain(); // where the actual magic happens
 	return 0;

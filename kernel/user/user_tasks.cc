@@ -1,6 +1,6 @@
 #include "user_tasks.h"
 
-extern "C" void Task_test_0()
+extern "C" void UserTask::Task_test_0()
 {
 	while (1)
 	{
@@ -8,12 +8,12 @@ extern "C" void Task_test_0()
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
 			asm volatile("yield");
-		print_int(MyTid());
-		Exit();
+		print_int(TaskCreation::MyTid());
+		TaskCreation::Exit();
 	}
 }
 
-extern "C" void Task_test_1()
+extern "C" void UserTask::Task_test_1()
 {
 	while (1)
 	{
@@ -21,11 +21,11 @@ extern "C" void Task_test_1()
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
 			asm volatile("yield");
-		print_int(MyTid());
+		print_int(TaskCreation::MyTid());
 	}
 }
 
-extern "C" void Task_test_2()
+extern "C" void UserTask::Task_test_2()
 {
 	while (1)
 	{
@@ -33,11 +33,11 @@ extern "C" void Task_test_2()
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
 			asm volatile("yield");
-		print_int(MyTid());
+		print_int(TaskCreation::MyTid());
 	}
 }
 
-extern "C" void Task_test_3()
+extern "C" void UserTask::Task_test_3()
 {
 	while (1)
 	{
@@ -45,12 +45,12 @@ extern "C" void Task_test_3()
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
 			asm volatile("yield");
-		print_int(MyTid());
-		Exit();
+		print_int(TaskCreation::MyTid());
+		TaskCreation::Exit();
 	}
 }
 
-extern "C" void Task_test_4()
+extern "C" void UserTask::Task_test_4()
 {
 	while (1)
 	{
@@ -58,6 +58,6 @@ extern "C" void Task_test_4()
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
 			asm volatile("yield");
-		print_int(MyTid());
+		print_int(TaskCreation::MyTid());
 	}
 }

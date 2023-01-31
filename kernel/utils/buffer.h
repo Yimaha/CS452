@@ -1,5 +1,6 @@
 #pragma once
-#define MAX_BUFFER_SIZE 512
+#define MAX_BUFFER_SIZE 256
+#include "../rpi.h"
 
 template <typename T>
 class RingBuffer
@@ -96,7 +97,7 @@ T RingBuffer<T>::pop_front()
 {
 	if (is_empty())
 	{
-		return 0;
+		kernel_assert(false, "trying to pop from an empty buffer \r\n", 37);
 	}
 	T data = buffer[head];
 	head = (head + 1) % MAX_BUFFER_SIZE;
@@ -109,7 +110,7 @@ T RingBuffer<T>::pop_back()
 {
 	if (is_empty())
 	{
-		return 0;
+		kernel_assert(false, "trying to pop from an empty buffer \r\n", 37);
 	}
 	tail = (tail - 1 + MAX_BUFFER_SIZE) % MAX_BUFFER_SIZE;
 	T data = buffer[tail];

@@ -82,8 +82,6 @@ first_el0_entry:
 .global to_kernel
 to_kernel:
 
-.global to_kernel_create_tasks
-to_kernel_create_tasks:
 
 	save_regs
 
