@@ -17,7 +17,7 @@ CFLAGS:=-g -pipe -static $(WARNINGS) -ffreestanding -nostartfiles\
 LDFLAGS:=-Wl,-nmagic -Wl,-Tlinker.ld
 
 # Source files and include dirs
-SOURCES := $(wildcard *.cc) $(wildcard *.S)
+SOURCES :=  $(wildcard *.cc)	$(wildcard *.S)	$(wildcard	*/*.cc) 
 # Create .o and .d files for every .cc and .S (hand-written assembly) file
 OBJECTS := $(patsubst %.cc, %.o, $(patsubst %.S, %.o, $(SOURCES)))
 DEPENDS := $(patsubst %.cc, %.d, $(patsubst %.S, %.d, $(SOURCES)))
@@ -25,8 +25,11 @@ DEPENDS := $(patsubst %.cc, %.d, $(patsubst %.S, %.d, $(SOURCES)))
 # The first rule is the default, ie. "make", "make all" and "make kernel8.img" mean the same
 all: kernel8.img
 
+debug: CFLAGS += -DDEBUG
+debug: kernel8.img
+
 clean:
-	rm -f $(OBJECTS) $(DEPENDS) kernel8.elf kernel8.img
+	rm -f $(OBJECTS) $(DEPENDS) kernel8.elf kernel8.img buffer.o buffer.d
 
 kernel8.img: kernel8.elf
 	$(OBJCOPY) $< -O binary $@

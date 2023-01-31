@@ -1,10 +1,10 @@
 
 #pragma once
 
-#define NUM_PRIORITIES 3
-#include "buffer.h"
+#define NUM_PRIORITIES 4
+#include "utils/buffer.h"
+#include "utils/utility.h"
 #include "rpi.h"
-#include "utility.h"
 
 const static int NO_TASKS = -1;
 
