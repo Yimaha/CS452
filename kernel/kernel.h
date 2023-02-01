@@ -5,7 +5,7 @@
 #define USER_TASK_START_ADDRESS 0x10000000 // dedicated user task space
 #define USER_TASK_LIMIT 100				   // dedicated amount of user task
 
-#define NO_PARENT -1
+#define MAIDENLESS -1
 
 #include <new>
 #include <stdint.h>

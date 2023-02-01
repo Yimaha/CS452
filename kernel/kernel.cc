@@ -33,10 +33,10 @@ int MessagePassing::Reply::Reply(int tid, const char* msg, int msglen) {
 }
 
 Kernel::Kernel() {
-	allocate_new_task(NO_PARENT, 2, &UserTask::low_priority_task);
-	allocate_new_task(NO_PARENT, 1, &UserTask::Sender1);
-	allocate_new_task(NO_PARENT, 1, &UserTask::Sender2);
-	allocate_new_task(NO_PARENT, 0, &UserTask::Receiver);
+	allocate_new_task(MAIDENLESS, 2, &UserTask::low_priority_task);
+	allocate_new_task(MAIDENLESS, 1, &UserTask::Sender1);
+	allocate_new_task(MAIDENLESS, 1, &UserTask::Sender2);
+	allocate_new_task(MAIDENLESS, 0, &UserTask::Receiver);
 }
 
 void Kernel::schedule_next_task() { // kernel busy waiting on available tasks
