@@ -3,7 +3,7 @@
 void helper_0(int priority)
 {
 	// create a task and print the creation result
-	int task_id = TaskCreation::Create(priority, &UserTask::Sub_Task);
+	int task_id = Task::Creation::Create(priority, &UserTask::Sub_Task);
 	char msg[] = "Created: task ";
 	uart_puts(0, 0, msg, sizeof(msg) - 1);
 	print_int(task_id);
@@ -33,18 +33,18 @@ extern "C" void UserTask::Task_0()
 
 		char msg5[] = "exiting task 0\r\n";
 		uart_puts(0, 0, msg5, sizeof(msg5) - 1);
-		TaskCreation::Exit();
+		Task::Destruction::Exit();
 	}
 }
 
 extern "C" void UserTask::Sub_Task()
 {
-	int id = TaskCreation::MyTid();
-	int p_id = TaskCreation::MyParentTid();
+	int id = Task::Info::MyTid();
+	int p_id = Task::Info::MyParentTid();
 
 	helper_sub(id, p_id);
-	TaskCreation::Yield();
+	Task::Yield();
 	helper_sub(id, p_id);
 
-	TaskCreation::Exit();
+	Task::Destruction::Exit();
 }

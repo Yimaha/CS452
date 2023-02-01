@@ -1,42 +1,42 @@
 #include "kernel.h"
 
-int TaskCreation::Create(int priority, void (*function)()) {
+int Task::Creation::Create(int priority, void (*function)()) {
 	return to_kernel(Kernel::HandlerCode::CREATE, priority, function);
 }
 
-void TaskCreation::Yield() {
+void Task::Yield() {
 	to_kernel(Kernel::HandlerCode::YIELD);
 }
 
-int TaskCreation::MyTid() {
+int Task::Info::MyTid() {
 	return to_kernel(Kernel::HandlerCode::MY_TID);
 }
 
-int TaskCreation::MyParentTid() {
+int Task::Info::MyParentTid() {
 	return to_kernel(Kernel::HandlerCode::MY_PARENT_ID);
 }
 
-void TaskCreation::Exit() {
+void Task::Destruction::Exit() {
 	to_kernel(Kernel::HandlerCode::EXIT);
 }
 
-int MessagePassing::Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
+int MessagePassing::Send::Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
 	return to_kernel(Kernel::HandlerCode::SEND, tid, msg, msglen, reply, rplen);
 }
 
-int MessagePassing::Receive(int* tid, char* msg, int msglen) {
+int MessagePassing::Receive::Receive(int* tid, char* msg, int msglen) {
 	return to_kernel(Kernel::HandlerCode::RECEIVE, tid, msg, msglen);
 }
 
-int MessagePassing::Reply(int tid, const char* msg, int msglen) {
+int MessagePassing::Reply::Reply(int tid, const char* msg, int msglen) {
 	return to_kernel(Kernel::HandlerCode::REPLY, tid, msg, msglen);
 }
 
 Kernel::Kernel() {
-	allocate_new_task(-1, 2, &UserTask::low_priority_task);
-	allocate_new_task(-1, 1, &UserTask::Sender1);
-	allocate_new_task(-1, 1, &UserTask::Sender2);
-	allocate_new_task(-1, 0, &UserTask::Receiver);
+	allocate_new_task(NO_PARENT, 2, &UserTask::low_priority_task);
+	allocate_new_task(NO_PARENT, 1, &UserTask::Sender1);
+	allocate_new_task(NO_PARENT, 1, &UserTask::Sender2);
+	allocate_new_task(NO_PARENT, 0, &UserTask::Receiver);
 }
 
 void Kernel::schedule_next_task() { // kernel busy waiting on available tasks
@@ -52,7 +52,7 @@ void Kernel::schedule_next_task() { // kernel busy waiting on available tasks
 
 void Kernel::activate() {
 	// upon activation, task become active
-	tasks[active_task]->to_active();
+	active_request = tasks[active_task]->to_active();
 }
 
 Kernel::~Kernel() { }
@@ -100,7 +100,7 @@ void Kernel::handle_send() {
 	// I actually have no clue when will the -2 case trigger
 	if (tasks[rid] == nullptr) {
 		// communicating a non existing task
-		tasks[active_task]->to_ready(-1, &scheduler);
+		tasks[active_task]->to_ready(MessagePassing::Send::Exception::NO_SUCH_TASK, &scheduler);
 	} else {
 		char* msg = (char*)active_request->x2;
 		int msglen = active_request->x3;
@@ -137,9 +137,9 @@ void Kernel::handle_reply() {
 	char* msg = (char*)active_request->x2;
 	int msglen = active_request->x3;
 	if (tasks[to] == nullptr) {
-		tasks[active_task]->to_ready(-1, &scheduler); // communicating a non existing task
+		tasks[active_task]->to_ready(MessagePassing::Reply::Exception::NO_SUCH_TASK, &scheduler); // communicating a non existing task
 	} else if (!tasks[to]->is_reply_block()) {
-		tasks[active_task]->to_ready(-2, &scheduler); // communicating with a task that is not reply blocked
+		tasks[active_task]->to_ready(MessagePassing::Reply::Exception::NOT_WAITING_FOR_REPLY, &scheduler); // communicating with a task that is not reply blocked
 	} else {
 		int min_len = tasks[to]->fill_response(active_task, msg, msglen);
 		tasks[to]->to_ready(min_len, &scheduler);

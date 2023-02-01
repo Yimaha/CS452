@@ -6,7 +6,7 @@ extern "C" void UserTask::low_priority_task() {
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
 			asm volatile("yield");
-		TaskCreation::Yield();
+		Task::Yield();
 	}
 }
 
@@ -16,7 +16,7 @@ extern "C" void UserTask::Sender1() {
 		uart_puts(0, 0, m1, sizeof(m1) - 1);
 		char msg[] = "This is a message from sender 1\r\n";
 		char reply[30];
-		int final_len = MessagePassing::Send(3, msg, sizeof(msg), reply, 30);
+		int final_len = MessagePassing::Send::Send(3, msg, sizeof(msg), reply, 30);
 		uart_puts(0, 0, reply, final_len - 1);
 		for (int i = 0; i < 3000000; ++i)
 			asm volatile("yield");
@@ -29,7 +29,7 @@ extern "C" void UserTask::Sender2() {
 		uart_puts(0, 0, m1, sizeof(m1) - 1);
 		char msg[] = "This is a message from sender 2\r\n";
 		char reply[30];
-		int final_len = MessagePassing::Send(3, msg, sizeof(msg), reply, 30);
+		int final_len = MessagePassing::Send::Send(3, msg, sizeof(msg), reply, 30);
 		uart_puts(0, 0, reply, final_len - 1);
 		for (int i = 0; i < 3000000; ++i)
 			asm volatile("yield");
@@ -42,11 +42,11 @@ extern "C" void UserTask::Receiver() {
 		uart_puts(0, 0, m1, sizeof(m1) - 1);
 		int from = -1;
 		char receiver[100];
-		int msglen = MessagePassing::Receive(&from, receiver, 100);
+		int msglen = MessagePassing::Receive::Receive(&from, receiver, 100);
 		print(receiver, msglen - 1);
 		char m2[] = "recieved, ready to reply\r\n";
 		uart_puts(0, 0, m2, sizeof(m2) - 1);
-		msglen = MessagePassing::Reply(from, "eyy yo what's up homie\r\n", 25);
+		msglen = MessagePassing::Reply::Reply(from, "eyy yo what's up homie\r\n", 25);
 		for (int i = 0; i < 3000000; ++i)
 			asm volatile("yield");
 	}

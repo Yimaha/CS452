@@ -4,6 +4,9 @@
 
 #define USER_TASK_START_ADDRESS 0x10000000 // dedicated user task space
 #define USER_TASK_LIMIT 100				   // dedicated amount of user task
+
+#define NO_PARENT -1
+
 #include <new>
 #include <stdint.h>
 
@@ -21,23 +24,47 @@
  * note that they follow Capitalized Camel Case
  * unlike all other functions within our code
  */
-namespace TaskCreation
+namespace Task
 {
-int Create(int priority, void (*function)());
-int MyTid();
-int MyParentTid();
-void Yield();
-void Exit();
+namespace Creation
+{
+	int Create(int priority, void (*function)());
+}
+
+namespace Info
+{
+	int MyTid();
+	int MyParentTid();
+}
+
+namespace Destruction
+{
+	void Exit();
+	// potentially destroy in the future
+}
+
+void Yield(); // since it is more like a debug functin, it is consider as "else" namespace
 }
 
 namespace MessagePassing
 {
-int Send(int tid, const char* msg, int msglen, char* reply, int rplen);
-int Receive(int* tid, char* msg, int msglen);
-int Reply(int tid, const char* msg, int msglen);
+namespace Send
+{
+	int Send(int tid, const char* msg, int msglen, char* reply, int rplen);
+	enum Exception { NO_SUCH_TASK = -1, CANNOT_BE_COMPLETE = -2 };
 }
 
+namespace Receive
+{
+	int Receive(int* tid, char* msg, int msglen);
+}
 
+namespace Reply
+{
+	int Reply(int tid, const char* msg, int msglen);
+	enum Exception { NO_SUCH_TASK = -1, NOT_WAITING_FOR_REPLY = -2 };
+}
+}
 
 /**
  * Kernel state class, stores important information about the kernel and control the flow

@@ -5,7 +5,7 @@
 #include "rpi.h"
 
 // this may or may not be useful in the future, but it here
-// note that this is not tested yet
+// NOTE THIS CLASS DOESN"T WORK! IT IS NOT READY
 template <typename T>
 class Hashmap
 {
