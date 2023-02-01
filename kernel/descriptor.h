@@ -33,7 +33,7 @@ public:
 	int fill_response(int from, char* msg, int msglen); // the reverse of last function, fill the response buffer
 	Message pop_inbox();
 	// state modifying api
-	void to_active();
+	InterruptFrame* to_active();
 	void to_ready(int system_response, Scheduler* scheduler);
 	bool kill();
 	void to_send_block(char* reply, int replylen);
@@ -56,6 +56,7 @@ public:
 protected:
 	// debug api
 	void show_info();
+
 private:
 	TaskState state;
 	int priority;

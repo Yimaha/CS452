@@ -40,7 +40,7 @@ Message TaskDescriptor::pop_inbox() {
 	return inbox.pop_front();
 }
 
-void TaskDescriptor::to_active() {
+InterruptFrame* TaskDescriptor::to_active() {
 	state = TaskDescriptor::TaskState::ACTIVE;
 	if (!initialized) {
 		initialized = true;
@@ -49,6 +49,7 @@ void TaskDescriptor::to_active() {
 	} else {
 		sp = (char*)to_user(sp, system_call_result);
 	}
+	return (InterruptFrame*) sp;
 }
 
 void TaskDescriptor::to_ready(int system_response, Scheduler* scheduler) {
@@ -58,7 +59,8 @@ void TaskDescriptor::to_ready(int system_response, Scheduler* scheduler) {
 		system_call_result = system_response;
 		scheduler->add_task(priority, task_id); // queue back into sheculer
 	} else {
-		kernel_assert(false, "unblock is called on task that is not blocked!\r\n", 48);
+		print("unblock is called on task that is not blocked!\r\n", 48);
+		crash();
 	}
 }
 
