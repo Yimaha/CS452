@@ -1,5 +1,5 @@
 #pragma once
-#define USER_STACK_SIZE 16384 // a total of 16kb
+#define USER_STACK_SIZE 131072 // a total of 128kb
 
 #include "context_switch.h"
 #include "rpi.h"
