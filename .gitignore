@@ -56,3 +56,6 @@ dkms.conf
 # Unneeded assembly files
 main.s
 main.S
+
+# VSCode
+.vscode/

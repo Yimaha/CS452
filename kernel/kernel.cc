@@ -1,8 +1,8 @@
 #include "kernel.h"
+#include "utils/printf.h"
 
 Kernel::Kernel() {
-	allocate_new_task(MAIDENLESS, 0, &UserTask::AutoStart);
-	allocate_new_task(MAIDENLESS, 3, &UserTask::AutoRedo);
+	allocate_new_task(MAIDENLESS, 0, &UserTask::first_user_task);
 }
 
 void Kernel::schedule_next_task() { // kernel busy waiting on available tasks
@@ -25,7 +25,6 @@ Kernel::~Kernel() { }
 
 void Kernel::handle() {
 	HandlerCode request = (HandlerCode)active_request->x0; // x0 is always the request type
-
 	if (request == HandlerCode::CREATE) {
 		int priority = active_request->x1;
 		void (*user_task)() = (void (*)())active_request->x2;
@@ -46,6 +45,10 @@ void Kernel::handle() {
 		handle_receive();
 	} else if (request == HandlerCode::REPLY) {
 		handle_reply();
+	} else {
+		printf("unknown request type: %d\r\n", request);
+		while (true) {
+		}
 	}
 }
 
@@ -77,7 +80,7 @@ void Kernel::handle_send() {
 			tasks[rid]->to_ready(msglen, &scheduler);			 // unblock receiver, and the resonse is the length of the original message
 			tasks[active_task]->to_reply_block(reply, replylen); // since you already put the message through, you just waiting on response
 		} else {
-			// reader is not ready to read we just push it to it's inbox
+			// reader is not ready to read we just push it to its inbox
 			tasks[rid]->queue_message(active_task, msg, msglen);
 			tasks[active_task]->to_send_block(reply, replylen); // you don't know who is going to send you shit
 		}
@@ -117,4 +120,29 @@ void Kernel::check_tasks(int task_id) {
 	char m[] = "checking taskDescriptor...\r\n";
 	uart_puts(0, 0, m, sizeof(m) - 1);
 	tasks[task_id]->show_info();
+}
+
+int name_server_interface_helper(const char* name, Name::Iden iden) {
+	char reply[4];
+	const int rplen = sizeof(int);
+	Name::NameServerReq req = { iden, { 0 } };
+
+	for (int i = 0; name[i] != '\0' && i < MAX_NAME_LENGTH; ++i)
+		req.name.arr[i] = name[i];
+
+	const int res = MessagePassing::Send::Send(NAME_SERVER_ID, reinterpret_cast<const char*>(&req), NAME_REQ_LENGTH, reply, rplen);
+	if (res < 0) // Send failed
+		return Name::Exception::INVALID_NS_TASK_ID;
+
+	const int* r = reinterpret_cast<int*>(reply);
+	return *r;
+}
+
+int Name::RegisterAs(const char* name) {
+	const int ret = name_server_interface_helper(name, Name::Iden::REGISTER_AS);
+	return (ret >= 0) ? 0 : Name::Exception::INVALID_NS_TASK_ID;
+}
+
+int Name::WhoIs(const char* name) {
+	return name_server_interface_helper(name, Name::Iden::WHO_IS);
 }
