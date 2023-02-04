@@ -10,7 +10,7 @@ OBJDUMP:=$(XBINDIR)/$(TRIPLE)-objdump
 WARNINGS=-Wall -Wextra -Wpedantic -Wno-unused-const-variable
 CFLAGS:=-g -pipe -static $(WARNINGS) -ffreestanding -nostartfiles\
 	-mcpu=$(ARCH) -static-pie -mstrict-align -fno-builtin -mgeneral-regs-only \
-	-nostdlib -fno-rtti -fno-exceptions
+	-nostdlib -fno-rtti -fno-exceptions -DPRINTF_DISABLE_SUPPORT_FLOAT
 
 # -Wl,option tells g++ to pass 'option' to the linker with commas replaced by spaces
 # doing this rather than calling the linker ourselves simplifies the compilation procedure
@@ -27,6 +27,10 @@ all: kernel8.img
 
 debug: CFLAGS += -DDEBUG
 debug: kernel8.img
+
+opt: CFLAGS += -O3
+opt: kernel8.img
+
 
 clean:
 	rm -f $(OBJECTS) $(DEPENDS) kernel8.elf kernel8.img buffer.o buffer.d

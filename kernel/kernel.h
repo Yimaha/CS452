@@ -15,56 +15,10 @@
 #include "rpi.h"
 #include "scheduler.h"
 #include "user/user_tasks_k1.h"
-#include "user/user_tasks_k2.h"
+#include "user/user_tasks_k2_performance.h"
 #include "utils/slab_allocator.h"
 
-/**
- * User communication interface, all user tasks should use these functions to talk to the kernel
- * to signify the importance as these all trigger context switches,
- * note that they follow Capitalized Camel Case
- * unlike all other functions within our code
- */
-namespace Task
-{
-namespace Creation
-{
-	int Create(int priority, void (*function)());
-}
 
-namespace Info
-{
-	int MyTid();
-	int MyParentTid();
-}
-
-namespace Destruction
-{
-	void Exit();
-	// potentially destroy in the future
-}
-
-void Yield(); // since it is more like a debug functin, it is consider as "else" namespace
-}
-
-namespace MessagePassing
-{
-namespace Send
-{
-	int Send(int tid, const char* msg, int msglen, char* reply, int rplen);
-	enum Exception { NO_SUCH_TASK = -1, CANNOT_BE_COMPLETE = -2 };
-}
-
-namespace Receive
-{
-	int Receive(int* tid, char* msg, int msglen);
-}
-
-namespace Reply
-{
-	int Reply(int tid, const char* msg, int msglen);
-	enum Exception { NO_SUCH_TASK = -1, NOT_WAITING_FOR_REPLY = -2 };
-}
-}
 
 /**
  * Kernel state class, stores important information about the kernel and control the flow
@@ -100,3 +54,67 @@ protected:
 	// if we need to write any sort of unit test, unit test can have access to the class function
 	void check_tasks(int task_id); // check the state of a particular task descriptor
 };
+/**
+ * User communication interface, all user tasks should use these functions to talk to the kernel
+ * to signify the importance as these all trigger context switches,
+ * note that they follow Capitalized Camel Case
+ * unlike all other functions within our code
+ */
+namespace Task
+{
+namespace Creation
+{
+	static inline int Create(int priority, void (*function)()) {
+		return to_kernel(Kernel::HandlerCode::CREATE, priority, function);
+	}
+}
+
+namespace Info
+{
+	static inline int MyTid() {
+		return to_kernel(Kernel::HandlerCode::MY_TID);
+	}
+	static inline int MyParentTid() {
+		return to_kernel(Kernel::HandlerCode::MY_PARENT_ID);
+	}
+}
+
+namespace Destruction
+{
+	static inline void Exit() {
+		to_kernel(Kernel::HandlerCode::EXIT);
+	}
+	// potentially destroy in the future
+}
+
+static inline void Yield() {
+	to_kernel(Kernel::HandlerCode::YIELD);
+} // since it is more like a debug functin, it is consider as "else" namespace
+}
+
+namespace MessagePassing
+{
+namespace Send
+{
+	static inline int Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
+		return to_kernel(Kernel::HandlerCode::SEND, tid, msg, msglen, reply, rplen);
+	}
+	enum Exception { NO_SUCH_TASK = -1, CANNOT_BE_COMPLETE = -2 };
+}
+
+namespace Receive
+{
+	static inline int Receive(int* tid, char* msg, int msglen) {
+		return to_kernel(Kernel::HandlerCode::RECEIVE, tid, msg, msglen);
+	}
+}
+
+namespace Reply
+{
+	static inline int Reply(int tid, const char* msg, int msglen) {
+		return to_kernel(Kernel::HandlerCode::REPLY, tid, msg, msglen);
+
+	}
+	enum Exception { NO_SUCH_TASK = -1, NOT_WAITING_FOR_REPLY = -2 };
+}
+}
