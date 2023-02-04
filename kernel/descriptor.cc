@@ -47,7 +47,7 @@ InterruptFrame* TaskDescriptor::to_active() {
 		// startup task, has no parameter or handling
 		sp = (char*)first_el0_entry(sp, pc);
 	} else {
-		sp = (char*)to_user(sp, system_call_result);
+		sp = (char*)to_user(system_call_result, sp);
 	}
 	return (InterruptFrame*) sp;
 }
@@ -80,6 +80,10 @@ void TaskDescriptor::to_send_block(char* reply, int replylen) {
 void TaskDescriptor::to_receive_block(int* from, char* msg, int msglen) {
 	state = TaskDescriptor::TaskState::RECEIVE_BLOCK;
 	response = { from, msg, msglen };
+}
+
+void TaskDescriptor::to_reply_block() {
+	state = TaskDescriptor::TaskState::REPLY_BLOCK;
 }
 
 void TaskDescriptor::to_reply_block(char* reply, int replylen) {

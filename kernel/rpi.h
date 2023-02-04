@@ -19,6 +19,15 @@ void set_comparator(uint32_t reg_num, uint32_t interrupt_time);
 // anything that can be invoked from assembly and is useful goes here
 extern "C" void* memset(void* s, int c, size_t n);
 extern "C" void* memcpy(void* __restrict__ dest, const void* __restrict__ src, size_t n);
+
+// define our own memcpy to avoid SIMD instructions emitted from the compiler
+static inline void* inline_memcpy(void* __restrict__ dest, const void* __restrict__ src, size_t n) {
+	char* sit = (char*)src;
+	char* cdest = (char*)dest;
+	for (size_t i = 0; i < n; ++i)
+		*(cdest++) = *(sit++);
+	return dest;
+}
 extern "C" void val_print(uint64_t c);
 extern "C" void print_exception();
 extern "C" void crash(void);

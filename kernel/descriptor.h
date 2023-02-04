@@ -38,7 +38,8 @@ public:
 	bool kill();
 	void to_send_block(char* reply, int replylen);
 	void to_receive_block(int* from, char* msg, int msglen);
-	void to_reply_block(char* reply = nullptr, int replylen = 0);
+	void to_reply_block();
+	void to_reply_block(char* reply, int replylen);
 	// k3 will have to_event_block
 
 	// state checking api

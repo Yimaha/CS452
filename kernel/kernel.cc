@@ -1,42 +1,8 @@
 #include "kernel.h"
 
-int Task::Creation::Create(int priority, void (*function)()) {
-	return to_kernel(Kernel::HandlerCode::CREATE, priority, function);
-}
-
-void Task::Yield() {
-	to_kernel(Kernel::HandlerCode::YIELD);
-}
-
-int Task::Info::MyTid() {
-	return to_kernel(Kernel::HandlerCode::MY_TID);
-}
-
-int Task::Info::MyParentTid() {
-	return to_kernel(Kernel::HandlerCode::MY_PARENT_ID);
-}
-
-void Task::Destruction::Exit() {
-	to_kernel(Kernel::HandlerCode::EXIT);
-}
-
-int MessagePassing::Send::Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
-	return to_kernel(Kernel::HandlerCode::SEND, tid, msg, msglen, reply, rplen);
-}
-
-int MessagePassing::Receive::Receive(int* tid, char* msg, int msglen) {
-	return to_kernel(Kernel::HandlerCode::RECEIVE, tid, msg, msglen);
-}
-
-int MessagePassing::Reply::Reply(int tid, const char* msg, int msglen) {
-	return to_kernel(Kernel::HandlerCode::REPLY, tid, msg, msglen);
-}
-
 Kernel::Kernel() {
-	allocate_new_task(MAIDENLESS, 2, &UserTask::low_priority_task);
-	allocate_new_task(MAIDENLESS, 1, &UserTask::Sender1);
-	allocate_new_task(MAIDENLESS, 1, &UserTask::Sender2);
-	allocate_new_task(MAIDENLESS, 0, &UserTask::Receiver);
+	allocate_new_task(MAIDENLESS, 0, &UserTask::AutoStart);
+	allocate_new_task(MAIDENLESS, 3, &UserTask::AutoRedo);
 }
 
 void Kernel::schedule_next_task() { // kernel busy waiting on available tasks

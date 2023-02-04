@@ -7,7 +7,9 @@
 #define SCTLR_RESERVED (3 << 28) | (3 << 22) | (1 << 20) | (1 << 11)
 #define USER_MASK_ACCESS (1 << 9)
 #define SCTLR_WFE_WFI_ENABLED (1 << 18 | 1<<16)
-#define SCTLR_VALUE_MMU_DISABLED (SCTLR_RESERVED | USER_MASK_ACCESS | SCTLR_WFE_WFI_ENABLED)
+#define CACHE_ENABLE (1 << 2 | 1 << 12) // both cache
+
+#define SCTLR_VALUE_MMU_DISABLED (SCTLR_RESERVED | USER_MASK_ACCESS | SCTLR_WFE_WFI_ENABLED | CACHE_ENABLE)
 
 
 // ***************************************
@@ -51,7 +53,18 @@ exception_table:
 .balign 0x80
     b print_exception
 .balign 0x80
-    b handle_syscall
+    ldp x0, x1, [sp, 0*16]
+	ldp x2, x3, [sp, 1*16]
+	ldp x4, x5, [sp, 2*16]
+	ldp x30, x19, [sp, 9*16]
+	ldp x20, x21, [sp, 10*16]
+	ldp x22, x23, [sp, 11*16]
+	ldp x24, x25, [sp, 12*16]
+	ldp x26, x27, [sp, 13*16]
+	ldp x28, x29, [sp, 14*16]
+	add sp, sp, 16*16
+    mrs x0, SP_EL0
+	ret
 .balign 0x80
     b print_exception
 .balign 0x80
