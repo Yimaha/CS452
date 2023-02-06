@@ -41,10 +41,10 @@ struct InterruptFrame {
 	uint64_t x28;
 	uint64_t fp;
 	uint64_t lr;
-	uint64_t xzr;
+	uint64_t spsr;
 };
 
 extern "C" InterruptFrame* first_el0_entry(char* userSP, void (*pc)());
-extern "C" InterruptFrame* to_user(uint64_t results, char* userSP);
+extern "C" InterruptFrame* to_user(uint64_t results, char* userSP, char* userSPSR);
 extern "C" uint64_t to_kernel(uint64_t exception_code, ...);
 extern "C" void handle_syscall();

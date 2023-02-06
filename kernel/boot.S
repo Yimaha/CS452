@@ -53,6 +53,10 @@ exception_table:
 .balign 0x80
     b print_exception
 .balign 0x80
+    mrs x0, SP_EL0
+    mrs x1, SPSR_EL1
+    stp xzr, x1, [x0, 15*16]
+
     ldp x0, x1, [sp, 0*16]
 	ldp x2, x3, [sp, 1*16]
 	ldp x4, x5, [sp, 2*16]
@@ -63,6 +67,7 @@ exception_table:
 	ldp x26, x27, [sp, 13*16]
 	ldp x28, x29, [sp, 14*16]
 	add sp, sp, 16*16
+
     mrs x0, SP_EL0
 	ret
 .balign 0x80

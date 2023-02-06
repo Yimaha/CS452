@@ -47,9 +47,11 @@ InterruptFrame* TaskDescriptor::to_active() {
 		// startup task, has no parameter or handling
 		sp = (char*)first_el0_entry(sp, pc);
 	} else {
-		sp = (char*)to_user(system_call_result, sp);
+		sp = (char*)to_user(system_call_result, sp, spsr);
 	}
-	return (InterruptFrame*) sp;
+	InterruptFrame* intfr = reinterpret_cast<InterruptFrame*>(sp);
+	spsr = reinterpret_cast<char*>(intfr->spsr);
+	return intfr;
 }
 
 void TaskDescriptor::to_ready(int system_response, Scheduler* scheduler) {
