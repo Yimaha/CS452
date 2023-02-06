@@ -14,7 +14,7 @@
 .endm
 
 .macro save_regs
-	// Save kernel registers
+	// Save registers
 	sub sp, sp, 16*16
 
 	stp x0, x1, [sp, 0*16]
@@ -26,6 +26,7 @@
 	stp x24, x25, [sp, 12*16]
 	stp x26, x27, [sp, 13*16]
 	stp x28, x29, [sp, 14*16]
+
 	// does not need to save sp since sp is banked
 .endm
 
@@ -56,7 +57,7 @@ first_el0_entry:
 	msr SP_EL0, x0 // assuming stack address is passed in x0
     msr elr_el1, x1 // we need another thing when the function get back since it is bidirectional, but this will do for now
 
-	// save registers
+	// save kernel registers
 	save_regs
 
 	mov x0, #0b1111000000
@@ -67,8 +68,7 @@ first_el0_entry:
 
 .global to_kernel
 to_kernel:
-
-
+	
 	save_regs
 
 	// does not need to save sp since sp is banked
@@ -85,11 +85,12 @@ handle_syscall:
 .global to_user
 to_user:
 
-	// x0 = stack address
-	// x1 = return 8 bytes
+	// x0 = syscall return value
+	// x1 = stack address of user task
+	// x2 = SPSR_EL1
 	// Switch to EL0
 
-	msr SP_EL0, x1 // assuming stack address is passed in x0
+	msr SP_EL0, x1 // assuming stack address is passed in x1
 	ldr x1, =handle_return_to_user
 	msr elr_el1, x1 // we need another thing when the function get back since it is bidirectional, but this will do for now
 	
@@ -97,8 +98,8 @@ to_user:
 	save_regs
 
 	// need storing and restore
-	mov x1, #0b1111000000
-	msr SPSR_EL1, x1
+	orr x2, x2, #0b1111000000
+	msr SPSR_EL1, x2
 
 	eret // ready to jump
 
@@ -110,7 +111,6 @@ handle_return_to_user:
 	ldp xzr, x1, [sp, 0*16]
 	ldp x2, x3, [sp, 1*16]
 	ldp x4, x5, [sp, 2*16]
-	
 	ldp x30, x19, [sp, 9*16]
 	ldp x20, x21, [sp, 10*16]
 	ldp x22, x23, [sp, 11*16]
