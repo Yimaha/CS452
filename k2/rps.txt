@@ -1,0 +1,127 @@
+init kernel
+finished kernel init, started scheduling user tasks
+creating name server
+creating rps server
+creating rps client
+creating rps client
+creating rps client
+creating rps client
+creating rps client
+exiting task 0
+My tid is: 3 and I am ready to play!
+My move is: 0
+Task 3 played ROCK
+My tid is: 4 and I am ready to play!
+My move is: 1
+Task 4 played PAPER
+The winner is: 4!
+Print any key to continue...
+
+My tid is: 5 and I am ready to play!
+My move is: 1
+Task 5 played PAPER
+My tid is: 6 and I am ready to play!
+My move is: 1
+Task 6 played PAPER
+It's a draw!
+Print any key to continue...
+
+My tid is: 7 and I am ready to play!
+My move is: 2
+Task 7 played SCISSORS
+My move is: 2
+Task 4 played SCISSORS
+My move is: 2
+Task 3 played SCISSORS
+It's a draw!
+Print any key to continue...
+
+My move is: 0
+Task 5 played ROCK
+My move is: 2
+Task 6 played SCISSORS
+The winner is: 5!
+Print any key to continue...
+
+My move is: 1
+Task 3 played PAPER
+My move is: 2
+Task 4 played SCISSORS
+The winner is: 4!
+Print any key to continue...
+
+My move is: 0
+Task 5 played ROCK
+My move is: 1
+Task 6 played PAPER
+The winner is: 6!
+Print any key to continue...
+
+My move is: 0
+Task 4 played ROCK
+My move is: 1
+Task 3 played PAPER
+The winner is: 3!
+Print any key to continue...
+
+My move is: 0
+Task 6 played ROCK
+My move is: 2
+Task 5 played SCISSORS
+The winner is: 6!
+Print any key to continue...
+
+My move is: 1
+Task 3 played PAPER
+My move is: 3
+Task 4 quits!
+Print any key to continue...
+
+My move is: 3
+Task 6 quits!
+My move is: 1
+Task 5 played PAPER
+Print any key to continue...
+
+:(
+:(
+Task 3 is rejoining!
+:(
+:(
+My tid is: 3 and I am ready to play!
+My move is: 0
+Task 3 played ROCK
+The winner is: 3!
+Print any key to continue...
+
+My move is: 0
+Task 3 played ROCK
+My move is: 2
+Task 7 played SCISSORS
+The winner is: 3!
+Print any key to continue...
+
+My move is: 0
+Task 3 played ROCK
+My move is: 0
+Task 7 played ROCK
+It's a draw!
+Print any key to continue...
+
+My move is: 0
+Task 7 played ROCK
+My move is: 2
+Task 3 played SCISSORS
+The winner is: 7!
+Print any key to continue...
+
+My move is: 2
+Task 7 played SCISSORS
+My move is: 3
+Task 3 quits!
+Print any key to continue...
+
+:(
+:(
+no tasks available...
+no tasks available...

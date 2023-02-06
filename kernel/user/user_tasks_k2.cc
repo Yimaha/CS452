@@ -1,15 +1,31 @@
 #include "user_tasks_k2.h"
+#include "../kernel.h"
+#include "../rpi.h"
+#include "../utils/utility.h"
+#include "rps_server.h"
 
 extern "C" void UserTask::first_user_task() {
-	while (1) {
+	while (true) {
 		// Create the name server
 		char msg[] = "creating name server\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		Task::Creation::Create(1, &Name::name_server);
 
-		Task::Creation::Create(3, &UserTask::Sender1N);
-		Task::Creation::Create(3, &UserTask::Sender2N);
-		Task::Creation::Create(2, &UserTask::ReceiverN);
+		// Task::Creation::Create(3, &UserTask::Sender1N);
+		// Task::Creation::Create(3, &UserTask::Sender2N);
+		// Task::Creation::Create(2, &UserTask::ReceiverN);
+
+		// Create the RPS server
+		char msg2[] = "creating rps server\r\n";
+		uart_puts(0, 0, msg2, sizeof(msg2) - 1);
+		Task::Creation::Create(2, &RockPaperScissors::RPSServer);
+
+		// Create the RPS clients
+		for (int i = 0; i < 5; ++i) {
+			char msg3[] = "creating rps client\r\n";
+			uart_puts(0, 0, msg3, sizeof(msg3) - 1);
+			Task::Creation::Create(3, &RockPaperScissors::RPSClient);
+		}
 
 		char msg5[] = "exiting task 0\r\n";
 		uart_puts(0, 0, msg5, sizeof(msg5) - 1);
@@ -18,7 +34,7 @@ extern "C" void UserTask::first_user_task() {
 }
 
 extern "C" void UserTask::low_priority_task() {
-	while (1) {
+	while (true) {
 		char msg[] = "low priority task that just keeps spinning\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
