@@ -68,5 +68,5 @@ private:
 	RingBuffer<Message> inbox;			 // receiver of message
 	char* sp;							 // stack pointer
 	char* spsr;							 // saved program status register
-	char* kernel_stack[USER_STACK_SIZE]; // approximately 16 kbytes per stack
+	char* kernel_stack[USER_STACK_SIZE]; // approximately 128 kbytes per stack
 };
