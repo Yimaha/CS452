@@ -120,7 +120,5 @@ handle_return_to_user:
 
 	add sp, sp, 17*16
 
-	msr DAIFClr, #0b1111 // enable interrupts
-
 	// x0 should already be filled
 	ret

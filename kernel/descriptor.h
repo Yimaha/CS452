@@ -65,6 +65,7 @@ private:
 	int priority;
 	int system_call_result;
 	bool initialized;
+
 	void (*pc)();						   // program counter, but typically only used as a reference value to see where the start of the program is
 	MessageReceiver response;			   // used to store response if task decided to call send, or receive (anything that can block)
 	etl::queue<Message, INBOX_SIZE> inbox; // receiver of message

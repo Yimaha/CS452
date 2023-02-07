@@ -372,3 +372,23 @@ void kernel_assert(const bool cond, const char* msg, const size_t len) {
 	if (!cond)
 		assert_crash(msg, len);
 }
+
+void enable_interrupts(void) {
+	// there are 3 phases of enable interrupt
+	// enable the clock to be interrupt(physcial)
+	// we need to make sure at gic level, the communication channel is open, targeting timer 1
+
+	gicd->GICD_CTLR = 1;	  // GICD
+	*(GIC_BASE + 0x2000) = 1; // GICC
+
+	// first, enable GICD_ISENABLERn on the clock, the calculated result is 0x10c as offset
+	gicd->GICD_ISENABLERN[TIMER_INTERRUPT_ID / 32] = 1 << (TIMER_INTERRUPT_ID % 32);
+
+	val_print((uint64_t)gicd);
+	val_print((uint64_t) & (gicd->GICD_ISENABLERN[TIMER_INTERRUPT_ID / 32]));
+	val_print((uint64_t) & (gicd->GICD_ITARGETSRN[TIMER_INTERRUPT_ID / 4]));
+	uart_puts(0, 0, "\r\n", 2);
+
+	// also setup GICD ITARGETSRn to route to cpu 0
+	gicd->GICD_ITARGETSRN[TIMER_INTERRUPT_ID / 4] = 1 << (TIMER_INTERRUPT_ID % 4);
+}
