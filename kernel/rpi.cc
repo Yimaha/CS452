@@ -334,7 +334,7 @@ uint64_t time(void) {
 	return ((uint64_t)timer->CHI << 32) | (uint64_t)timer->CLO;
 }
 
-void set_comparator(uint32_t reg_num, uint32_t interrupt_time) {
+void set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
 	if (reg_num > 3) {
 		return;
 	}
@@ -370,6 +370,12 @@ extern "C" void val_print(uint64_t c) {
 extern "C" void print_exception() {
 	char m1[] = "reaching invalid location\r\n";
 	uart_puts(0, 0, m1, sizeof(m1) - 1);
+	while (1) {
+	};
+}
+
+extern "C" void print_interrupt() {
+	uart_puts(0, 0, "interrupt!\r\n", 12);
 	while (1) {
 	};
 }

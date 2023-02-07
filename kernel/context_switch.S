@@ -15,7 +15,7 @@
 
 .macro save_regs
 	// Save registers
-	sub sp, sp, 16*16
+	sub sp, sp, 17*16
 
 	stp x0, x1, [sp, 0*16]
 	stp x2, x3, [sp, 1*16]
@@ -43,7 +43,7 @@
 	ldp x26, x27, [sp, 13*16]
 	ldp x28, x29, [sp, 14*16]
 	
-	add sp, sp, 16*16
+	add sp, sp, 17*16
 .endm
 
 
@@ -118,7 +118,7 @@ handle_return_to_user:
 	ldp x26, x27, [sp, 13*16]
 	ldp x28, x29, [sp, 14*16]
 
-	add sp, sp, 16*16
+	add sp, sp, 17*16
 
 	// x0 should already be filled
 	ret

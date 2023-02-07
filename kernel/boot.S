@@ -32,7 +32,8 @@
 // ***************************************
 #define CNTKCTL_VALUE ((1 << 9) | (1 << 8) | (1 << 1) | (1 << 0))
 
-# Exception Vector Table, as in https://krinkinmu.github.io/2021/01/10/aarch64-interrupt-handling.html
+// Exception Vector Table, as in https://krinkinmu.github.io/2021/01/10/aarch64-interrupt-handling.html
+// See also: https://developer.arm.com/documentation/100933/0100/AArch64-exception-vector-table
 .text
 .global exception_table
 .balign 2048
@@ -52,10 +53,11 @@ exception_table:
     b print_exception
 .balign 0x80
     b print_exception
-.balign 0x80
+.balign 0x80 // 9th entry: synchronous exception from lower exception level using AArch64
     mrs x0, SP_EL0
     mrs x1, SPSR_EL1
     stp xzr, x1, [x0, 15*16]
+    stp xzr, xzr, [x0, 16*16]
 
     ldp x0, x1, [sp, 0*16]
 	ldp x2, x3, [sp, 1*16]
@@ -66,12 +68,12 @@ exception_table:
 	ldp x24, x25, [sp, 12*16]
 	ldp x26, x27, [sp, 13*16]
 	ldp x28, x29, [sp, 14*16]
-	add sp, sp, 16*16
+	add sp, sp, 17*16
 
     mrs x0, SP_EL0
 	ret
-.balign 0x80
-    b print_exception
+.balign 0x80 // 10th entry: IRQ from lower exception level using AArch64
+    b print_interrupt
 .balign 0x80
     b print_exception
 .balign 0x80
