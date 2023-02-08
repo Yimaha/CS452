@@ -16,11 +16,11 @@ TaskDescriptor::TaskDescriptor(int id, int parent_id, int priority, void (*pc)()
 }
 
 void TaskDescriptor::queue_message(int from, char* msg, int msglen) {
-	inbox.push_back(Message { from, msg, msglen });
+	inbox.push(Message { from, msg, msglen });
 }
 
 bool TaskDescriptor::have_message() {
-	return !inbox.is_empty();
+	return !inbox.empty();
 }
 
 int TaskDescriptor::fill_message(Message msg, int* from, char* msg_container, int msglen) {
@@ -37,33 +37,25 @@ int TaskDescriptor::fill_response(int from, char* msg, int msglen) {
 }
 
 Message TaskDescriptor::pop_inbox() {
-	return inbox.pop_front();
-}
-
-InterruptFrame* TaskDescriptor::to_active() {
-	state = TaskDescriptor::TaskState::ACTIVE;
-	if (!initialized) {
-		initialized = true;
-		// startup task, has no parameter or handling
-		sp = (char*)first_el0_entry(sp, pc);
-	} else {
-		sp = (char*)to_user(system_call_result, sp, spsr);
-	}
-	InterruptFrame* intfr = reinterpret_cast<InterruptFrame*>(sp);
-	spsr = reinterpret_cast<char*>(intfr->spsr);
-	return intfr;
+	Message msg = inbox.front();
+	inbox.pop();
+	return msg;
 }
 
 void TaskDescriptor::to_ready(int system_response, Scheduler* scheduler) {
+#ifdef OUR_DEBUG
 	if (state == ACTIVE || state == SEND_BLOCK || state == RECEIVE_BLOCK || state == REPLY_BLOCK) // ignoring event block for k2
 	{
+#endif
 		state = READY;
 		system_call_result = system_response;
 		scheduler->add_task(priority, task_id); // queue back into sheculer
+#ifdef OUR_DEBUG
 	} else {
 		print("unblock is called on task that is not blocked!\r\n", 48);
 		crash();
 	}
+#endif
 }
 
 bool TaskDescriptor::kill() {

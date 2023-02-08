@@ -38,19 +38,25 @@
 .global exception_table
 .balign 2048
 exception_table:
-    b print_exception
+    mov x0, #1
+    b print_exception_arg
 .balign 0x80
-    b print_exception
+    mov x0, #2
+    b print_exception_arg
 .balign 0x80
-    b print_exception
+    mov x0, #3
+    b print_exception_arg
 .balign 0x80
-    b print_exception
+    mov x0, #4
+    b print_exception_arg
 .balign 0x80
     b assert_crash
 .balign 0x80
-    b print_exception
+    mov x0, #6
+    b print_exception_arg
 .balign 0x80
-    b print_exception
+    mov x0, #7
+    b print_exception_arg
 .balign 0x80
     b print_exception_weird
 .balign 0x80 // 9th entry: synchronous exception from lower exception level using AArch64
@@ -75,17 +81,23 @@ exception_table:
 .balign 0x80 // 10th entry: IRQ from lower exception level using AArch64
     b print_interrupt
 .balign 0x80
-    b print_exception
+    mov x0, #11
+    b print_exception_arg
+.balign 0x80 // 12th entry: SErrors in user mode
+    mov x0, #12
+    b print_exception_arg
 .balign 0x80
-    b print_exception
+    mov x0, #13
+    b print_exception_arg
 .balign 0x80
-    b print_exception
+    mov x0, #14
+    b print_exception_arg
 .balign 0x80
-    b print_exception
+    mov x0, #15
+    b print_exception_arg
 .balign 0x80
-    b print_exception
-.balign 0x80
-    b print_exception
+    mov x0, #16
+    b print_exception_arg
 
 // ensure the linker puts this at the start of the kernel image
 .section ".text.boot"

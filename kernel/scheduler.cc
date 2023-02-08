@@ -4,8 +4,10 @@ Scheduler::Scheduler() { }
 
 int Scheduler::get_next() {
 	for (int i = 0; i < NUM_PRIORITIES; i++) {
-		if (!ready_queue[i].is_empty()) {
-			return ready_queue[i].pop_front();
+		if (!ready_queue[i].empty()) {
+			int id = ready_queue[i].front();
+			ready_queue[i].pop();
+			return id;
 		}
 	}
 
@@ -13,5 +15,5 @@ int Scheduler::get_next() {
 }
 
 void Scheduler::add_task(int priority, int task_id) {
-	ready_queue[priority].push_back(task_id);
+	ready_queue[priority].push(task_id);
 }
