@@ -1,4 +1,5 @@
 #include "rpi.h"
+#include "utils/printf.h"
 
 struct GPIO {
 	uint32_t GPFSEL[6];
@@ -91,6 +92,7 @@ static volatile struct AUX* const aux = (struct AUX*)(AUX_BASE);
 static volatile struct SPI* const spi[] = { (struct SPI*)(AUX_BASE + 0x80), (struct SPI*)(AUX_BASE + 0xC0) };
 static volatile TIMER* const timer = (TIMER*)(TIMER_BASE);
 static volatile GICD* const gicd = (GICD*)(GIC_BASE + 0x1000);
+static volatile GICD* const gicc = (GICD*)(GIC_BASE + 0x2000);
 
 /*************** GPIO ***************/
 
@@ -354,10 +356,10 @@ void set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
 		return;
 	}
 
-	if (timer->CS & (1 << reg_num)) {
-		// Clear the match detect status bit
-		timer->CS |= 1 << reg_num;
-	}
+	// if (timer->CS & (1 << reg_num)) {
+	// 	// Clear the match detect status bit
+	// 	timer->CS |= 1 << reg_num;
+	// }
 
 	if (reg_num == 0) {
 		timer->C0 = interrupt_time;
@@ -402,6 +404,12 @@ extern "C" void print_interrupt() {
 	};
 }
 
+extern "C" void print_exception_arg(uint64_t arg) {
+	printf("exception arg: %x\r\n", arg);
+	while (1) {
+	};
+}
+
 // Crash the system
 extern "C" void crash(void) {
 	asm volatile("b reboot");
@@ -440,17 +448,12 @@ void enable_interrupts(void) {
 	// enable the clock to be interrupt(physcial)
 	// we need to make sure at gic level, the communication channel is open, targeting timer 1
 
-	gicd->GICD_CTLR = 1;	  // GICD
-	*(GIC_BASE + 0x2000) = 1; // GICC
+	gicd->GICD_CTLR = 1; // GICD
+	gicc->GICD_CTLR = 1; // GICC
 
 	// first, enable GICD_ISENABLERn on the clock, the calculated result is 0x10c as offset
 	gicd->GICD_ISENABLERN[TIMER_INTERRUPT_ID / 32] = 1 << (TIMER_INTERRUPT_ID % 32);
 
-	val_print((uint64_t)gicd);
-	val_print((uint64_t) & (gicd->GICD_ISENABLERN[TIMER_INTERRUPT_ID / 32]));
-	val_print((uint64_t) & (gicd->GICD_ITARGETSRN[TIMER_INTERRUPT_ID / 4]));
-	uart_puts(0, 0, "\r\n", 2);
-
 	// also setup GICD ITARGETSRn to route to cpu 0
-	gicd->GICD_ITARGETSRN[TIMER_INTERRUPT_ID / 4] = 1 << (TIMER_INTERRUPT_ID % 4);
+	gicd->GICD_ITARGETSRN[TIMER_INTERRUPT_ID / 4] = 1 << (8 * (TIMER_INTERRUPT_ID % 4));
 }
