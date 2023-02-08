@@ -9,6 +9,7 @@
 #include "descriptor.h"
 #include "rpi.h"
 #include "scheduler.h"
+#include "user/clock_server.h"
 #include "user/name_server.h"
 #include "user/user_tasks_k1.h"
 #include "user/user_tasks_k2.h"
@@ -28,7 +29,7 @@ void Yield(); // since it is more like a debug functin, it is consider as "else"
 int Create(int priority, void (*function)());
 }
 
-namespace MessagePassing
+namespace Message
 {
 namespace Send
 {
@@ -77,17 +78,71 @@ int RegisterAs(const char* name);
 int WhoIs(const char* name);
 }
 
+namespace Clock
+{
+const uint64_t CLOCK_SERVER_ID = 2;
+
+//*****************************************************************************
+/// Gets the current time in ticks, where a tick is 10ms.
+///\return The current time in ticks, or -1 if the clock server tid is invalid.
+//*****************************************************************************
+int Time(int tid);
+
+//*************************************************************************
+/// Delays the current task for the given number of ticks.
+///\return The current time in ticks, or
+// 	-1 if the clock server tid is invalid, or
+// 	-2 if the delay is negative.
+//*************************************************************************
+int Delay(int tid, int ticks);
+
+//*************************************************************************
+/// Delays the current task until the given time.
+///\return The current time in ticks, or
+// 	-1 if the clock server tid is invalid, or
+// 	-2 if the delay is negative.
+//*************************************************************************
+int DelayUntil(int tid, int ticks);
+}
+
+namespace Interrupt
+{
+int AwaitEvent(int eventid);
+}
+
 /**
  * Kernel state class, stores important information about the kernel and control the flow
  * */
 class Kernel {
 public:
-	enum HandlerCode { NONE = 0, CREATE = 1, MY_TID = 2, MY_PARENT_ID = 3, YIELD = 4, EXIT = 5, SEND = 6, RECEIVE = 7, REPLY = 8, REGISTER_AS = 9, WHO_IS = 10 };
+	enum HandlerCode {
+		NONE = 0,
+		CREATE = 1,
+		MY_TID = 2,
+		MY_PARENT_ID = 3,
+		YIELD = 4,
+		EXIT = 5,
+		SEND = 6,
+		RECEIVE = 7,
+		REPLY = 8,
+		REGISTER_AS = 9,
+		WHO_IS = 10,
+		TIME = 11,
+		DELAY = 12,
+		DELAY_UNTIL = 13,
+		TIMER_INTERRUPT = 14
+	};
+
+	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
+	enum InterruptCode { TIMER = 1 };
+
 	Kernel();
 	~Kernel();
 	void schedule_next_task();
 	void activate();
 	void handle();
+	void handle_syscall();
+	void handle_interrupt(InterruptCode icode);
 
 private:
 	int p_id_counter = 0;					  // keeps track of new task creation id

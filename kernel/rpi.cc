@@ -327,6 +327,12 @@ extern "C" void print_exception() {
 	while (1) {
 	};
 }
+extern "C" void print_exception_special() {
+	char m1[] = "interrupt!\r\n";
+	uart_puts(0, 0, m1, sizeof(m1) - 1);
+	while (1) {
+	};
+}
 
 extern "C" void print_interrupt() {
 	uart_puts(0, 0, "interrupt!\r\n", 12);
@@ -338,6 +344,16 @@ extern "C" void print_exception_arg(uint64_t arg) {
 	printf("exception arg: %x\r\n", arg);
 	while (1) {
 	};
+}
+
+extern "C" void print_exception_arg(uint64_t arg) {
+	printf("exception arg: %x\r\n", arg);
+	while (1) {
+	};
+}
+
+extern "C" void print_hex_arg(uint64_t arg) {
+	printf("arg: %x\r\n", arg);
 }
 
 // Crash the system
@@ -371,24 +387,4 @@ extern "C" void assert_crash(const char* msg, const size_t len) {
 void kernel_assert(const bool cond, const char* msg, const size_t len) {
 	if (!cond)
 		assert_crash(msg, len);
-}
-
-void enable_interrupts(void) {
-	// there are 3 phases of enable interrupt
-	// enable the clock to be interrupt(physcial)
-	// we need to make sure at gic level, the communication channel is open, targeting timer 1
-
-	gicd->GICD_CTLR = 1;	  // GICD
-	*(GIC_BASE + 0x2000) = 1; // GICC
-
-	// first, enable GICD_ISENABLERn on the clock, the calculated result is 0x10c as offset
-	gicd->GICD_ISENABLERN[TIMER_INTERRUPT_ID / 32] = 1 << (TIMER_INTERRUPT_ID % 32);
-
-	val_print((uint64_t)gicd);
-	val_print((uint64_t) & (gicd->GICD_ISENABLERN[TIMER_INTERRUPT_ID / 32]));
-	val_print((uint64_t) & (gicd->GICD_ITARGETSRN[TIMER_INTERRUPT_ID / 4]));
-	uart_puts(0, 0, "\r\n", 2);
-
-	// also setup GICD ITARGETSRn to route to cpu 0
-	gicd->GICD_ITARGETSRN[TIMER_INTERRUPT_ID / 4] = 1 << (TIMER_INTERRUPT_ID % 4);
 }

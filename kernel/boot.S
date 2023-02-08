@@ -50,7 +50,8 @@ exception_table:
     mov x0, #4
     b print_exception_arg
 .balign 0x80
-    b assert_crash
+    mov x0, #5
+    b print_exception_arg
 .balign 0x80
     mov x0, #6
     b print_exception_arg
@@ -80,7 +81,8 @@ exception_table:
     mrs x0, SP_EL0
 	ret
 .balign 0x80 // 10th entry: IRQ from lower exception level using AArch64
-    b print_interrupt
+
+    b interrupt_handler
 .balign 0x80
     mov x0, #11
     b print_exception_arg

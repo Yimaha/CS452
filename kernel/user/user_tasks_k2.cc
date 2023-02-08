@@ -5,11 +5,23 @@
 #include "rps_server.h"
 
 extern "C" void UserTask::first_user_task() {
-	while (true) {
+	while (1) {
 		// Create the name server
 		char msg[] = "creating name server\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		Task::Create(1, &Name::name_server);
+
+		// Literally just loop forever
+		while (true) {
+			printf("task 0 is alive\r\n");
+			for (int i = 0; i < 300000; ++i) {
+				asm volatile("yield");
+			}
+		}
+
+		// Literally just loop forever
+		while (true) {
+		}
 
 		// Create the RPS server
 		char msg2[] = "creating rps server\r\n";
@@ -30,7 +42,7 @@ extern "C" void UserTask::first_user_task() {
 }
 
 extern "C" void UserTask::low_priority_task() {
-	while (true) {
+	while (1) {
 		char msg[] = "low priority task that just keeps spinning\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
@@ -63,7 +75,7 @@ extern "C" void UserTask::Sender1N() {
 			recv_tid = Name::WhoIs("ReceiverN");
 		}
 
-		int final_len = MessagePassing::Send::Send(recv_tid, msg, sizeof(msg), reply, 30);
+		int final_len = Message::Send::Send(recv_tid, msg, sizeof(msg), reply, 30);
 		uart_puts(0, 0, reply, final_len - 1);
 		for (int i = 0; i < 3000000; ++i)
 			asm volatile("yield");
@@ -94,7 +106,7 @@ extern "C" void UserTask::Sender2N() {
 			recv_tid = Name::WhoIs("ReceiverN");
 		}
 
-		int final_len = MessagePassing::Send::Send(recv_tid, msg, sizeof(msg), reply, 30);
+		int final_len = Message::Send::Send(recv_tid, msg, sizeof(msg), reply, 30);
 		uart_puts(0, 0, reply, final_len - 1);
 		for (int i = 0; i < 3000000; ++i)
 			asm volatile("yield");
@@ -115,11 +127,11 @@ extern "C" void UserTask::ReceiverN() {
 
 		int from = -1;
 		char receiver[100];
-		int msglen = MessagePassing::Receive::Receive(&from, receiver, 100);
+		int msglen = Message::Receive::Receive(&from, receiver, 100);
 		print(receiver, msglen - 1);
 		char m2[] = "received, ready to reply\r\n";
 		uart_puts(0, 0, m2, sizeof(m2) - 1);
-		msglen = MessagePassing::Reply::Reply(from, "eyy yo what's up homie\r\n", 25);
+		msglen = Message::Reply::Reply(from, "eyy yo what's up homie\r\n", 25);
 		for (int i = 0; i < 3000000; ++i)
 			asm volatile("yield");
 	}

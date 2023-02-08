@@ -1,5 +1,6 @@
 
 #include "descriptor.h"
+#include "utils/printf.h"
 
 using namespace Descriptor;
 
@@ -13,7 +14,8 @@ TaskDescriptor::TaskDescriptor(int id, int parent_id, int priority, void (*pc)()
 	, priority { priority }
 	, system_call_result { 0x0 } // used to reply from kernel function
 	, initialized { false }
-	, pc { pc } {
+	, pc { pc }
+	, interrupted { false } {
 	sp = (char*)&kernel_stack[USER_STACK_SIZE]; // aligned to 8 bytes, exactly 4kb is used for user stack
 }
 
@@ -45,13 +47,14 @@ Message TaskDescriptor::pop_inbox() {
 }
 
 void TaskDescriptor::to_ready(int system_response, Task::Scheduler* scheduler) {
+
 #ifdef OUR_DEBUG
 	if (state == ACTIVE || state == SEND_BLOCK || state == RECEIVE_BLOCK || state == REPLY_BLOCK) // ignoring event block for k2
 	{
 #endif
 		state = READY;
 		system_call_result = system_response;
-		scheduler->add_task(priority, task_id); // queue back into sheculer
+		scheduler->add_task(priority, task_id); // queue back into scheduler
 #ifdef OUR_DEBUG
 	} else {
 		print("unblock is called on task that is not blocked!\r\n", 48);
@@ -150,4 +153,12 @@ void Descriptor::TaskDescriptor::show_info() {
 	uart_puts(0, 0, m8, sizeof(m8) - 1);
 	print_int((uint64_t)kernel_stack);
 	print("\r\n", 2);
+}
+
+bool TaskDescriptor::was_interrupted() {
+	return interrupted;
+}
+
+void TaskDescriptor::set_interrupted(bool val) {
+	interrupted = val;
 }

@@ -38,8 +38,10 @@ static inline void* inline_memcpy(void* __restrict__ dest, const void* __restric
 }
 extern "C" void val_print(uint64_t c);
 extern "C" void print_exception();
+extern "C" void print_exception_weird();
 extern "C" void print_interrupt();
 extern "C" void print_exception_arg(uint64_t arg);
+extern "C" void print_hex_arg(uint64_t arg);
 extern "C" void crash(void);
 extern "C" void assert_crash(const char* msg = nullptr, const size_t len = 0);
 void kernel_assert(bool cond, const char* msg = nullptr, const size_t len = 0);

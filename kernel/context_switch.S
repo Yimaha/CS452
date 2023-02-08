@@ -71,7 +71,7 @@ to_kernel:
 	
 	save_regs
 
-	// does not need to save sp since sp is banked
+	// does not need to save sp since sp is banked in SP_EL0
 	svc 0x1
 
 .global handle_syscall
@@ -103,9 +103,29 @@ to_user:
 
 	eret // ready to jump
 
-// this is a private function
+.global to_user_interrupted
+to_user_interrupted:
+
+	// x0 = stack address of user task
+	// x1 = SPSR_EL1
+	// Switch to EL0
+
+	msr SP_EL0, x0 // assuming stack address is passed in x0
+	ldr x0, =handle_return_to_user_interrupted
+	msr elr_el1, x0
+	
+	// no need to worry about function pc anymore
+	save_regs
+
+	// need storing and restore
+	msr SPSR_EL1, x1
+
+	eret // ready to jump
+
+
+// these are private functions
 // unlike handle_syscall which is needed by the exception table
-// there is no reason why this label exists outside of this file
+// there is no reason why these label exists outside of this file
 handle_return_to_user:
 
 	ldp xzr, x1, [sp, 0*16]
@@ -121,4 +141,29 @@ handle_return_to_user:
 	add sp, sp, 17*16
 
 	// x0 should already be filled
+	ret
+
+handle_return_to_user_interrupted:
+
+	ldp x0, x1, [sp, 0*16]
+	ldp x2, x3, [sp, 1*16]
+	ldp x4, x5, [sp, 2*16]
+	ldp x6, x7, [sp, 3*16]
+	ldp x8, x9, [sp, 4*16]
+	ldp x10, x11, [sp, 5*16]
+	ldp x12, x13, [sp, 6*16]
+	ldp x14, x15, [sp, 7*16]
+	ldp x16, x17, [sp, 8*16]
+	ldp x18, x19, [sp, 9*16]
+	ldp x20, x21, [sp, 10*16]
+	ldp x22, x23, [sp, 11*16]
+	ldp x24, x25, [sp, 12*16]
+	ldp x26, x27, [sp, 13*16]
+	ldp x28, x29, [sp, 14*16]
+	ldp x30, xzr, [sp, 15*16]
+
+	add sp, sp, 17*16
+
+	// msr DAIFClr, #0b1111 // enable interrupts
+
 	ret

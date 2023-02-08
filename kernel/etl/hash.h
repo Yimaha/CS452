@@ -412,8 +412,8 @@ struct hash<T*> {
 };
 
 template <>
-struct hash<Name::NameContainer> {
-	size_t operator()(Name::NameContainer v) const {
+struct hash<Name::RequestBody> {
+	size_t operator()(Name::RequestBody v) const {
 		uint8_t* p = reinterpret_cast<uint8_t*>(&v);
 		return private_hash::generic_hash<size_t>(p, p + sizeof(v));
 	}

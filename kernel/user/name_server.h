@@ -20,12 +20,12 @@ constexpr uint64_t NAME_REQ_LENGTH = MAX_NAME_LENGTH + 8;
  */
 extern "C" void name_server();
 
-enum class Iden : uint64_t { REGISTER_AS, WHO_IS };
+enum class RequestHeader : uint64_t { REGISTER_AS, WHO_IS };
 enum Exception { INVALID_NS_TASK_ID = -1, NAME_NOT_REGISTERED = -2, INVALID_IDEN = -3 };
-struct NameContainer {
+struct RequestBody {
 	char arr[MAX_NAME_LENGTH];
 
-	friend bool operator==(const NameContainer& a, const NameContainer& b) {
+	friend bool operator==(const RequestBody& a, const RequestBody& b) {
 		for (uint64_t i = 0; i < MAX_NAME_LENGTH; i++) {
 			if (a.arr[i] != b.arr[i]) {
 				return false;
@@ -37,13 +37,13 @@ struct NameContainer {
 		return true;
 	}
 
-	friend bool operator!=(const NameContainer& a, const NameContainer& b) {
+	friend bool operator!=(const RequestBody& a, const RequestBody& b) {
 		return !(a == b);
 	}
 };
 
 struct NameServerReq {
-	Iden iden;
-	NameContainer name;
+	RequestHeader header;
+	RequestBody name;
 } __attribute__((packed, aligned(8)));
 }
