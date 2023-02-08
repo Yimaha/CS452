@@ -1,6 +1,7 @@
 
 #include "kernel.h"
 #include "rpi.h"
+#include "utils/printf.h"
 
 #define NL uart_puts(0, 0, "\r\n", 2)
 
@@ -9,10 +10,14 @@ extern uintptr_t __init_array_start, __init_array_end; // defined in linker scri
 typedef void (*funcvoid0_t)();
 
 extern "C" void kmain() {
-	char m1[] = "init kernel\r\n";
-	uart_puts(0, 0, m1, sizeof(m1) - 1);
+	// char m1[] = "init kernel\r\n";
+	// uart_puts(0, 0, m1, sizeof(m1) - 1);
 	Kernel kernel = Kernel();
 	char m2[] = "finished kernel init, started scheduling user tasks\r\n";
+
+	enable_interrupts();
+	printf("enabling interrupts\r\n");
+	set_comparator(clo() + 1000000);
 
 	uart_puts(0, 0, m2, sizeof(m2) - 1);
 	for (;;) // infinite loop, kernel never needs to exit until killed by power switch

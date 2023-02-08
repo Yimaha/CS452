@@ -67,15 +67,30 @@ struct TIMER {
 	uint32_t C3;  // System Timer Compare 3
 };
 
+struct GICD {
+	uint32_t GICD_CTLR;
+
+	// Fill up space to 0x100
+	uint32_t _unused[63];
+	uint32_t GICD_ISENABLERN[16];
+
+	// Fill up space to 0x800
+	uint32_t _unused2[432];
+	uint32_t GICD_ITARGETSRN[64];
+};
+
 static char* const MMIO_BASE = (char*)0xFE000000;
 static char* const GPIO_BASE = (char*)(0xFE000000 + 0x200000);
 static char* const AUX_BASE = (char*)(0xFE000000 + 0x200000 + 0x15000);
 static char* const TIMER_BASE = (char*)(0xFE000000 + 0x3000);
+static char* const GIC_BASE = (char*)0xFF840000;
+static const int TIMER_INTERRUPT_ID = 97; // base timer interrupt is 96, +1 for C1
 
 static volatile struct GPIO* const gpio = (struct GPIO*)(GPIO_BASE);
 static volatile struct AUX* const aux = (struct AUX*)(AUX_BASE);
 static volatile struct SPI* const spi[] = { (struct SPI*)(AUX_BASE + 0x80), (struct SPI*)(AUX_BASE + 0xC0) };
-static volatile struct TIMER* const timer = (struct TIMER*)(TIMER_BASE);
+static volatile TIMER* const timer = (TIMER*)(TIMER_BASE);
+static volatile GICD* const gicd = (GICD*)(GIC_BASE + 0x1000);
 
 /*************** GPIO ***************/
 
@@ -374,6 +389,13 @@ extern "C" void print_exception() {
 	};
 }
 
+extern "C" void print_exception_weird() {
+	char m1[] = "really weird SError\r\n";
+	uart_puts(0, 0, m1, sizeof(m1) - 1);
+	while (1) {
+	};
+}
+
 extern "C" void print_interrupt() {
 	uart_puts(0, 0, "interrupt!\r\n", 12);
 	while (1) {
@@ -411,4 +433,24 @@ extern "C" void assert_crash(const char* msg, const size_t len) {
 void kernel_assert(const bool cond, const char* msg, const size_t len) {
 	if (!cond)
 		assert_crash(msg, len);
+}
+
+void enable_interrupts(void) {
+	// there are 3 phases of enable interrupt
+	// enable the clock to be interrupt(physcial)
+	// we need to make sure at gic level, the communication channel is open, targeting timer 1
+
+	gicd->GICD_CTLR = 1;	  // GICD
+	*(GIC_BASE + 0x2000) = 1; // GICC
+
+	// first, enable GICD_ISENABLERn on the clock, the calculated result is 0x10c as offset
+	gicd->GICD_ISENABLERN[TIMER_INTERRUPT_ID / 32] = 1 << (TIMER_INTERRUPT_ID % 32);
+
+	val_print((uint64_t)gicd);
+	val_print((uint64_t) & (gicd->GICD_ISENABLERN[TIMER_INTERRUPT_ID / 32]));
+	val_print((uint64_t) & (gicd->GICD_ITARGETSRN[TIMER_INTERRUPT_ID / 4]));
+	uart_puts(0, 0, "\r\n", 2);
+
+	// also setup GICD ITARGETSRn to route to cpu 0
+	gicd->GICD_ITARGETSRN[TIMER_INTERRUPT_ID / 4] = 1 << (TIMER_INTERRUPT_ID % 4);
 }

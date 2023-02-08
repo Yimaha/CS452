@@ -26,6 +26,7 @@ uint64_t time(void);
  * By default, we use register C1, as C0 and C2
  * are used by the GPU.
  */
+void enable_interrupts(void);
 void set_comparator(uint32_t interrupt_time, uint32_t reg_num = 1);
 
 // anything that can be invoked from assembly and is useful goes here

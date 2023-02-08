@@ -60,8 +60,8 @@ first_el0_entry:
 	// save kernel registers
 	save_regs
 
-	mov x0, #0b1111000000
-	msr SPSR_EL1, x0
+	// mov x0, #0b1111000000
+	msr SPSR_EL1, xzr
 
 	eret // ready to jump
 
@@ -98,7 +98,7 @@ to_user:
 	save_regs
 
 	// need storing and restore
-	orr x2, x2, #0b1111000000
+	// orr x2, x2, #0b1111000000
 	msr SPSR_EL1, x2
 
 	eret // ready to jump
@@ -119,6 +119,8 @@ handle_return_to_user:
 	ldp x28, x29, [sp, 14*16]
 
 	add sp, sp, 17*16
+
+	msr DAIFClr, #2
 
 	// x0 should already be filled
 	ret
