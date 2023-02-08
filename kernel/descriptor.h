@@ -65,8 +65,22 @@ private:
 	bool initialized;
 	void (*pc)();						 // program counter, but typically only used as a reference value to see where the start of the program is
 	MessageReceiver response;			 // used to store response if task decided to call send, or receive (anything that can block)
-	RingBuffer<Message> inbox;			 // receiver of message
+	etl::queue<Message, 32> inbox;			 // receiver of message
 	char* sp;							 // stack pointer
 	char* spsr;							 // saved program status register
 	char* kernel_stack[USER_STACK_SIZE]; // approximately 128 kbytes per stack
 };
+
+inline InterruptFrame* TaskDescriptor::to_active() {
+	state = TaskDescriptor::TaskState::ACTIVE;
+	if (!initialized) {
+		initialized = true;
+		// startup task, has no parameter or handling
+		sp = (char*)first_el0_entry(sp, pc);
+	} else {
+		sp = (char*)to_user(system_call_result, sp, spsr);
+	}
+	InterruptFrame* intfr = reinterpret_cast<InterruptFrame*>(sp);
+	spsr = reinterpret_cast<char*>(intfr->spsr);
+	return intfr;
+}

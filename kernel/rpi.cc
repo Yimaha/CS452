@@ -356,10 +356,10 @@ void set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
 		return;
 	}
 
-	// if (timer->CS & (1 << reg_num)) {
-	// 	// Clear the match detect status bit
-	// 	timer->CS |= 1 << reg_num;
-	// }
+	if (timer->CS & (1 << reg_num)) {
+		// Clear the match detect status bit
+		timer->CS |= 1 << reg_num;
+	}
 
 	if (reg_num == 0) {
 		timer->C0 = interrupt_time;
@@ -386,6 +386,12 @@ extern "C" void val_print(uint64_t c) {
 
 extern "C" void print_exception() {
 	char m1[] = "reaching invalid location\r\n";
+	uart_puts(0, 0, m1, sizeof(m1) - 1);
+	while (1) {
+	};
+}
+extern "C" void print_exception_special() {
+	char m1[] = "interrupt!\r\n";
 	uart_puts(0, 0, m1, sizeof(m1) - 1);
 	while (1) {
 	};

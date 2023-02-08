@@ -1,11 +1,12 @@
 #include "kernel.h"
 #include "utils/printf.h"
+#include "user/user_tasks.h"
 
 Kernel::Kernel() {
-	allocate_new_task(MAIDENLESS, 0, &UserTask::first_user_task);
+	allocate_new_task(MAIDENLESS, 0, &UserTask::Task_test_4);
 }
 
-void Kernel::schedule_next_task() { // kernel busy waiting on available tasks
+void Kernel::schedule_next_task() { 
 	active_task = scheduler.get_next();
 	while (active_task == NO_TASKS) {
 		char m[] = "no tasks available...\r\n";
@@ -18,14 +19,21 @@ void Kernel::schedule_next_task() { // kernel busy waiting on available tasks
 
 void Kernel::activate() {
 	// upon activation, task become active
-	active_request = tasks[active_task]->to_active();
+	active_request = tasks[active_task]->to_active();	
 }
 
 Kernel::~Kernel() { }
 
 void Kernel::handle() {
 	HandlerCode request = (HandlerCode)active_request->x0; // x0 is always the request type
-	if (request == HandlerCode::CREATE) {
+
+	if (request == HandlerCode::SEND) {
+		handle_send();
+	} else if (request == HandlerCode::RECEIVE) {
+		handle_receive();
+	} else if (request == HandlerCode::REPLY) {
+		handle_reply();
+	} else if (request == HandlerCode::CREATE) {
 		int priority = active_request->x1;
 		void (*user_task)() = (void (*)())active_request->x2;
 		tasks[active_task]->to_ready(p_id_counter, &scheduler);
@@ -39,16 +47,6 @@ void Kernel::handle() {
 		tasks[active_task]->to_ready(0x0, &scheduler);
 	} else if (request == HandlerCode::EXIT) {
 		tasks[active_task]->kill();
-	} else if (request == HandlerCode::SEND) {
-		handle_send();
-	} else if (request == HandlerCode::RECEIVE) {
-		handle_receive();
-	} else if (request == HandlerCode::REPLY) {
-		handle_reply();
-	} else {
-		printf("unknown request type: %d\r\n", request);
-		while (true) {
-		}
 	}
 }
 
@@ -94,7 +92,8 @@ void Kernel::handle_receive() {
 	if (tasks[active_task]->have_message()) {
 		Message incoming_msg = tasks[active_task]->pop_inbox();
 		tasks[incoming_msg.from]->to_reply_block();
-		tasks[active_task]->to_ready(tasks[active_task]->fill_message(incoming_msg, from, msg, msglen), &scheduler);
+		tasks[active_task]->fill_message(incoming_msg, from, msg, msglen);
+		tasks[active_task]->to_ready(incoming_msg.len, &scheduler);
 	} else {
 		// if we don't have message, you are put onto a receive block
 		tasks[active_task]->to_receive_block(from, msg, msglen);

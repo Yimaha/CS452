@@ -46,25 +46,31 @@ bool RingBuffer<T>::is_full() {
 
 template <typename T>
 T RingBuffer<T>::top() {
+#ifdef OUR_DEBUG
 	if (is_empty()) {
 		return 0;
 	}
+#endif
 	return buffer[head];
 }
 
 template <typename T>
 T RingBuffer<T>::bottom() {
+#ifdef OUR_DEBUG
 	if (is_empty()) {
 		return 0;
 	}
+#endif 
 	return buffer[(tail - 1 + MAX_BUFFER_SIZE) % MAX_BUFFER_SIZE];
 }
 
 template <typename T>
 void RingBuffer<T>::push_front(T data) {
+#ifdef OUR_DEBUG	
 	if (is_full()) {
 		return;
 	}
+#endif
 	head = (head - 1 + MAX_BUFFER_SIZE) % MAX_BUFFER_SIZE;
 	buffer[head] = data;
 	size++;
@@ -72,9 +78,11 @@ void RingBuffer<T>::push_front(T data) {
 
 template <typename T>
 void RingBuffer<T>::push_back(T data) {
+#ifdef OUR_DEBUG
 	if (is_full()) {
 		return;
 	}
+#endif
 	buffer[tail] = data;
 	tail = (tail + 1) % MAX_BUFFER_SIZE;
 	size++;
@@ -82,10 +90,12 @@ void RingBuffer<T>::push_back(T data) {
 
 template <typename T>
 T RingBuffer<T>::pop_front() {
+#ifdef OUR_DEBUG
 	if (is_empty()) {
 		print("trying to pop from an empty buffer \r\n", 37);
 		crash();
 	}
+#endif
 	T data = buffer[head];
 	head = (head + 1) % MAX_BUFFER_SIZE;
 	size--;
@@ -94,10 +104,12 @@ T RingBuffer<T>::pop_front() {
 
 template <typename T>
 T RingBuffer<T>::pop_back() {
+#ifdef OUR_DEBUG
 	if (is_empty()) {
 		print("trying to pop from an empty buffer \r\n", 37);
 		crash();
 	}
+#endif
 	tail = (tail - 1 + MAX_BUFFER_SIZE) % MAX_BUFFER_SIZE;
 	T data = buffer[tail];
 	size--;

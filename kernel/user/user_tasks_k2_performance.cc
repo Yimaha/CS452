@@ -19,17 +19,17 @@ void send_helper(int to) {
 	char a[] = "test for data sender start: " ;
 	print(a, sizeof(a)-1);
 	uint64_t start = time();
-	print_int(start);
-	print("\r\n", 2);
 	char msg[SIZE];
 	char reply[SIZE];
     int final_len;
+	print_int(start);
+	print("\r\n", 2);
 	for (int i = 0; i < TASK_TOTAL_CYCLE; i++) {
 		final_len = MessagePassing::Send::Send(to, msg, SIZE, reply, SIZE);
 	}
+	uint64_t end = time();
 	char a2[] = "test for data sender end: " ;
 	print(a2, sizeof(a2)-1);
-	uint64_t end = time();
 	print_int(end);
 	print("\r\n", 2);
 	print("total time consumed: ", 21);
@@ -42,24 +42,24 @@ void send_helper(int to) {
 
 template<const size_t SIZE>
 void receive_helper() {
+	int from = -1;
+	char receiver[SIZE];
+	char reply[SIZE];
+	int msglen = 0;
 	print_int(SIZE);
 	char a[] = "test for data receiver start: " ;
 	print(a, sizeof(a)-1);
 	uint64_t start = time();
 	print_int(start);
 	print("\r\n", 2);
-	int from = -1;
-	char receiver[SIZE];
-	char reply[SIZE];
-	int msglen = 0;
 	for (int i = 0; i < TASK_TOTAL_CYCLE; i++) {
 		msglen = MessagePassing::Receive::Receive(&from, receiver, SIZE);
 		msglen = MessagePassing::Reply::Reply(from, reply, SIZE);
 	}
+	uint64_t end = time();
 	
 	char a2[] = "test for data receiver end: " ;
 	print(a2, sizeof(a2)-1);
-	uint64_t end = time();
 	print_int(end);
 	print("\r\n", 2);
 	print("total time consumed: ", 21);
