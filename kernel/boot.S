@@ -58,7 +58,8 @@ exception_table:
     mov x0, #7
     b print_exception_arg
 .balign 0x80
-    b print_exception_weird
+    mov x0, #8
+    b print_exception_arg
 .balign 0x80 // 9th entry: synchronous exception from lower exception level using AArch64
     mrs x0, SP_EL0
     mrs x1, SPSR_EL1

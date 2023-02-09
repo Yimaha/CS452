@@ -1,4 +1,5 @@
 #pragma once
+#include "../interrupt/clock.h"
 #include "../kernel.h"
 #include "../rpi.h"
 #include "../utils/printf.h"
@@ -210,7 +211,7 @@ extern "C" void RockPaperScissors::RPSServer() {
 }
 
 extern "C" void RockPaperScissors::RPSClient() {
-	int tid = Task::Info::MyTid();
+	int tid = Task::MyTid();
 	int server_tid = Name::WhoIs("RPSServer");
 
 	RockPaperScissors::RPSMessage msg = RockPaperScissors::RPSMessage::SIGNUP;
@@ -224,7 +225,7 @@ extern "C" void RockPaperScissors::RPSClient() {
 
 	while (true) {
 		// Get a "random" move
-		uint64_t rand_int = time() % 3;
+		uint64_t rand_int = Clock::time() % 3;
 		if (moves > 3 + static_cast<int>(rand_int)) {
 			rand_int = 3;
 		}
@@ -276,7 +277,7 @@ extern "C" void RockPaperScissors::RPSClient() {
 			printf(":(\r\n");
 
 			// Do another random check. 25% of the time, rejoin.
-			rand_int = time() % 4;
+			rand_int = Clock::time() % 4;
 			if (rand_int == 0) {
 				printf("Task %d is rejoining!\r\n", tid);
 				msg = RockPaperScissors::RPSMessage::SIGNUP;
@@ -291,5 +292,5 @@ extern "C" void RockPaperScissors::RPSClient() {
 		moves += 1;
 	}
 
-	Task::Destruction::Exit();
+	Task::Exit();
 }

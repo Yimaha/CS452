@@ -58,41 +58,13 @@ struct SPI {
 	uint32_t TXHOLD_REGd; // Extended Data
 };
 
-struct TIMER {
-	uint32_t CS;  // System Timer Control/Status
-	uint32_t CLO; // System Timer Counter Lower 32 bits
-	uint32_t CHI; // System Timer Counter Higher 32 bits
-	uint32_t C0;  // System Timer Compare 0
-	uint32_t C1;  // System Timer Compare 1
-	uint32_t C2;  // System Timer Compare 2
-	uint32_t C3;  // System Timer Compare 3
-};
-
-struct GICD {
-	uint32_t GICD_CTLR;
-
-	// Fill up space to 0x100
-	uint32_t _unused[63];
-	uint32_t GICD_ISENABLERN[16];
-
-	// Fill up space to 0x800
-	uint32_t _unused2[432];
-	uint32_t GICD_ITARGETSRN[64];
-};
-
 static char* const MMIO_BASE = (char*)0xFE000000;
 static char* const GPIO_BASE = (char*)(0xFE000000 + 0x200000);
 static char* const AUX_BASE = (char*)(0xFE000000 + 0x200000 + 0x15000);
-static char* const TIMER_BASE = (char*)(0xFE000000 + 0x3000);
-static char* const GIC_BASE = (char*)0xFF840000;
-static const int TIMER_INTERRUPT_ID = 97; // base timer interrupt is 96, +1 for C1
 
 static volatile struct GPIO* const gpio = (struct GPIO*)(GPIO_BASE);
 static volatile struct AUX* const aux = (struct AUX*)(AUX_BASE);
 static volatile struct SPI* const spi[] = { (struct SPI*)(AUX_BASE + 0x80), (struct SPI*)(AUX_BASE + 0xC0) };
-static volatile TIMER* const timer = (TIMER*)(TIMER_BASE);
-static volatile GICD* const gicd = (GICD*)(GIC_BASE + 0x1000);
-static volatile GICD* const gicc = (GICD*)(GIC_BASE + 0x2000);
 
 /*************** GPIO ***************/
 
@@ -339,39 +311,6 @@ extern "C" void* memcpy(void* __restrict__ dest, const void* __restrict__ src, s
 
 /*********** Timer Functions ***********/
 
-uint32_t clo(void) {
-	return timer->CLO;
-}
-
-uint32_t chi(void) {
-	return timer->CHI;
-}
-
-uint64_t time(void) {
-	return ((uint64_t)timer->CHI << 32) | (uint64_t)timer->CLO;
-}
-
-void set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
-	if (reg_num > 3) {
-		return;
-	}
-
-	if (timer->CS & (1 << reg_num)) {
-		// Clear the match detect status bit
-		timer->CS |= 1 << reg_num;
-	}
-
-	if (reg_num == 0) {
-		timer->C0 = interrupt_time;
-	} else if (reg_num == 1) {
-		timer->C1 = interrupt_time;
-	} else if (reg_num == 2) {
-		timer->C2 = interrupt_time;
-	} else if (reg_num == 3) {
-		timer->C3 = interrupt_time;
-	}
-}
-
 /********** Utility Functions **********/
 
 extern "C" void val_print(uint64_t c) {
@@ -386,19 +325,6 @@ extern "C" void val_print(uint64_t c) {
 
 extern "C" void print_exception() {
 	char m1[] = "reaching invalid location\r\n";
-	uart_puts(0, 0, m1, sizeof(m1) - 1);
-	while (1) {
-	};
-}
-extern "C" void print_exception_special() {
-	char m1[] = "interrupt!\r\n";
-	uart_puts(0, 0, m1, sizeof(m1) - 1);
-	while (1) {
-	};
-}
-
-extern "C" void print_exception_weird() {
-	char m1[] = "really weird SError\r\n";
 	uart_puts(0, 0, m1, sizeof(m1) - 1);
 	while (1) {
 	};
@@ -447,19 +373,4 @@ extern "C" void assert_crash(const char* msg, const size_t len) {
 void kernel_assert(const bool cond, const char* msg, const size_t len) {
 	if (!cond)
 		assert_crash(msg, len);
-}
-
-void enable_interrupts(void) {
-	// there are 3 phases of enable interrupt
-	// enable the clock to be interrupt(physcial)
-	// we need to make sure at gic level, the communication channel is open, targeting timer 1
-
-	gicd->GICD_CTLR = 1; // GICD
-	gicc->GICD_CTLR = 1; // GICC
-
-	// first, enable GICD_ISENABLERn on the clock, the calculated result is 0x10c as offset
-	gicd->GICD_ISENABLERN[TIMER_INTERRUPT_ID / 32] = 1 << (TIMER_INTERRUPT_ID % 32);
-
-	// also setup GICD ITARGETSRn to route to cpu 0
-	gicd->GICD_ITARGETSRN[TIMER_INTERRUPT_ID / 4] = 1 << (8 * (TIMER_INTERRUPT_ID % 4));
 }

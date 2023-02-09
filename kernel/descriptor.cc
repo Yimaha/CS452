@@ -1,6 +1,8 @@
 
 #include "descriptor.h"
 
+using namespace Descriptor;
+
 /**
  * initialization,
  */
@@ -42,7 +44,7 @@ Message TaskDescriptor::pop_inbox() {
 	return msg;
 }
 
-void TaskDescriptor::to_ready(int system_response, Scheduler* scheduler) {
+void TaskDescriptor::to_ready(int system_response, Task::Scheduler* scheduler) {
 #ifdef OUR_DEBUG
 	if (state == ACTIVE || state == SEND_BLOCK || state == RECEIVE_BLOCK || state == REPLY_BLOCK) // ignoring event block for k2
 	{
@@ -117,7 +119,7 @@ bool TaskDescriptor::is_reply_block() {
  * Debug function used to print out helpful state of a Task descriptor
  * note that this need an update to fill all missing fields
  */
-void TaskDescriptor::show_info() {
+void Descriptor::TaskDescriptor::show_info() {
 	char m1[] = "printing status of TaskDescriptor\r\n";
 	uart_puts(0, 0, m1, sizeof(m1) - 1);
 	char m2[] = "ID: ";

@@ -2,14 +2,6 @@
 
 #pragma once
 
-#define USER_TASK_START_ADDRESS 0x10000000	// dedicated user task space
-#define USER_TASK_LIMIT 100					// dedicated amount of user task
-#define MAX_NAME_LENGTH 16					// max length of a name
-#define NAME_REQ_LENGTH MAX_NAME_LENGTH + 8 // max length of a name request
-
-#define MAIDENLESS -1	 // aka, no parent task
-#define NAME_SERVER_ID 1 // the name server is always task 1
-
 #include <new>
 #include <stdint.h>
 
@@ -23,19 +15,38 @@
 #include "user/user_tasks_k2_performance.h"
 #include "utils/slab_allocator.h"
 
-namespace Info
+namespace Task
 {
+constexpr int MAIDENLESS = -1;
+constexpr uint64_t USER_TASK_START_ADDRESS = 0x10000000;
+constexpr uint64_t USER_TASK_LIMIT = 100;
+
 int MyTid();
 int MyParentTid();
-}
-
-namespace Destruction
-{
 void Exit();
-// potentially destroy in the future
+void Yield(); // since it is more like a debug functin, it is consider as "else" namespace
+int Create(int priority, void (*function)());
 }
 
-void Yield(); // since it is more like a debug functin, it is consider as "else" namespace
+namespace MessagePassing
+{
+namespace Send
+{
+	int Send(int tid, const char* msg, int msglen, char* reply, int rplen);
+	enum Exception { NO_SUCH_TASK = -1, CANNOT_BE_COMPLETE = -2 };
+}
+
+namespace Receive
+{
+	int Receive(int* tid, char* msg, int msglen);
+}
+
+namespace Reply
+{
+	int Reply(int tid, const char* msg, int msglen);
+	enum Exception { NO_SUCH_TASK = -1, NOT_WAITING_FOR_REPLY = -2 };
+}
+}
 
 /* Name server namespace
  * A couple notes about the RegisterAs and WhoIs functions:
@@ -49,6 +60,8 @@ void Yield(); // since it is more like a debug functin, it is consider as "else"
  */
 namespace Name
 {
+const uint64_t NAME_SERVER_ID = 1; // the name server is always task 1
+
 //*************************************************************************
 /// Registers the given name with the name server.
 ///\return 0 on success, or -1 if the name server task id is invalid
@@ -80,23 +93,19 @@ private:
 	int p_id_counter = 0;					  // keeps track of new task creation id
 	int active_task = 0;					  // keeps track of the active_task id
 	InterruptFrame* active_request = nullptr; // a storage that saves the active user request
-	Scheduler scheduler;					  // scheduler doesn't hold the actual task descriptor,
+	Task::Scheduler scheduler;				  // scheduler doesn't hold the actual task descriptor,
 											  // simply an id and the priority
 
-	TaskDescriptor* tasks[USER_TASK_LIMIT] = { nullptr }; // points to the starting location of taskDescriptors, default all nullptr
+	Descriptor::TaskDescriptor* tasks[Task::USER_TASK_LIMIT] = { nullptr }; // points to the starting location of taskDescriptors, default all nullptr
 
 	// define the type, and follow by the contrustor variable you want to pass to i
-	SlabAllocator<TaskDescriptor, int, int, int, void (*)()> task_allocator = SlabAllocator<TaskDescriptor, int, int, int, void (*)()>((char*)USER_TASK_START_ADDRESS, USER_TASK_LIMIT);
+	SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()> task_allocator
+		= SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()>((char*)Task::USER_TASK_START_ADDRESS, Task::USER_TASK_LIMIT);
 
 	void allocate_new_task(int parent_id, int priority, void (*pc)()); // create, and push a new task onto the actual scheduler
 	void handle_send();
 	void handle_receive();
 	void handle_reply();
-
-protected:
-	// all debug function will either be public or protected, so in future
-	// if we need to write any sort of unit test, unit test can have access to the class function
-	void check_tasks(int task_id); // check the state of a particular task descriptor
 };
 /**
  * User communication interface, all user tasks should use these functions to talk to the kernel
@@ -104,60 +113,3 @@ protected:
  * note that they follow Capitalized Camel Case
  * unlike all other functions within our code
  */
-namespace Task
-{
-namespace Creation
-{
-	static inline int Create(int priority, void (*function)()) {
-		return to_kernel(Kernel::HandlerCode::CREATE, priority, function);
-	}
-}
-
-namespace Info
-{
-	static inline int MyTid() {
-		return to_kernel(Kernel::HandlerCode::MY_TID);
-	}
-	static inline int MyParentTid() {
-		return to_kernel(Kernel::HandlerCode::MY_PARENT_ID);
-	}
-}
-
-namespace Destruction
-{
-	static inline void Exit() {
-		to_kernel(Kernel::HandlerCode::EXIT);
-	}
-	// potentially destroy in the future
-}
-
-static inline void Yield() {
-	to_kernel(Kernel::HandlerCode::YIELD);
-} // since it is more like a debug functin, it is consider as "else" namespace
-}
-
-namespace MessagePassing
-{
-namespace Send
-{
-	static inline int Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
-		return to_kernel(Kernel::HandlerCode::SEND, tid, msg, msglen, reply, rplen);
-	}
-	enum Exception { NO_SUCH_TASK = -1, CANNOT_BE_COMPLETE = -2 };
-}
-
-namespace Receive
-{
-	static inline int Receive(int* tid, char* msg, int msglen) {
-		return to_kernel(Kernel::HandlerCode::RECEIVE, tid, msg, msglen);
-	}
-}
-
-namespace Reply
-{
-	static inline int Reply(int tid, const char* msg, int msglen) {
-		return to_kernel(Kernel::HandlerCode::REPLY, tid, msg, msglen);
-	}
-	enum Exception { NO_SUCH_TASK = -1, NOT_WAITING_FOR_REPLY = -2 };
-}
-}

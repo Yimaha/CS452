@@ -1,5 +1,7 @@
 #include "scheduler.h"
 
+using namespace Task;
+
 Scheduler::Scheduler() { }
 
 int Scheduler::get_next() {
