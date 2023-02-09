@@ -8,6 +8,8 @@
 namespace Name
 {
 constexpr int MAX_NAME_SERVER_SIZE = 256;
+constexpr uint64_t MAX_NAME_LENGTH = 16; // max length of a name
+constexpr uint64_t NAME_REQ_LENGTH = MAX_NAME_LENGTH + 8;
 
 /*
  * The name server is a simple server that maps names to tids.
@@ -24,14 +26,7 @@ struct NameContainer {
 	char arr[MAX_NAME_LENGTH];
 
 	friend bool operator==(const NameContainer& a, const NameContainer& b) {
-		// const uint64_t first = *((uint64_t*)(a.arr - 1)) & 0x00FFFFFFFFFFFFFF;
-		// const uint64_t second = *((uint64_t*)(a.arr + sizeof(uint64_t) - 1));
-		// const uint64_t ofirst = *((uint64_t*)(b.arr - 1)) & 0x00FFFFFFFFFFFFFF;
-		// const uint64_t osecond = *((uint64_t*)(b.arr + sizeof(uint64_t) - 1));
-
-		// return first == ofirst && second == osecond;
-
-		for (int i = 0; i < MAX_NAME_LENGTH; i++) {
+		for (uint64_t i = 0; i < MAX_NAME_LENGTH; i++) {
 			if (a.arr[i] != b.arr[i]) {
 				return false;
 			} else if (a.arr[i] == '\0' || b.arr[i] == '\0') {

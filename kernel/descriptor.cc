@@ -1,6 +1,8 @@
 
 #include "descriptor.h"
 
+using namespace Descriptor;
+
 /**
  * initialization,
  */
@@ -16,11 +18,11 @@ TaskDescriptor::TaskDescriptor(int id, int parent_id, int priority, void (*pc)()
 }
 
 void TaskDescriptor::queue_message(int from, char* msg, int msglen) {
-	inbox.push_back(Message { from, msg, msglen });
+	inbox.push(Message { from, msg, msglen });
 }
 
 bool TaskDescriptor::have_message() {
-	return !inbox.is_empty();
+	return !inbox.empty();
 }
 
 int TaskDescriptor::fill_message(Message msg, int* from, char* msg_container, int msglen) {
@@ -37,33 +39,25 @@ int TaskDescriptor::fill_response(int from, char* msg, int msglen) {
 }
 
 Message TaskDescriptor::pop_inbox() {
-	return inbox.pop_front();
+	Message msg = inbox.front();
+	inbox.pop();
+	return msg;
 }
 
-InterruptFrame* TaskDescriptor::to_active() {
-	state = TaskDescriptor::TaskState::ACTIVE;
-	if (!initialized) {
-		initialized = true;
-		// startup task, has no parameter or handling
-		sp = (char*)first_el0_entry(sp, pc);
-	} else {
-		sp = (char*)to_user(system_call_result, sp, spsr);
-	}
-	InterruptFrame* intfr = reinterpret_cast<InterruptFrame*>(sp);
-	spsr = reinterpret_cast<char*>(intfr->spsr);
-	return intfr;
-}
-
-void TaskDescriptor::to_ready(int system_response, Scheduler* scheduler) {
+void TaskDescriptor::to_ready(int system_response, Task::Scheduler* scheduler) {
+#ifdef OUR_DEBUG
 	if (state == ACTIVE || state == SEND_BLOCK || state == RECEIVE_BLOCK || state == REPLY_BLOCK) // ignoring event block for k2
 	{
+#endif
 		state = READY;
 		system_call_result = system_response;
 		scheduler->add_task(priority, task_id); // queue back into sheculer
+#ifdef OUR_DEBUG
 	} else {
 		print("unblock is called on task that is not blocked!\r\n", 48);
 		crash();
 	}
+#endif
 }
 
 bool TaskDescriptor::kill() {
@@ -125,7 +119,7 @@ bool TaskDescriptor::is_reply_block() {
  * Debug function used to print out helpful state of a Task descriptor
  * note that this need an update to fill all missing fields
  */
-void TaskDescriptor::show_info() {
+void Descriptor::TaskDescriptor::show_info() {
 	char m1[] = "printing status of TaskDescriptor\r\n";
 	uart_puts(0, 0, m1, sizeof(m1) - 1);
 	char m2[] = "ID: ";

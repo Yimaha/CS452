@@ -1,4 +1,5 @@
 #include "rpi.h"
+#include "utils/printf.h"
 
 struct GPIO {
 	uint32_t GPFSEL[6];
@@ -57,25 +58,13 @@ struct SPI {
 	uint32_t TXHOLD_REGd; // Extended Data
 };
 
-struct TIMER {
-	uint32_t CS;  // System Timer Control/Status
-	uint32_t CLO; // System Timer Counter Lower 32 bits
-	uint32_t CHI; // System Timer Counter Higher 32 bits
-	uint32_t C0;  // System Timer Compare 0
-	uint32_t C1;  // System Timer Compare 1
-	uint32_t C2;  // System Timer Compare 2
-	uint32_t C3;  // System Timer Compare 3
-};
-
 static char* const MMIO_BASE = (char*)0xFE000000;
 static char* const GPIO_BASE = (char*)(0xFE000000 + 0x200000);
 static char* const AUX_BASE = (char*)(0xFE000000 + 0x200000 + 0x15000);
-static char* const TIMER_BASE = (char*)(0xFE000000 + 0x3000);
 
 static volatile struct GPIO* const gpio = (struct GPIO*)(GPIO_BASE);
 static volatile struct AUX* const aux = (struct AUX*)(AUX_BASE);
 static volatile struct SPI* const spi[] = { (struct SPI*)(AUX_BASE + 0x80), (struct SPI*)(AUX_BASE + 0xC0) };
-static volatile struct TIMER* const timer = (struct TIMER*)(TIMER_BASE);
 
 /*************** GPIO ***************/
 
@@ -320,41 +309,6 @@ extern "C" void* memcpy(void* __restrict__ dest, const void* __restrict__ src, s
 	return dest;
 }
 
-/*********** Timer Functions ***********/
-
-uint32_t clo(void) {
-	return timer->CLO;
-}
-
-uint32_t chi(void) {
-	return timer->CHI;
-}
-
-uint64_t time(void) {
-	return ((uint64_t)timer->CHI << 32) | (uint64_t)timer->CLO;
-}
-
-void set_comparator(uint32_t reg_num, uint32_t interrupt_time) {
-	if (reg_num > 3) {
-		return;
-	}
-
-	if (timer->CS & (1 << reg_num)) {
-		// Clear the match detect status bit
-		timer->CS |= 1 << reg_num;
-	}
-
-	if (reg_num == 0) {
-		timer->C0 = interrupt_time;
-	} else if (reg_num == 1) {
-		timer->C1 = interrupt_time;
-	} else if (reg_num == 2) {
-		timer->C2 = interrupt_time;
-	} else if (reg_num == 3) {
-		timer->C3 = interrupt_time;
-	}
-}
-
 /********** Utility Functions **********/
 
 extern "C" void val_print(uint64_t c) {
@@ -370,6 +324,18 @@ extern "C" void val_print(uint64_t c) {
 extern "C" void print_exception() {
 	char m1[] = "reaching invalid location\r\n";
 	uart_puts(0, 0, m1, sizeof(m1) - 1);
+	while (1) {
+	};
+}
+
+extern "C" void print_interrupt() {
+	uart_puts(0, 0, "interrupt!\r\n", 12);
+	while (1) {
+	};
+}
+
+extern "C" void print_exception_arg(uint64_t arg) {
+	printf("exception arg: %x\r\n", arg);
 	while (1) {
 	};
 }

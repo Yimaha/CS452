@@ -9,27 +9,23 @@ extern "C" void UserTask::first_user_task() {
 		// Create the name server
 		char msg[] = "creating name server\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
-		Task::Creation::Create(1, &Name::name_server);
-
-		// Task::Creation::Create(3, &UserTask::Sender1N);
-		// Task::Creation::Create(3, &UserTask::Sender2N);
-		// Task::Creation::Create(2, &UserTask::ReceiverN);
+		Task::Create(1, &Name::name_server);
 
 		// Create the RPS server
 		char msg2[] = "creating rps server\r\n";
 		uart_puts(0, 0, msg2, sizeof(msg2) - 1);
-		Task::Creation::Create(2, &RockPaperScissors::RPSServer);
+		Task::Create(2, &RockPaperScissors::RPSServer);
 
 		// Create the RPS clients
 		for (int i = 0; i < 5; ++i) {
 			char msg3[] = "creating rps client\r\n";
 			uart_puts(0, 0, msg3, sizeof(msg3) - 1);
-			Task::Creation::Create(3, &RockPaperScissors::RPSClient);
+			Task::Create(3, &RockPaperScissors::RPSClient);
 		}
 
 		char msg5[] = "exiting task 0\r\n";
 		uart_puts(0, 0, msg5, sizeof(msg5) - 1);
-		Task::Destruction::Exit();
+		Task::Exit();
 	}
 }
 

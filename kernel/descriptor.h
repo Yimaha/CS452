@@ -1,6 +1,4 @@
 #pragma once
-#define USER_STACK_SIZE 131072 // a total of 128kb
-
 #include "context_switch.h"
 #include "rpi.h"
 #include "scheduler.h"
@@ -8,7 +6,12 @@
 #include "utils/utility.h"
 #include <cstdint>
 
-// used for storing receive infos
+namespace Descriptor
+{
+
+const uint64_t USER_STACK_SIZE = 131072; // a total of 128kb
+const uint64_t INBOX_SIZE = 64;
+
 struct MessageReceiver {
 	int* from;
 	char* loc;
@@ -34,7 +37,7 @@ public:
 	Message pop_inbox();
 	// state modifying api
 	InterruptFrame* to_active();
-	void to_ready(int system_response, Scheduler* scheduler);
+	void to_ready(int system_response, Task::Scheduler* scheduler);
 	bool kill();
 	void to_send_block(char* reply, int replylen);
 	void to_receive_block(int* from, char* msg, int msglen);
@@ -53,7 +56,6 @@ public:
 	const int task_id;
 	const int parent_id; // id = -1 means no parent
 
-	friend class Kernel; // allow kernel to access protected functions (and potential future unit tests)
 protected:
 	// debug api
 	void show_info();
@@ -63,10 +65,26 @@ private:
 	int priority;
 	int system_call_result;
 	bool initialized;
-	void (*pc)();						 // program counter, but typically only used as a reference value to see where the start of the program is
-	MessageReceiver response;			 // used to store response if task decided to call send, or receive (anything that can block)
-	RingBuffer<Message> inbox;			 // receiver of message
-	char* sp;							 // stack pointer
-	char* spsr;							 // saved program status register
-	char* kernel_stack[USER_STACK_SIZE]; // approximately 16 kbytes per stack
+	void (*pc)();						   // program counter, but typically only used as a reference value to see where the start of the program is
+	MessageReceiver response;			   // used to store response if task decided to call send, or receive (anything that can block)
+	etl::queue<Message, INBOX_SIZE> inbox; // receiver of message
+	char* sp;							   // stack pointer
+	char* spsr;							   // saved program status register
+	char* kernel_stack[USER_STACK_SIZE];   // approximately 128 kbytes per stack
 };
+
+inline InterruptFrame* TaskDescriptor::to_active() {
+	state = TaskDescriptor::TaskState::ACTIVE;
+	if (!initialized) {
+		initialized = true;
+		// startup task, has no parameter or handling
+		sp = (char*)first_el0_entry(sp, pc);
+	} else {
+		sp = (char*)to_user(system_call_result, sp, spsr);
+	}
+	InterruptFrame* intfr = reinterpret_cast<InterruptFrame*>(sp);
+	spsr = reinterpret_cast<char*>(intfr->spsr);
+	return intfr;
+}
+}
+// used for storing receive infos

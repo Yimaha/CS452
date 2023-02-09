@@ -42,6 +42,8 @@ struct InterruptFrame {
 	uint64_t fp;
 	uint64_t lr;
 	uint64_t spsr;
+	uint64_t data; // used to determine the source of the interrupt, i.e, (0) for synchronous, (1) for IRQ
+	uint64_t xzr;
 };
 
 extern "C" InterruptFrame* first_el0_entry(char* userSP, void (*pc)());

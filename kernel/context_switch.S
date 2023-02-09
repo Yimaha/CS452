@@ -15,7 +15,7 @@
 
 .macro save_regs
 	// Save registers
-	sub sp, sp, 16*16
+	sub sp, sp, 17*16
 
 	stp x0, x1, [sp, 0*16]
 	stp x2, x3, [sp, 1*16]
@@ -43,7 +43,7 @@
 	ldp x26, x27, [sp, 13*16]
 	ldp x28, x29, [sp, 14*16]
 	
-	add sp, sp, 16*16
+	add sp, sp, 17*16
 .endm
 
 
@@ -60,8 +60,8 @@ first_el0_entry:
 	// save kernel registers
 	save_regs
 
-	mov x0, #0b1111000000
-	msr SPSR_EL1, x0
+	// mov x0, #0b1111000000
+	msr SPSR_EL1, xzr
 
 	eret // ready to jump
 
@@ -98,7 +98,7 @@ to_user:
 	save_regs
 
 	// need storing and restore
-	orr x2, x2, #0b1111000000
+	// orr x2, x2, #0b1111000000
 	msr SPSR_EL1, x2
 
 	eret // ready to jump
@@ -118,7 +118,9 @@ handle_return_to_user:
 	ldp x26, x27, [sp, 13*16]
 	ldp x28, x29, [sp, 14*16]
 
-	add sp, sp, 16*16
+	add sp, sp, 17*16
+
+	msr DAIFClr, #0b1111 // enable interrupts
 
 	// x0 should already be filled
 	ret
