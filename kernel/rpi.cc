@@ -309,8 +309,6 @@ extern "C" void* memcpy(void* __restrict__ dest, const void* __restrict__ src, s
 	return dest;
 }
 
-/*********** Timer Functions ***********/
-
 /********** Utility Functions **********/
 
 extern "C" void val_print(uint64_t c) {

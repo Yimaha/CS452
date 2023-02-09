@@ -1,5 +1,7 @@
 #pragma once
+#include <stdint.h>
 #include "interrupt.h"
+
 namespace Clock
 {
 uint32_t clo(void);

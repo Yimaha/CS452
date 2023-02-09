@@ -10,6 +10,7 @@ namespace Task
 {
 const static int NO_TASKS = -1;
 const static int NUM_PRIORITIES = 4;
+const static int SCHEDULER_QUEUE_SIZE = 64;
 class Scheduler {
 public:
 	Scheduler();
@@ -17,7 +18,7 @@ public:
 	void add_task(int priority, int task_id);
 
 private:
-	etl::queue<int, 64> ready_queue[NUM_PRIORITIES];
+	etl::queue<int, SCHEDULER_QUEUE_SIZE> ready_queue[NUM_PRIORITIES];
 };
 
 }
