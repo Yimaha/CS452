@@ -219,7 +219,7 @@ int timer_server_interface_helper(int tid, Clock::RequestHeader header, uint32_t
 #ifdef OUR_DEBUG
 	const int res = Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(Clock::ClockServerReq), reply, 4);
 	if (res < 0) // Send failed
-		return Name::Exception::SEND_FAILED;
+		return Name::Exception::INVALID_NS_TASK_ID;
 #else
 	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(Clock::ClockServerReq), reply, 4);
 #endif
@@ -245,6 +245,6 @@ int Clock::DelayUntil(int tid, int ticks) {
 }
 
 int Interrupt::AwaitEvent(int eventId) {
-
+	(void)eventId;
 	return 1; // need to change
 }
