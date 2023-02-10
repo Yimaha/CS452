@@ -53,6 +53,10 @@ public:
 	bool is_receive_block();
 	bool is_reply_block();
 
+	// Interrupts
+	bool was_interrupted();
+	void set_interrupted(bool val);
+
 	const int task_id;
 	const int parent_id; // id = -1 means no parent
 
@@ -65,12 +69,14 @@ private:
 	int priority;
 	int system_call_result;
 	bool initialized;
+
 	void (*pc)();						   // program counter, but typically only used as a reference value to see where the start of the program is
 	MessageReceiver response;			   // used to store response if task decided to call send, or receive (anything that can block)
 	etl::queue<Message, INBOX_SIZE> inbox; // receiver of message
 	char* sp;							   // stack pointer
 	char* spsr;							   // saved program status register
 	char* kernel_stack[USER_STACK_SIZE];   // approximately 128 kbytes per stack
+	bool interrupted;					   // was the task interrupted on the last context switch?
 };
 
 inline InterruptFrame* TaskDescriptor::to_active() {
@@ -79,9 +85,14 @@ inline InterruptFrame* TaskDescriptor::to_active() {
 		initialized = true;
 		// startup task, has no parameter or handling
 		sp = (char*)first_el0_entry(sp, pc);
+	} else if (was_interrupted()) {
+		// interrupted task, has to restore the context
+		set_interrupted(false);
+		sp = (char*)to_user_interrupted(sp, spsr);
 	} else {
 		sp = (char*)to_user(system_call_result, sp, spsr);
 	}
+
 	InterruptFrame* intfr = reinterpret_cast<InterruptFrame*>(sp);
 	spsr = reinterpret_cast<char*>(intfr->spsr);
 	return intfr;

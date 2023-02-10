@@ -12,17 +12,16 @@ struct TIMER {
 
 static char* const TIMER_BASE = (char*)(0xFE000000 + 0x3000);
 static volatile TIMER* const timer = (TIMER*)(TIMER_BASE);
-static const int TIMER_INTERRUPT_ID = 97; // base timer interrupt is 96, +1 for C1
 
-uint32_t Clock::clo(void) {
+uint32_t Clock::clo() {
 	return timer->CLO;
 }
 
-uint32_t Clock::chi(void) {
+uint32_t Clock::chi() {
 	return timer->CHI;
 }
 
-uint64_t Clock::time(void) {
+uint64_t Clock::time() {
 	return ((uint64_t)timer->CHI << 32) | (uint64_t)timer->CLO;
 }
 
@@ -37,7 +36,7 @@ void Clock::set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
 #endif
 		// Clear the match detect status bit
 		timer->CS |= 1 << reg_num;
-#ifdef OUR_DEBUu
+#ifdef OUR_DEBUG
 	}
 #endif
 
@@ -52,6 +51,6 @@ void Clock::set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
 	}
 }
 
-void Clock::enable_clock_one_interrupts(void) {
+void Clock::enable_clock_one_interrupts() {
 	Interrupt::enable_interrupt_for(TIMER_INTERRUPT_ID);
 }

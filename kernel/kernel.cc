@@ -1,4 +1,5 @@
 #include "kernel.h"
+#include "interrupt/clock.h"
 #include "user/user_tasks.h"
 #include "utils/printf.h"
 
@@ -20,15 +21,15 @@ void Task::Yield() {
 	to_kernel(Kernel::HandlerCode::YIELD);
 } // since it is more like a debug functin, it is consider as "else" namespace
 
-int MessagePassing::Send::Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
+int Message::Send::Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
 	return to_kernel(Kernel::HandlerCode::SEND, tid, msg, msglen, reply, rplen);
 }
 
-int MessagePassing::Receive::Receive(int* tid, char* msg, int msglen) {
+int Message::Receive::Receive(int* tid, char* msg, int msglen) {
 	return to_kernel(Kernel::HandlerCode::RECEIVE, tid, msg, msglen);
 }
 
-int MessagePassing::Reply::Reply(int tid, const char* msg, int msglen) {
+int Message::Reply::Reply(int tid, const char* msg, int msglen) {
 	return to_kernel(Kernel::HandlerCode::REPLY, tid, msg, msglen);
 }
 
@@ -50,11 +51,40 @@ void Kernel::schedule_next_task() {
 void Kernel::activate() {
 	// upon activation, task become active
 	active_request = tasks[active_task]->to_active();
+
+#ifdef OUR_DEBUG
+	printf("Task %d activated!\r\n", active_task);
+#endif
 }
 
 Kernel::~Kernel() { }
 
 void Kernel::handle() {
+	KernelEntryCode kecode = static_cast<KernelEntryCode>(active_request->data);
+#ifdef OUR_DEBUG
+	printf("Interrupt code: %llu\r\n", active_request->data);
+#endif
+	if (kecode == KernelEntryCode::SYSCALL) {
+		// tasks[active_task]->set_interrupted(false);
+		handle_syscall();
+	} else if (kecode == KernelEntryCode::INTERRUPT) {
+		printf("Task %d interrupted!\r\n", active_task);
+		tasks[active_task]->set_interrupted(true);
+		InterruptCode icode = InterruptCode::TIMER;
+		// Couple things I should be doing here (later):
+		// 1. Find the actual interrupt code, because ARM can't
+		// 2. Clear the GCID-EIOIO register or whatever it's called
+		// 3. Pass that into handle_interrupt
+		handle_interrupt(icode);
+	} else {
+		// wat
+		printf("Unknown kernel entry code: %d\r\n", kecode);
+		while (true) {
+		}
+	}
+}
+
+void Kernel::handle_syscall() {
 	HandlerCode request = (HandlerCode)active_request->x0; // x0 is always the request type
 
 	if (request == HandlerCode::SEND) {
@@ -80,6 +110,16 @@ void Kernel::handle() {
 	}
 }
 
+void Kernel::handle_interrupt(InterruptCode icode) {
+	if (icode == InterruptCode::TIMER) {
+		// basically disable the clock for a bit
+		Clock::set_comparator(Clock::clo() + 1000000);
+
+		// TODO: wake up the clock notifier
+		tasks[active_task]->to_ready(0x0, &scheduler);
+	}
+}
+
 void Kernel::allocate_new_task(int parent_id, int priority, void (*pc)()) {
 	Descriptor::TaskDescriptor* task_ptr = task_allocator.get(p_id_counter, parent_id, priority, pc);
 	if (task_ptr != nullptr) {
@@ -97,7 +137,7 @@ void Kernel::handle_send() {
 	// I actually have no clue when will the -2 case trigger
 	if (tasks[rid] == nullptr) {
 		// communicating a non existing task
-		tasks[active_task]->to_ready(MessagePassing::Send::Exception::NO_SUCH_TASK, &scheduler);
+		tasks[active_task]->to_ready(Message::Send::Exception::NO_SUCH_TASK, &scheduler);
 	} else {
 		char* msg = (char*)active_request->x2;
 		int msglen = active_request->x3;
@@ -135,9 +175,9 @@ void Kernel::handle_reply() {
 	char* msg = (char*)active_request->x2;
 	int msglen = active_request->x3;
 	if (tasks[to] == nullptr) {
-		tasks[active_task]->to_ready(MessagePassing::Reply::Exception::NO_SUCH_TASK, &scheduler); // communicating a non existing task
+		tasks[active_task]->to_ready(Message::Reply::Exception::NO_SUCH_TASK, &scheduler); // communicating a non existing task
 	} else if (!tasks[to]->is_reply_block()) {
-		tasks[active_task]->to_ready(MessagePassing::Reply::Exception::NOT_WAITING_FOR_REPLY, &scheduler); // communicating with a task that is not reply blocked
+		tasks[active_task]->to_ready(Message::Reply::Exception::NOT_WAITING_FOR_REPLY, &scheduler); // communicating with a task that is not reply blocked
 	} else {
 		int min_len = tasks[to]->fill_response(active_task, msg, msglen);
 		tasks[to]->to_ready(min_len, &scheduler);
@@ -145,15 +185,15 @@ void Kernel::handle_reply() {
 	}
 }
 
-int name_server_interface_helper(const char* name, Name::Iden iden) {
+int name_server_interface_helper(const char* name, Name::RequestHeader header) {
 	char reply[4];
 	const int rplen = sizeof(int);
-	Name::NameServerReq req = { iden, { 0 } };
+	Name::NameServerReq req = { header, { 0 } };
 
 	for (uint64_t i = 0; name[i] != '\0' && i < Name::MAX_NAME_LENGTH; ++i)
 		req.name.arr[i] = name[i];
 
-	const int res = MessagePassing::Send::Send(Name::NAME_SERVER_ID, reinterpret_cast<const char*>(&req), Name::NAME_REQ_LENGTH, reply, rplen);
+	const int res = Message::Send::Send(Name::NAME_SERVER_ID, reinterpret_cast<const char*>(&req), Name::NAME_REQ_LENGTH, reply, rplen);
 	if (res < 0) // Send failed
 		return Name::Exception::INVALID_NS_TASK_ID;
 
@@ -162,10 +202,49 @@ int name_server_interface_helper(const char* name, Name::Iden iden) {
 }
 
 int Name::RegisterAs(const char* name) {
-	const int ret = name_server_interface_helper(name, Name::Iden::REGISTER_AS);
+	const int ret = name_server_interface_helper(name, Name::RequestHeader::REGISTER_AS);
 	return (ret >= 0) ? 0 : Name::Exception::INVALID_NS_TASK_ID;
 }
 
 int Name::WhoIs(const char* name) {
-	return name_server_interface_helper(name, Name::Iden::WHO_IS);
+	return name_server_interface_helper(name, Name::RequestHeader::WHO_IS);
+}
+
+int timer_server_interface_helper(int tid, Clock::RequestHeader header, uint32_t ticks = 0) {
+	char reply[4];
+	Clock::ClockServerReq req = { header, { ticks } }; // body is irrelevant
+	if (tid != Clock::CLOCK_SERVER_ID) {
+		return Clock::Exception::INVALID_ID;
+	}
+#ifdef OUR_DEBUG
+	const int res = Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(Clock::ClockServerReq), reply, 4);
+	if (res < 0) // Send failed
+		return Name::Exception::SEND_FAILED;
+#else
+	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(Clock::ClockServerReq), reply, 4);
+#endif
+	return *(reinterpret_cast<int*>(reply)); // return the number of ticks since the dawn of time
+}
+
+int Clock::Time(int tid) {
+	return timer_server_interface_helper(tid, Clock::RequestHeader::TIME);
+}
+
+int Clock::Delay(int tid, int ticks) {
+	if (ticks < 0) {
+		return Clock::Exception::NEGATIVE_DELAY;
+	}
+	return timer_server_interface_helper(tid, Clock::RequestHeader::DELAY, (uint32_t)ticks);
+}
+
+int Clock::DelayUntil(int tid, int ticks) {
+	if (ticks < 0) {
+		return Clock::Exception::NEGATIVE_DELAY;
+	}
+	return timer_server_interface_helper(tid, Clock::RequestHeader::DELAY_UNTIL, (uint32_t)ticks);
+}
+
+int Interrupt::AwaitEvent(int eventId) {
+
+	return 1; // need to change
 }

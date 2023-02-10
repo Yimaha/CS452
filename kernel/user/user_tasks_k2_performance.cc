@@ -24,7 +24,7 @@ void send_helper(int to) {
 	print_int(start);
 	print("\r\n", 2);
 	for (int i = 0; i < TASK_TOTAL_CYCLE; i++) {
-		final_len = MessagePassing::Send::Send(to, msg, SIZE, reply, SIZE);
+		final_len = Message::Send::Send(to, msg, SIZE, reply, SIZE);
 	}
 	uint64_t end = Clock::time();
 	char a2[] = "test for data sender end: ";
@@ -52,8 +52,8 @@ void receive_helper() {
 	print_int(start);
 	print("\r\n", 2);
 	for (int i = 0; i < TASK_TOTAL_CYCLE; i++) {
-		msglen = MessagePassing::Receive::Receive(&from, receiver, SIZE);
-		msglen = MessagePassing::Reply::Reply(from, reply, SIZE);
+		msglen = Message::Receive::Receive(&from, receiver, SIZE);
+		msglen = Message::Reply::Reply(from, reply, SIZE);
 	}
 	uint64_t end = Clock::time();
 
@@ -72,19 +72,19 @@ void receive_helper() {
 extern "C" void UserTask::AutoStart() {
 	Task::Create(1, &UserTask::Sender);
 	Task::Create(2, &UserTask::Receiver);
-	int final_len = MessagePassing::Send::Send(1, nullptr, 0, nullptr, 0);
+	int final_len = Message::Send::Send(1, nullptr, 0, nullptr, 0);
 	Task::Create(1, &UserTask::Sender1);
 	Task::Create(2, &UserTask::Receiver1);
-	final_len = MessagePassing::Send::Send(1, nullptr, 0, nullptr, 0);
+	final_len = Message::Send::Send(1, nullptr, 0, nullptr, 0);
 	Task::Create(1, &UserTask::Sender2);
 	Task::Create(2, &UserTask::Receiver2);
-	final_len = MessagePassing::Send::Send(1, nullptr, 0, nullptr, 0);
+	final_len = Message::Send::Send(1, nullptr, 0, nullptr, 0);
 	Task::Create(2, &UserTask::Sender3);
 	Task::Create(1, &UserTask::Receiver3);
-	final_len = MessagePassing::Send::Send(1, nullptr, 0, nullptr, 0);
+	final_len = Message::Send::Send(1, nullptr, 0, nullptr, 0);
 	Task::Create(2, &UserTask::Sender4);
 	Task::Create(1, &UserTask::Receiver4);
-	final_len = MessagePassing::Send::Send(1, nullptr, 0, nullptr, 0);
+	final_len = Message::Send::Send(1, nullptr, 0, nullptr, 0);
 	Task::Create(2, &UserTask::Sender5);
 	Task::Create(1, &UserTask::Receiver5);
 	print("garbage dump: ", 14);
@@ -95,16 +95,16 @@ extern "C" void UserTask::AutoStart() {
 
 extern "C" void UserTask::AutoRedo() {
 	int from = -1;
-	int msglen = MessagePassing::Receive::Receive(&from, nullptr, 0);
-	msglen = MessagePassing::Reply::Reply(from, nullptr, 0);
-	msglen = MessagePassing::Receive::Receive(&from, nullptr, 0);
-	msglen = MessagePassing::Reply::Reply(from, nullptr, 0);
-	msglen = MessagePassing::Receive::Receive(&from, nullptr, 0);
-	msglen = MessagePassing::Reply::Reply(from, nullptr, 0);
-	msglen = MessagePassing::Receive::Receive(&from, nullptr, 0);
-	msglen = MessagePassing::Reply::Reply(from, nullptr, 0);
-	msglen = MessagePassing::Receive::Receive(&from, nullptr, 0);
-	msglen = MessagePassing::Reply::Reply(from, nullptr, 0);
+	int msglen = Message::Receive::Receive(&from, nullptr, 0);
+	msglen = Message::Reply::Reply(from, nullptr, 0);
+	msglen = Message::Receive::Receive(&from, nullptr, 0);
+	msglen = Message::Reply::Reply(from, nullptr, 0);
+	msglen = Message::Receive::Receive(&from, nullptr, 0);
+	msglen = Message::Reply::Reply(from, nullptr, 0);
+	msglen = Message::Receive::Receive(&from, nullptr, 0);
+	msglen = Message::Reply::Reply(from, nullptr, 0);
+	msglen = Message::Receive::Receive(&from, nullptr, 0);
+	msglen = Message::Reply::Reply(from, nullptr, 0);
 	print("garbage dump: ", 14);
 	print_int(msglen);
 	print("\r\n", 2);
