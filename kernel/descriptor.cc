@@ -48,12 +48,13 @@ Message TaskDescriptor::pop_inbox() {
 
 void TaskDescriptor::to_ready(int system_response, Task::Scheduler* scheduler) {
 #ifdef OUR_DEBUG
-	if (state == ACTIVE || state == SEND_BLOCK || state == RECEIVE_BLOCK || state == REPLY_BLOCK) // ignoring event block for k2
+	if (state == ACTIVE || state == SEND_BLOCK || state == RECEIVE_BLOCK || state == REPLY_BLOCK || state == EVENT_BLOCK) // ignoring event block for k2
 	{
 #endif
 		state = READY;
 		system_call_result = system_response;
 		scheduler->add_task(priority, task_id); // queue back into scheduler
+
 #ifdef OUR_DEBUG
 	} else {
 		print("unblock is called on task that is not blocked!\r\n", 48);
@@ -89,6 +90,10 @@ void TaskDescriptor::to_reply_block(char* reply, int replylen) {
 	response = { nullptr, reply, replylen };
 }
 
+void TaskDescriptor::to_event_block() {
+	state = TaskDescriptor::TaskState::EVENT_BLOCK;
+}
+
 /**
  * good way to check if a process is still alive
  */
@@ -115,6 +120,10 @@ bool TaskDescriptor::is_receive_block() {
 
 bool TaskDescriptor::is_reply_block() {
 	return state == TaskState::REPLY_BLOCK;
+}
+
+bool TaskDescriptor::is_event_block() {
+	return state == TaskState::EVENT_BLOCK;
 }
 
 /**
@@ -152,6 +161,8 @@ void Descriptor::TaskDescriptor::show_info() {
 	uart_puts(0, 0, m8, sizeof(m8) - 1);
 	print_int((uint64_t)kernel_stack);
 	print("\r\n", 2);
+
+	printf("state: %d\r\n", state);
 }
 
 bool TaskDescriptor::was_interrupted() {

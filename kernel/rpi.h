@@ -42,5 +42,5 @@ extern "C" void print_interrupt();
 extern "C" void print_exception_arg(uint64_t arg);
 extern "C" void print_hex_arg(uint64_t arg);
 extern "C" void crash(void);
-extern "C" void assert_crash(const char* msg = nullptr, const size_t len = 0);
-void kernel_assert(bool cond, const char* msg = nullptr, const size_t len = 0);
+extern "C" void assert_crash(const char* msg = nullptr);
+void kernel_assert(bool cond, const char* msg = nullptr);

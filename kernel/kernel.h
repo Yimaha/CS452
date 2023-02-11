@@ -7,13 +7,13 @@
 
 #include "context_switch.h"
 #include "descriptor.h"
+#include "k1/user_tasks_k1.h"
+#include "k2/user_tasks_k2.h"
+#include "k2/user_tasks_k2_performance.h"
 #include "rpi.h"
 #include "scheduler.h"
-#include "user/clock_server.h"
-#include "user/name_server.h"
-#include "user/user_tasks_k1.h"
-#include "user/user_tasks_k2.h"
-#include "user/user_tasks_k2_performance.h"
+#include "server/clock_server.h"
+#include "server/name_server.h"
 #include "utils/slab_allocator.h"
 
 namespace Task
@@ -25,10 +25,19 @@ constexpr uint64_t USER_TASK_LIMIT = 100;
 int MyTid();
 int MyParentTid();
 void Exit();
-void Yield(); // since it is more like a debug functin, it is consider as "else" namespace
+void Yield();
 int Create(int priority, void (*function)());
+
+// Debug utility function because user prints are unreliable
+void KernelPrint(const char* msg);
 }
 
+/**
+ * User communication interface, all user tasks should use these functions to talk to the kernel
+ * to signify the importance as these all trigger context switches,
+ * note that they follow Capitalized Camel Case
+ * unlike all other functions within our code
+ */
 namespace Message
 {
 namespace Send
@@ -81,6 +90,7 @@ int WhoIs(const char* name);
 namespace Clock
 {
 const uint64_t CLOCK_SERVER_ID = 2;
+constexpr uint32_t CLOCK_QUEUE_LENGTH = 64;
 
 //*****************************************************************************
 /// Gets the current time in ticks, where a tick is 10ms.
@@ -130,11 +140,12 @@ public:
 		TIME = 11,
 		DELAY = 12,
 		DELAY_UNTIL = 13,
-		TIMER_INTERRUPT = 14
+		AWAIT_EVENT = 14,
+		PRINT = 15,
 	};
 
 	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
-	enum InterruptCode { TIMER = 1 };
+	enum InterruptCode { TIMER = Clock::TIMER_INTERRUPT_ID };
 
 	Kernel();
 	~Kernel();
@@ -157,14 +168,12 @@ private:
 	SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()> task_allocator
 		= SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()>((char*)Task::USER_TASK_START_ADDRESS, Task::USER_TASK_LIMIT);
 
+	// a queue that stores the task id that is waiting for timer interrupt
+	etl::queue<int, Clock::CLOCK_QUEUE_LENGTH> clock_queue = etl::queue<int, Clock::CLOCK_QUEUE_LENGTH>();
+
 	void allocate_new_task(int parent_id, int priority, void (*pc)()); // create, and push a new task onto the actual scheduler
 	void handle_send();
 	void handle_receive();
 	void handle_reply();
+	void handle_await_event(int eventId);
 };
-/**
- * User communication interface, all user tasks should use these functions to talk to the kernel
- * to signify the importance as these all trigger context switches,
- * note that they follow Capitalized Camel Case
- * unlike all other functions within our code
- */

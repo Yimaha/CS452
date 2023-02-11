@@ -351,14 +351,14 @@ extern "C" void crash(void) {
 
 // Function that crashes the system
 // Called when an assert fails
-extern "C" void assert_crash(const char* msg, const size_t len) {
+extern "C" void assert_crash(const char* msg) {
 
 	if (msg != nullptr) {
-		uart_puts(0, 0, msg, len);
+		printf(msg);
 	}
 
 	char fail[] = "assertion failed\r\n";
-	uart_puts(0, 0, fail, sizeof(fail) - 1);
+	printf(fail);
 
 	// Wait a bit
 	for (int i = 0; i < 100000; ++i)
@@ -372,7 +372,7 @@ extern "C" void assert_crash(const char* msg, const size_t len) {
 // If cond is false, the system crashes
 // Also takes an optional message to print
 // (will only print first `len` chars of message)
-void kernel_assert(const bool cond, const char* msg, const size_t len) {
+void kernel_assert(const bool cond, const char* msg) {
 	if (!cond)
-		assert_crash(msg, len);
+		assert_crash(msg);
 }

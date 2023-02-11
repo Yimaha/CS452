@@ -1,47 +1,10 @@
 #include "user_tasks_k2.h"
 #include "../kernel.h"
 #include "../rpi.h"
+#include "../utils/printf.h"
 #include "../utils/utility.h"
-#include "rps_server.h"
 
-extern "C" void UserTask::first_user_task() {
-	while (1) {
-		// Create the name server
-		char msg[] = "creating name server\r\n";
-		uart_puts(0, 0, msg, sizeof(msg) - 1);
-		Task::Create(1, &Name::name_server);
-
-		// Literally just loop forever
-		while (true) {
-			printf("task 0 is alive\r\n");
-			for (int i = 0; i < 300000; ++i) {
-				asm volatile("yield");
-			}
-		}
-
-		// Literally just loop forever
-		while (true) {
-		}
-
-		// Create the RPS server
-		char msg2[] = "creating rps server\r\n";
-		uart_puts(0, 0, msg2, sizeof(msg2) - 1);
-		Task::Create(2, &RockPaperScissors::RPSServer);
-
-		// Create the RPS clients
-		for (int i = 0; i < 5; ++i) {
-			char msg3[] = "creating rps client\r\n";
-			uart_puts(0, 0, msg3, sizeof(msg3) - 1);
-			Task::Create(3, &RockPaperScissors::RPSClient);
-		}
-
-		char msg5[] = "exiting task 0\r\n";
-		uart_puts(0, 0, msg5, sizeof(msg5) - 1);
-		Task::Exit();
-	}
-}
-
-extern "C" void UserTask::low_priority_task() {
+void UserTask::low_priority_task() {
 	while (1) {
 		char msg[] = "low priority task that just keeps spinning\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
@@ -51,7 +14,7 @@ extern "C" void UserTask::low_priority_task() {
 	}
 }
 
-extern "C" void UserTask::Sender1N() {
+void UserTask::Sender1N() {
 	const char name[] = "Sender1N";
 	int tid = Name::RegisterAs(name);
 
@@ -82,7 +45,7 @@ extern "C" void UserTask::Sender1N() {
 	}
 }
 
-extern "C" void UserTask::Sender2N() {
+void UserTask::Sender2N() {
 	const char name[] = "Sender2N";
 	int tid = Name::RegisterAs(name);
 
@@ -113,7 +76,7 @@ extern "C" void UserTask::Sender2N() {
 	}
 }
 
-extern "C" void UserTask::ReceiverN() {
+void UserTask::ReceiverN() {
 	const char name[] = "ReceiverN";
 	int tid = Name::RegisterAs(name);
 

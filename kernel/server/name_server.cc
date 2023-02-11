@@ -4,7 +4,7 @@
 
 using namespace Name;
 
-extern "C" void name_server() {
+void Name::name_server() {
 	// Create the unordered map with a custom TKeyEqual
 	etl::unordered_map<RequestBody, int, MAX_NAME_SERVER_SIZE> name_server = etl::unordered_map<RequestBody, int, MAX_NAME_SERVER_SIZE>();
 

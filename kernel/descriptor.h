@@ -3,6 +3,7 @@
 #include "rpi.h"
 #include "scheduler.h"
 #include "utils/buffer.h"
+#include "utils/printf.h"
 #include "utils/utility.h"
 #include <cstdint>
 
@@ -44,6 +45,7 @@ public:
 	void to_reply_block();
 	void to_reply_block(char* reply, int replylen);
 	// k3 will have to_event_block
+	void to_event_block();
 
 	// state checking api
 	bool is_active();
@@ -52,6 +54,7 @@ public:
 	bool is_send_block();
 	bool is_receive_block();
 	bool is_reply_block();
+	bool is_event_block();
 
 	// Interrupts
 	bool was_interrupted();
@@ -88,13 +91,14 @@ inline InterruptFrame* TaskDescriptor::to_active() {
 	} else if (was_interrupted()) {
 		// interrupted task, has to restore the context
 		set_interrupted(false);
-		sp = (char*)to_user_interrupted(sp, spsr);
+		sp = (char*)to_user_interrupted(sp, spsr, pc);
 	} else {
 		sp = (char*)to_user(system_call_result, sp, spsr);
 	}
 
 	InterruptFrame* intfr = reinterpret_cast<InterruptFrame*>(sp);
 	spsr = reinterpret_cast<char*>(intfr->spsr);
+	pc = reinterpret_cast<void (*)()>(intfr->pc);
 	return intfr;
 }
 }

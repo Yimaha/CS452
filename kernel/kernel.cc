@@ -19,7 +19,11 @@ void Task::Exit() {
 
 void Task::Yield() {
 	to_kernel(Kernel::HandlerCode::YIELD);
-} // since it is more like a debug functin, it is consider as "else" namespace
+}
+
+void Task::KernelPrint(const char* msg) {
+	to_kernel(Kernel::HandlerCode::PRINT, msg);
+}
 
 int Message::Send::Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
 	return to_kernel(Kernel::HandlerCode::SEND, tid, msg, msglen, reply, rplen);
@@ -34,7 +38,7 @@ int Message::Reply::Reply(int tid, const char* msg, int msglen) {
 }
 
 Kernel::Kernel() {
-	allocate_new_task(Task::MAIDENLESS, 0, &UserTask::Task_test_4);
+	allocate_new_task(Task::MAIDENLESS, 0, &UserTask::first_user_task);
 }
 
 void Kernel::schedule_next_task() {
@@ -51,10 +55,6 @@ void Kernel::schedule_next_task() {
 void Kernel::activate() {
 	// upon activation, task become active
 	active_request = tasks[active_task]->to_active();
-
-#ifdef OUR_DEBUG
-	printf("Task %d activated!\r\n", active_task);
-#endif
 }
 
 Kernel::~Kernel() { }
@@ -70,12 +70,10 @@ void Kernel::handle() {
 	} else if (kecode == KernelEntryCode::INTERRUPT) {
 		printf("Task %d interrupted!\r\n", active_task);
 		tasks[active_task]->set_interrupted(true);
-		InterruptCode icode = InterruptCode::TIMER;
-		// Couple things I should be doing here (later):
-		// 1. Find the actual interrupt code, because ARM can't
-		// 2. Clear the GCID-EIOIO register or whatever it's called
-		// 3. Pass that into handle_interrupt
+		uint32_t interrupt_id = Interrupt::get_interrupt_id();
+		InterruptCode icode = static_cast<InterruptCode>(interrupt_id & 0x3ff);
 		handle_interrupt(icode);
+		Interrupt::end_interrupt(interrupt_id);
 	} else {
 		// wat
 		printf("Unknown kernel entry code: %d\r\n", kecode);
@@ -105,18 +103,36 @@ void Kernel::handle_syscall() {
 		tasks[active_task]->to_ready(tasks[active_task]->parent_id, &scheduler);
 	} else if (request == HandlerCode::YIELD) {
 		tasks[active_task]->to_ready(0x0, &scheduler);
+	} else if (request == HandlerCode::PRINT) {
+		const char* msg = reinterpret_cast<const char*>(active_request->x1);
+		printf(msg);
+		tasks[active_task]->to_ready(0x0, &scheduler);
 	} else if (request == HandlerCode::EXIT) {
 		tasks[active_task]->kill();
+	} else if (request == HandlerCode::AWAIT_EVENT) {
+		int eventId = active_request->x1;
+		handle_await_event(eventId);
+	} else {
+		printf("Unknown syscall: %d from %d\r\n", request, active_task);
+		while (true) {
+		}
 	}
 }
 
 void Kernel::handle_interrupt(InterruptCode icode) {
 	if (icode == InterruptCode::TIMER) {
-		// basically disable the clock for a bit
-		Clock::set_comparator(Clock::clo() + 1000000);
-
-		// TODO: wake up the clock notifier
+		Clock::set_comparator(Clock::clo() + Clock::MICROS_PER_TICK);
+		kernel_assert(clock_queue.size() == 1, "only clock notifier should be here");
 		tasks[active_task]->to_ready(0x0, &scheduler);
+		while (!clock_queue.empty()) {
+			int tid = clock_queue.front();
+			clock_queue.pop();
+			tasks[tid]->to_ready(0x0, &scheduler);
+		}
+	} else {
+		printf("Unknown interrupt: %d\r\n", icode);
+		while (true) {
+		}
 	}
 }
 
@@ -145,7 +161,7 @@ void Kernel::handle_send() {
 		int replylen = active_request->x5;
 		if (tasks[rid]->is_receive_block()) {
 			tasks[rid]->fill_response(active_task, msg, msglen);
-			tasks[rid]->to_ready(msglen, &scheduler);			 // unblock receiver, and the resonse is the length of the original message
+			tasks[rid]->to_ready(msglen, &scheduler);			 // unblock receiver, and the response is the length of the original message
 			tasks[active_task]->to_reply_block(reply, replylen); // since you already put the message through, you just waiting on response
 		} else {
 			// reader is not ready to read we just push it to its inbox
@@ -182,6 +198,19 @@ void Kernel::handle_reply() {
 		int min_len = tasks[to]->fill_response(active_task, msg, msglen);
 		tasks[to]->to_ready(min_len, &scheduler);
 		tasks[active_task]->to_ready(min_len, &scheduler);
+	}
+}
+
+void Kernel::handle_await_event(int eventId) {
+	switch (eventId) {
+	case Clock::TIMER_INTERRUPT_ID: {
+		clock_queue.push(active_task);
+		tasks[active_task]->to_event_block();
+		break;
+	}
+	default:
+		printf("Unknown event id: %d\r\n", eventId);
+		break;
 	}
 }
 
@@ -245,6 +274,5 @@ int Clock::DelayUntil(int tid, int ticks) {
 }
 
 int Interrupt::AwaitEvent(int eventId) {
-	(void)eventId;
-	return 1; // need to change
+	return to_kernel(Kernel::HandlerCode::AWAIT_EVENT, eventId);
 }
