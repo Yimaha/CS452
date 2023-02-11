@@ -321,27 +321,8 @@ extern "C" void val_print(uint64_t c) {
 	uart_puts(0, 0, buf, 8);
 }
 
-extern "C" void print_exception() {
-	char m1[] = "reaching invalid location\r\n";
-	uart_puts(0, 0, m1, sizeof(m1) - 1);
-	while (1) {
-	};
-}
-extern "C" void print_exception_special() {
-	char m1[] = "interrupt!\r\n";
-	uart_puts(0, 0, m1, sizeof(m1) - 1);
-	while (1) {
-	};
-}
-
 extern "C" void print_interrupt() {
 	uart_puts(0, 0, "interrupt!\r\n", 12);
-	while (1) {
-	};
-}
-
-extern "C" void print_exception_arg(uint64_t arg) {
-	printf("exception arg: %x\r\n", arg);
 	while (1) {
 	};
 }
