@@ -156,11 +156,6 @@ handle_return_to_user:
 	ldp x28, x29, [sp, 14*16]
 
 	add sp, sp, 17*16
-<<<<<<< HEAD
-=======
-
-	// msr DAIFClr, #0b1111 // enable interrupts
->>>>>>> 4f47eb501a0a09665885e6fa24314a14cac4dd25
 
 	// x0 should already be filled
 	ret
