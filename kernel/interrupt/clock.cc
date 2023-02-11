@@ -31,14 +31,8 @@ void Clock::set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
 		return;
 	}
 #endif
-#ifdef OUR_DEBUG
-	if (timer->CS & (1 << reg_num)) {
-#endif
-		// Clear the match detect status bit
-		timer->CS |= 1 << reg_num;
-#ifdef OUR_DEBUG
-	}
-#endif
+	// Clear the match detect status bit
+	timer->CS |= 1 << reg_num;
 
 	if (reg_num == 0) {
 		timer->C0 = interrupt_time;
@@ -49,6 +43,16 @@ void Clock::set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
 	} else if (reg_num == 3) {
 		timer->C3 = interrupt_time;
 	}
+}
+
+void Clock::clear_cs(uint32_t reg_num) {
+#ifdef OUR_DEBUG
+	if (reg_num > 3) {
+		return;
+	}
+#endif
+
+	timer->CS |= 1 << reg_num;
 }
 
 void Clock::enable_clock_one_interrupts() {

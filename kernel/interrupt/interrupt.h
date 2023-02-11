@@ -7,4 +7,10 @@ namespace Interrupt
 {
 void init_interrupt();
 void enable_interrupt_for(uint32_t id);
+
+// Reads the interrupt id from the GICC_IAR register
+uint32_t get_interrupt_id();
+
+// Writes the interrupt id to the GICC_EOIR register
+void end_interrupt(uint32_t id);
 }

@@ -18,7 +18,7 @@ constexpr uint64_t NAME_REQ_LENGTH = MAX_NAME_LENGTH + 8;
  * The name server itself simply waits for requests from tasks
  * and then responds to them.
  */
-extern "C" void name_server();
+void name_server();
 
 enum class RequestHeader : uint64_t { REGISTER_AS, WHO_IS };
 enum Exception { INVALID_NS_TASK_ID = -1, NAME_NOT_REGISTERED = -2, INVALID_IDEN = -3 };

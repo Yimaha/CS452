@@ -1,5 +1,9 @@
 #include "../kernel.h"
 
-namespace SystemTask {
-    extern "C" void idle_task();
+namespace SystemTask
+{
+void idle_task();
+void delay_task();
+void delay_task_2();
+void delay_until_task();
 }
