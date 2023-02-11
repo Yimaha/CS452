@@ -47,7 +47,6 @@ Message TaskDescriptor::pop_inbox() {
 }
 
 void TaskDescriptor::to_ready(int system_response, Task::Scheduler* scheduler) {
-
 #ifdef OUR_DEBUG
 	if (state == ACTIVE || state == SEND_BLOCK || state == RECEIVE_BLOCK || state == REPLY_BLOCK || state == EVENT_BLOCK) // ignoring event block for k2
 	{

@@ -7,7 +7,6 @@
 extern char __bss_start, __bss_end;					   // defined in linker script
 extern uintptr_t __init_array_start, __init_array_end; // defined in linker script
 typedef void (*funcvoid0_t)();
-
 extern "C" void kmain() {
 	char m1[] = "init kernel\r\n";
 	uart_puts(0, 0, m1, sizeof(m1) - 1);
