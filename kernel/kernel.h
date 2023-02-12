@@ -120,6 +120,7 @@ namespace Interrupt
 {
 int AwaitEvent(int eventid);
 }
+
 /**
  * Kernel state class, stores important information about the kernel and control the flow
  * */
