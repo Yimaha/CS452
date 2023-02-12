@@ -2,7 +2,6 @@
 #include "interrupt/clock.h"
 #include "user/user_tasks.h"
 #include "utils/printf.h"
-
 int Task::Create(int priority, void (*function)()) {
 	return to_kernel(Kernel::HandlerCode::CREATE, priority, function);
 }

@@ -51,3 +51,5 @@ extern "C" InterruptFrame* to_user(uint64_t results, char* userSP, char* userSPS
 extern "C" InterruptFrame* to_user_interrupted(char* userSP, char* userSPSR, void (*pc)());
 extern "C" uint64_t to_kernel(uint64_t exception_code, ...);
 extern "C" void handle_syscall();
+extern "C" void mmu_registers(char* table_0);
+
