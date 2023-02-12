@@ -28,8 +28,9 @@ void Exit();
 void Yield();
 int Create(int priority, void (*function)());
 
-// Debug utility function because user prints are unreliable
+// Debug utility functions because user prints are unreliable
 void KernelPrint(const char* msg);
+void LogTime(uint64_t time);
 }
 
 /**
@@ -142,6 +143,7 @@ public:
 		DELAY_UNTIL = 13,
 		AWAIT_EVENT = 14,
 		PRINT = 15,
+		LOG_TIME = 16
 	};
 
 	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
@@ -176,4 +178,8 @@ private:
 	void handle_receive();
 	void handle_reply();
 	void handle_await_event(int eventId);
+
+	uint64_t idle_time = 0;
+	uint64_t last_ping = 0;
+	uint64_t total_time = 0;
 };

@@ -25,6 +25,10 @@ void Task::KernelPrint(const char* msg) {
 	to_kernel(Kernel::HandlerCode::PRINT, msg);
 }
 
+void Task::LogTime(uint64_t time) {
+	to_kernel(Kernel::HandlerCode::LOG_TIME, time);
+}
+
 int Message::Send::Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
 	return to_kernel(Kernel::HandlerCode::SEND, tid, msg, msglen, reply, rplen);
 }
@@ -68,7 +72,7 @@ void Kernel::handle() {
 		// tasks[active_task]->set_interrupted(false);
 		handle_syscall();
 	} else if (kecode == KernelEntryCode::INTERRUPT) {
-		printf("Task %d interrupted!\r\n", active_task);
+		// printf("Task %d interrupted!\r\n", active_task);
 		tasks[active_task]->set_interrupted(true);
 		uint32_t interrupt_id = Interrupt::get_interrupt_id();
 		InterruptCode icode = static_cast<InterruptCode>(interrupt_id & 0x3ff);
@@ -107,6 +111,22 @@ void Kernel::handle_syscall() {
 		const char* msg = reinterpret_cast<const char*>(active_request->x1);
 		printf(msg);
 		tasks[active_task]->to_ready(0x0, &scheduler);
+	} else if (request == HandlerCode::LOG_TIME) {
+		uint64_t time = active_request->x1;
+		if (last_ping != 0) {
+			total_time += time - last_ping;
+		}
+
+		last_ping = time;
+
+		uint64_t leading = idle_time * 100 / total_time;
+		uint64_t trailing = (idle_time * 100000) / total_time % 1000;
+
+		// Save the cursor location, move to top left, print time, then restore cursor
+		printf("\0337\x1b[HIdle time: %llu\r\nTotal time: %llu\r\n", idle_time, total_time);
+		printf("Percentage: %llu.%03llu\0338", leading, trailing);
+
+		tasks[active_task]->to_ready(0x0, &scheduler);
 	} else if (request == HandlerCode::EXIT) {
 		tasks[active_task]->kill();
 	} else if (request == HandlerCode::AWAIT_EVENT) {
@@ -129,6 +149,10 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 			clock_queue.pop();
 			tasks[tid]->to_ready(0x0, &scheduler);
 		}
+
+		// Manage some timing logic
+		idle_time += Clock::time() - last_ping;
+
 	} else {
 		printf("Unknown interrupt: %d\r\n", icode);
 		while (true) {

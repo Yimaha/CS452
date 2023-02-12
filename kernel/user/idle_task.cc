@@ -51,3 +51,11 @@ void SystemTask::delay_until_task() {
 		delay += 314;
 	}
 }
+
+void SystemTask::timer_task() {
+	while (true) {
+		uint64_t start = Clock::time();
+		Task::LogTime(start);
+		asm volatile("wfi");
+	}
+}

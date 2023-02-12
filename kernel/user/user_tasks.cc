@@ -16,17 +16,20 @@ void UserTask::first_user_task() {
 		Task::Create(1, &Clock::clock_notifier);
 
 		// Set the idle tasks running
-		printf("creating idle task\r\n");
-		Task::Create(3, &SystemTask::idle_task);
+		printf("creating timer task\r\n");
+		Task::Create(3, &SystemTask::timer_task);
 
-		printf("creating delay task\r\n");
-		Task::Create(3, &SystemTask::delay_task);
+		// printf("creating idle task\r\n");
+		// Task::Create(3, &SystemTask::idle_task);
 
-		printf("creating delay task 2\r\n");
-		Task::Create(3, &SystemTask::delay_task_2);
+		// printf("creating delay task\r\n");
+		// Task::Create(3, &SystemTask::delay_task);
 
-		printf("creating delay until task\r\n");
-		Task::Create(3, &SystemTask::delay_until_task);
+		// printf("creating delay task 2\r\n");
+		// Task::Create(3, &SystemTask::delay_task_2);
+
+		// printf("creating delay until task\r\n");
+		// Task::Create(3, &SystemTask::delay_until_task);
 
 		printf("exiting first user task\r\n");
 		Task::Exit();
