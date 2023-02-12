@@ -175,7 +175,7 @@ handle_return_to_user:
 .global mmu_registers
 mmu_registers:
     msr TTBR0_EL1, x0
-	ldr x1, =MAIR_TABLE
+    ldr x1, =MAIR_TABLE
     msr MAIR_EL1, x1
     ldr x1, =TCR_ENABLE
     msr TCR_EL1, x1
