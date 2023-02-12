@@ -159,3 +159,29 @@ handle_return_to_user:
 
 	// x0 should already be filled
 	ret
+
+
+# I want to set up MAIR such that the entry is following
+# |outer write back transient, inner write back transient|outer write back non-transient, inner write back non-transient|nGnRnE|not cachable|
+#define MAIR_TABLE  0b01110111111111110000000001000100
+# we want to run 32 bit addressing since we won't go above 4gb even with all the device address
+#define DISABLE_TTBR1_EL1 (1 << 23)
+#define TTBR0_EL1_OUTER_SHARABLE (2 << 12)
+#define TTBR0_EL1_ORGN_0 (1<<10)
+#define TTBR0_EL1_IRGN_0 (1<<8)
+#define T0SZ 32
+#define TCR_ENABLE (DISABLE_TTBR1_EL1 | TTBR0_EL1_OUTER_SHARABLE | TTBR0_EL1_ORGN_0 | TTBR0_EL1_IRGN_0 | T0SZ)
+
+.global mmu_registers
+mmu_registers:
+    msr TTBR0_EL1, x0
+	ldr x1, =MAIR_TABLE
+    msr MAIR_EL1, x1
+    ldr x1, =TCR_ENABLE
+    msr TCR_EL1, x1
+    ISB
+    MRS x0, SCTLR_EL1
+    ORR x0, x0, #1
+    MSR SCTLR_EL1, x0
+    ISB
+	ret

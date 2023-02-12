@@ -3,6 +3,7 @@
 #include "kernel.h"
 #include "rpi.h"
 #include "utils/printf.h"
+#include "mmu.h"
 
 extern char __bss_start, __bss_end;					   // defined in linker script
 extern uintptr_t __init_array_start, __init_array_end; // defined in linker script
@@ -12,8 +13,10 @@ extern "C" void kmain() {
 	printf("\r\n\r\n\r\n\r\ninit kernel\r\n");
 	Kernel kernel = Kernel();
 	printf("finished kernel init, started scheduling user tasks\r\n");
+	MMU::setup_mmu();
 	Interrupt::init_interrupt();
 	Clock::set_comparator(Clock::clo() + 100000);
+
 	for (;;) // infinite loop, kernel never needs to exit until killed by power switch
 	{
 		kernel.schedule_next_task(); // tell kernel to schedule next task
