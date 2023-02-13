@@ -13,7 +13,6 @@ static volatile TranslateTable* TABLE_L_2_3 = (TranslateTable*)(TRANSLATE_TABLE_
 
 void MMU::setup_mmu() {
 
-
 	uint64_t next_level_table_address = TABLE_ADDR_MASK & (uint64_t)(TABLE_L_1);
 	_zero_table(TABLE_L_0);
 	TABLE_L_0->row[0] = (next_level_table_address | TABLE); // drop later 3 bytes
@@ -32,8 +31,6 @@ void MMU::setup_mmu() {
 	TABLE_L_1->row[3] = (next_level_table_address | TABLE); // drop later 3 bytes
 
 	// now we set up the table, which is pain
-
-
 
 	TABLE_L_2_0->row[0] = EXECUTABLE_MEMORY_SETUP;
 
@@ -58,9 +55,7 @@ void MMU::setup_mmu() {
 		TABLE_L_2_3->row[i] = DEVICE_MEMORY_SETUP | nGnRnE | address_counter << 21;
 		address_counter += 1;
 	}
-#ifdef OUR_DEBUG
-	_print_all();
-#endif
+
 	// we have table but we also have to set up associated register
 	mmu_registers((char*)TABLE_L_1);
 	// if this line printed we good

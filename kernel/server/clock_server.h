@@ -8,7 +8,7 @@
 namespace Clock
 {
 
-constexpr static uint64_t DELAY_QUEUE_SIZE = 256;
+constexpr static uint64_t DELAY_QUEUE_SIZE = 64;
 constexpr char CLOCK_SERVER_NAME[] = "CLOCK_SERVER";
 void clock_server();
 void clock_notifier();

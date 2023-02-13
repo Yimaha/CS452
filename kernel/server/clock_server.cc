@@ -76,10 +76,9 @@ void Clock::clock_server() {
 void Clock::clock_notifier() {
 	// no need to register any name
 	int clock_tid = Name::WhoIs(CLOCK_SERVER_NAME);
-	char reply[4];
 	ClockServerReq req = { RequestHeader::NOTIFY, { 0 } };
 	while (true) {
 		Interrupt::AwaitEvent(TIMER_INTERRUPT_ID);
-		Message::Send::Send(clock_tid, reinterpret_cast<const char*>(&req), sizeof(ClockServerReq), reply, 0);
+		Message::Send::Send(clock_tid, reinterpret_cast<const char*>(&req), sizeof(ClockServerReq), nullptr, 0);
 	}
 }

@@ -6,6 +6,7 @@
 
 namespace UserTask
 {
+const char FIRST_USER_TASK_NAME[] = "FIRST_USER_TASK";
 void first_user_task();
 
 // this is a set of dummy user processes I made

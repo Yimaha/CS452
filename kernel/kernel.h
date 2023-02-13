@@ -30,7 +30,12 @@ int Create(int priority, void (*function)());
 
 // Debug utility functions because user prints are unreliable
 void KernelPrint(const char* msg);
-void LogTime(uint64_t time);
+void LogTime();
+
+// Register Idle Tid should only be called by the idle task,
+// and it is used to tell the kernel what the tid of the idle task is
+// (the kernel can see the tid of the idle task if it knows it called this)
+void RegisterIdleTid();
 }
 
 /**
@@ -143,7 +148,8 @@ public:
 		DELAY_UNTIL = 13,
 		AWAIT_EVENT = 14,
 		PRINT = 15,
-		LOG_TIME = 16
+		LOG_TIME = 16,
+		REGISTER_IDLE_TID = 17
 	};
 
 	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
@@ -179,7 +185,12 @@ private:
 	void handle_reply();
 	void handle_await_event(int eventId);
 
+	uint64_t tick_tracker = 0;
+
+	// Variables for timing idle time
+	int idle_tid = -1;
 	uint64_t idle_time = 0;
 	uint64_t last_ping = 0;
-	uint64_t total_time = 0;
+	uint64_t total_time = 1;
+	uint64_t last_print = 0;
 };

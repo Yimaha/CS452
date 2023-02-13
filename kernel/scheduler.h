@@ -9,12 +9,14 @@
 namespace Task
 {
 const static int NO_TASKS = -1;
-const static int NUM_PRIORITIES = 4;
+const static int NUM_PRIORITIES = 8;
 const static int SCHEDULER_QUEUE_SIZE = 64;
 class Scheduler {
 public:
 	Scheduler();
 	int get_next();
+	int peek_next();
+	int len();
 	void add_task(int priority, int task_id);
 
 private:

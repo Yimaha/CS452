@@ -2,6 +2,7 @@
 #include "interrupt/clock.h"
 #include "user/user_tasks.h"
 #include "utils/printf.h"
+
 int Task::Create(int priority, void (*function)()) {
 	return to_kernel(Kernel::HandlerCode::CREATE, priority, function);
 }
@@ -24,8 +25,8 @@ void Task::KernelPrint(const char* msg) {
 	to_kernel(Kernel::HandlerCode::PRINT, msg);
 }
 
-void Task::LogTime(uint64_t time) {
-	to_kernel(Kernel::HandlerCode::LOG_TIME, time);
+void Task::RegisterIdleTid() {
+	to_kernel(Kernel::HandlerCode::REGISTER_IDLE_TID);
 }
 
 int Message::Send::Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
@@ -41,11 +42,36 @@ int Message::Reply::Reply(int tid, const char* msg, int msglen) {
 }
 
 Kernel::Kernel() {
+	tick_tracker = Clock::time() + Clock::MICROS_PER_TICK;
+	Clock::set_comparator(tick_tracker);
 	allocate_new_task(Task::MAIDENLESS, 0, &UserTask::first_user_task);
 }
 
 void Kernel::schedule_next_task() {
+	int prev_task = active_task;
 	active_task = scheduler.get_next();
+	// Save the cursor location, move to top right, print time, then restore cursor
+	uint64_t t = Clock::time();
+	if (last_ping == 0) {
+		last_ping = t;
+	}
+
+	total_time += t - last_ping;
+	if (active_task == idle_tid) {
+		idle_time += t - last_ping;
+	}
+
+	last_ping = t;
+
+	if (t - last_print > 5000000 && prev_task == idle_tid) {
+		uint64_t leading = idle_time * 100 / total_time;
+		uint64_t trailing = (idle_time * 100000) / total_time % 1000;
+		printf("\0337\033[1;80HIdle time: %llu\033[2;80HTotal time: %llu", idle_time, total_time);
+		printf("\033[3;80HPercentage: %llu.%03llu\r\n\0338", leading, trailing);
+
+		last_print = t;
+	}
+
 	while (active_task == Task::NO_TASKS) {
 		char m[] = "no tasks available...\r\n";
 		uart_puts(0, 0, m, sizeof(m) - 1);
@@ -65,20 +91,23 @@ Kernel::~Kernel() { }
 void Kernel::handle() {
 	KernelEntryCode kecode = static_cast<KernelEntryCode>(active_request->data);
 #ifdef OUR_DEBUG
-	printf("Interrupt code: %llu\r\n", active_request->data);
+	printf("KEC: %llu\r\n", active_request->data);
 #endif
-	if (kecode == KernelEntryCode::SYSCALL) {
-		// tasks[active_task]->set_interrupted(false);
+	switch (kecode) {
+	case KernelEntryCode::SYSCALL:
 		handle_syscall();
-	} else if (kecode == KernelEntryCode::INTERRUPT) {
-		// printf("Task %d interrupted!\r\n", active_task);
+		break;
+	case KernelEntryCode::INTERRUPT: {
 		tasks[active_task]->set_interrupted(true);
 		uint32_t interrupt_id = Interrupt::get_interrupt_id();
+
+		// Use mask to obtain the last 10 bits, see GICC_IAR spec
 		InterruptCode icode = static_cast<InterruptCode>(interrupt_id & 0x3ff);
 		handle_interrupt(icode);
 		Interrupt::end_interrupt(interrupt_id);
-	} else {
-		// wat
+		break;
+	}
+	default:
 		printf("Unknown kernel entry code: %d\r\n", kecode);
 		while (true) {
 		}
@@ -88,50 +117,53 @@ void Kernel::handle() {
 void Kernel::handle_syscall() {
 	HandlerCode request = (HandlerCode)active_request->x0; // x0 is always the request type
 
-	if (request == HandlerCode::SEND) {
+	switch (request) {
+	case HandlerCode::SEND:
 		handle_send();
-	} else if (request == HandlerCode::RECEIVE) {
+		break;
+	case HandlerCode::RECEIVE:
 		handle_receive();
-	} else if (request == HandlerCode::REPLY) {
+		break;
+	case HandlerCode::REPLY:
 		handle_reply();
-	} else if (request == HandlerCode::CREATE) {
+		break;
+	case HandlerCode::CREATE: {
 		int priority = active_request->x1;
 		void (*user_task)() = (void (*)())active_request->x2;
 		tasks[active_task]->to_ready(p_id_counter, &scheduler);
 		// NOTE: allocate_new_task should be called at the end after everything is good
 		allocate_new_task(tasks[active_task]->task_id, priority, user_task);
-	} else if (request == HandlerCode::MY_TID) {
+		break;
+	}
+	case HandlerCode::MY_TID:
 		tasks[active_task]->to_ready(tasks[active_task]->task_id, &scheduler);
-	} else if (request == HandlerCode::MY_PARENT_ID) {
+		break;
+	case HandlerCode::MY_PARENT_ID:
 		tasks[active_task]->to_ready(tasks[active_task]->parent_id, &scheduler);
-	} else if (request == HandlerCode::YIELD) {
+		break;
+	case HandlerCode::YIELD:
 		tasks[active_task]->to_ready(0x0, &scheduler);
-	} else if (request == HandlerCode::PRINT) {
+		break;
+	case HandlerCode::PRINT: {
 		const char* msg = reinterpret_cast<const char*>(active_request->x1);
 		printf(msg);
 		tasks[active_task]->to_ready(0x0, &scheduler);
-	} else if (request == HandlerCode::LOG_TIME) {
-		uint64_t time = active_request->x1;
-		if (last_ping != 0) {
-			total_time += time - last_ping;
-		}
-
-		last_ping = time;
-
-		uint64_t leading = idle_time * 100 / total_time;
-		uint64_t trailing = (idle_time * 100000) / total_time % 1000;
-
-		// Save the cursor location, move to top left, print time, then restore cursor
-		printf("\0337\x1b[HIdle time: %llu\r\nTotal time: %llu\r\n", idle_time, total_time);
-		printf("Percentage: %llu.%03llu\0338", leading, trailing);
-
+		break;
+	}
+	case HandlerCode::REGISTER_IDLE_TID: {
+		idle_tid = active_task;
 		tasks[active_task]->to_ready(0x0, &scheduler);
-	} else if (request == HandlerCode::EXIT) {
+		break;
+	}
+	case HandlerCode::EXIT:
 		tasks[active_task]->kill();
-	} else if (request == HandlerCode::AWAIT_EVENT) {
+		break;
+	case HandlerCode::AWAIT_EVENT: {
 		int eventId = active_request->x1;
 		handle_await_event(eventId);
-	} else {
+		break;
+	}
+	default:
 		printf("Unknown syscall: %d from %d\r\n", request, active_task);
 		while (true) {
 		}
@@ -139,20 +171,27 @@ void Kernel::handle_syscall() {
 }
 
 void Kernel::handle_interrupt(InterruptCode icode) {
-	if (icode == InterruptCode::TIMER) {
-		Clock::set_comparator(Clock::clo() + Clock::MICROS_PER_TICK);
-		kernel_assert(clock_queue.size() == 1, "only clock notifier should be here");
+	switch (icode) {
+	case InterruptCode::TIMER: {
+		tick_tracker += Clock::MICROS_PER_TICK;
+#ifdef OUR_DEBUG
+		printf("Tick: %llu\r\n", tick_tracker);
+#endif
+		Clock::set_comparator(tick_tracker);
+
+#ifdef OUR_DEBUG
+		// kernel_assert(clock_queue.size() == 1, "only clock notifier should be here, ");
+#endif
+
 		tasks[active_task]->to_ready(0x0, &scheduler);
 		while (!clock_queue.empty()) {
 			int tid = clock_queue.front();
 			clock_queue.pop();
 			tasks[tid]->to_ready(0x0, &scheduler);
 		}
-
-		// Manage some timing logic
-		idle_time += Clock::time() - last_ping;
-
-	} else {
+		break;
+	}
+	default:
 		printf("Unknown interrupt: %d\r\n", icode);
 		while (true) {
 		}

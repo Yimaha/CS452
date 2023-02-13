@@ -29,7 +29,7 @@ interrupt_handler:
 	mrs x1, SPSR_EL1
 	stp x30, x1, [x0, 15*16]
 
-	// Fill the 'data' field with 1 (representing a timer interrupt)
+	// Fill the 'data' field with 1 (representing an interrupt)
 	mov x1, 0b1
 	mrs x2, ELR_EL1
 	stp x1, x2, [x0, 16*16]
@@ -53,4 +53,9 @@ interrupt_handler:
 	ldp x28, x29, [sp, 14*16]
 	add sp, sp, 17*16
 
+	ret
+
+.global read_esr
+read_esr:
+	mrs x0, ESR_EL1
 	ret

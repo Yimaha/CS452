@@ -7,6 +7,10 @@ void UserTask::first_user_task() {
 		printf("creating name server\r\n");
 		Task::Create(2, &Name::name_server);
 
+		// Register in the name server
+		printf("registering first user task\r\n");
+		Name::RegisterAs(UserTask::FIRST_USER_TASK_NAME);
+
 		// Create the clock server
 		printf("creating clock server\r\n");
 		Task::Create(1, &Clock::clock_server);
@@ -15,21 +19,27 @@ void UserTask::first_user_task() {
 		printf("creating clock notifier\r\n");
 		Task::Create(1, &Clock::clock_notifier);
 
-		// Set the idle tasks running
-		printf("creating timer task\r\n");
-		Task::Create(3, &SystemTask::timer_task);
+		// Set the client tasks running
+		printf("creating client tasks\r\n");
+		for (int i = 3; i < 7; ++i) {
+			Task::Create(i, &SystemTask::k3_client_task);
+		}
 
-		// printf("creating idle task\r\n");
-		// Task::Create(3, &SystemTask::idle_task);
+		printf("creating idle task\r\n");
+		Task::Create(7, &SystemTask::idle_task);
 
-		// printf("creating delay task\r\n");
-		// Task::Create(3, &SystemTask::delay_task);
+		const char c1_params[] = { 10, 20 };
+		const char c2_params[] = { 23, 9 };
+		const char c3_params[] = { 33, 6 };
+		const char c4_params[] = { 71, 3 };
+		const char* client_params[] = { c1_params, c2_params, c3_params, c4_params };
 
-		// printf("creating delay task 2\r\n");
-		// Task::Create(3, &SystemTask::delay_task_2);
-
-		// printf("creating delay until task\r\n");
-		// Task::Create(3, &SystemTask::delay_until_task);
+		// Receieve
+		for (int i = 0; i < 4; ++i) {
+			int sender_tid;
+			Message::Receive::Receive(&sender_tid, nullptr, 0);
+			Message::Reply::Reply(sender_tid, client_params[i], 2);
+		}
 
 		printf("exiting first user task\r\n");
 		Task::Exit();

@@ -2,9 +2,8 @@
 
 namespace SystemTask
 {
+void k3_client_task();
+
+const char IDLE_TASK_NAME[] = "idle_task";
 void idle_task();
-void delay_task();
-void delay_task_2();
-void delay_until_task();
-void timer_task();
 }
