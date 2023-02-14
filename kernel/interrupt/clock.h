@@ -1,4 +1,5 @@
 #pragma once
+#include "../user/idle_task.h"
 #include "interrupt.h"
 #include <stdint.h>
 
@@ -21,7 +22,9 @@ public:
 
 	void start();
 	void tick();
-	void calculate_and_print_idle_time(int active_task, int prev_task, int idle_tid);
+	void idle_start();
+	void idle_end();
+	void update_total_time(int prev_task);
 
 private:
 	/*
@@ -39,9 +42,13 @@ private:
 	uint64_t tick_tracker = 0;
 
 	// Time tracking variables
-	uint64_t idle_time = 0;
 	uint64_t last_ping = 0;
+	// Time tracking variables for idle task
+	uint64_t last_idle_ping = 0;
+	// total time should be kernel + non_idle (roughly)
 	uint64_t total_time = 1;
+	// idle time should only include time which we are in idle
+	uint64_t idle_time = 0;
 
 	// Time since last print. Used to print every 5 seconds
 	uint64_t last_print = 0;

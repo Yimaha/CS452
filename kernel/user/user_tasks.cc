@@ -2,7 +2,7 @@
 #include "../kernel.h"
 #include "../rpi.h"
 #include "../utils/utility.h"
-#include "idle_task.h"
+#include "../k3/k3_client.h"
 
 void UserTask::first_user_task() {
 	while (true) {

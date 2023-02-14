@@ -93,7 +93,8 @@ int WhoIs(const char* name);
 namespace Clock
 {
 const uint64_t CLOCK_SERVER_ID = 2;
-constexpr uint32_t CLOCK_QUEUE_LENGTH = 64;
+const uint64_t CLOCK_NOTIFIER_ID = 3;
+const uint32_t CLOCK_QUEUE_LENGTH = 64;
 
 //*****************************************************************************
 /// Gets the current time in ticks, where a tick is 10ms.
@@ -182,6 +183,4 @@ private:
 	void handle_receive();
 	void handle_reply();
 	void handle_await_event(int eventId);
-
-	int idle_tid = SystemTask::IDLE_TID;
 };

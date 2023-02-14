@@ -44,8 +44,7 @@ Kernel::Kernel() {
 void Kernel::schedule_next_task() {
 	int prev_task = active_task;
 	active_task = scheduler.get_next();
-	time_keeper.calculate_and_print_idle_time(prev_task, active_task, idle_tid);
-
+	time_keeper.update_total_time(prev_task);
 	while (active_task == Task::NO_TASKS) {
 		char m[] = "no tasks available...\r\n";
 		uart_puts(0, 0, m, sizeof(m) - 1);
@@ -57,7 +56,13 @@ void Kernel::schedule_next_task() {
 
 void Kernel::activate() {
 	// upon activation, task become active
-	active_request = tasks[active_task]->to_active();
+	if (active_task != SystemTask::IDLE_TID) {
+		active_request = tasks[active_task]->to_active();
+	} else {
+		time_keeper.idle_start();
+		active_request = tasks[active_task]->to_active();
+		time_keeper.idle_end();
+	}
 }
 
 Kernel::~Kernel() { }
