@@ -14,8 +14,8 @@ TaskDescriptor::TaskDescriptor(int id, int parent_id, int priority, void (*pc)()
 	, priority { priority }
 	, system_call_result { 0x0 } // used to reply from kernel function
 	, initialized { false }
-	, pc { pc }
-	, interrupted { false } {
+	, interrupted { false }
+	, pc { pc } {
 	sp = (char*)&kernel_stack[USER_STACK_SIZE]; // aligned to 8 bytes, exactly 4kb is used for user stack
 }
 
@@ -94,6 +94,10 @@ void TaskDescriptor::to_event_block() {
 	state = TaskDescriptor::TaskState::EVENT_BLOCK;
 }
 
+void TaskDescriptor::set_interrupted(bool val) {
+	interrupted = val;
+}
+
 /**
  * good way to check if a process is still alive
  */
@@ -124,6 +128,10 @@ bool TaskDescriptor::is_reply_block() {
 
 bool TaskDescriptor::is_event_block() {
 	return state == TaskState::EVENT_BLOCK;
+}
+
+bool TaskDescriptor::is_interrupted() {
+	return interrupted;
 }
 
 /**
@@ -163,12 +171,4 @@ void Descriptor::TaskDescriptor::show_info() {
 	print("\r\n", 2);
 
 	printf("state: %d\r\n", state);
-}
-
-bool TaskDescriptor::was_interrupted() {
-	return interrupted;
-}
-
-void TaskDescriptor::set_interrupted(bool val) {
-	interrupted = val;
 }

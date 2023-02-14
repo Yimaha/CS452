@@ -225,7 +225,7 @@ extern "C" void RockPaperScissors::RPSClient() {
 
 	while (1) {
 		// Get a "random" move
-		uint64_t rand_int = Clock::time() % 3;
+		uint64_t rand_int = Clock::system_time() % 3;
 		if (moves > 3 + static_cast<int>(rand_int)) {
 			rand_int = 3;
 		}
@@ -277,7 +277,7 @@ extern "C" void RockPaperScissors::RPSClient() {
 			printf(":(\r\n");
 
 			// Do another random check. 25% of the time, rejoin.
-			rand_int = Clock::time() % 4;
+			rand_int = Clock::system_time() % 4;
 			if (rand_int == 0) {
 				printf("Task %d is rejoining!\r\n", tid);
 				msg = RockPaperScissors::RPSMessage::SIGNUP;

@@ -15,8 +15,6 @@ class Scheduler {
 public:
 	Scheduler();
 	int get_next();
-	int peek_next();
-	int len();
 	void add_task(int priority, int task_id);
 
 private:

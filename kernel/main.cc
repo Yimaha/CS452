@@ -15,6 +15,7 @@ extern "C" void kmain() {
 	printf("finished kernel init, started scheduling user tasks\r\n");
 	MMU::setup_mmu();
 	Interrupt::init_interrupt();
+	kernel.start_timer();
 
 	for (;;) {
 		// infinite loop, kernel never needs to exit until killed by power switch

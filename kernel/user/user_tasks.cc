@@ -1,4 +1,7 @@
 #include "user_tasks.h"
+#include "../kernel.h"
+#include "../rpi.h"
+#include "../utils/utility.h"
 #include "idle_task.h"
 
 void UserTask::first_user_task() {
@@ -19,14 +22,14 @@ void UserTask::first_user_task() {
 		printf("creating clock notifier\r\n");
 		Task::Create(1, &Clock::clock_notifier);
 
+		printf("creating idle task\r\n");
+		Task::Create(7, &SystemTask::idle_task);
+
 		// Set the client tasks running
 		printf("creating client tasks\r\n");
 		for (int i = 3; i < 7; ++i) {
 			Task::Create(i, &SystemTask::k3_client_task);
 		}
-
-		printf("creating idle task\r\n");
-		Task::Create(7, &SystemTask::idle_task);
 
 		const char c1_params[] = { 10, 20 };
 		const char c2_params[] = { 23, 9 };

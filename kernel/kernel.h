@@ -7,6 +7,7 @@
 
 #include "context_switch.h"
 #include "descriptor.h"
+#include "interrupt_handler.h"
 #include "k1/user_tasks_k1.h"
 #include "k2/user_tasks_k2.h"
 #include "k2/user_tasks_k2_performance.h"
@@ -14,11 +15,13 @@
 #include "scheduler.h"
 #include "server/clock_server.h"
 #include "server/name_server.h"
+#include "user/idle_task.h"
 #include "utils/slab_allocator.h"
 
 namespace Task
 {
 constexpr int MAIDENLESS = -1;
+constexpr int CLOCK_QUEUE_EMPTY = -2;
 constexpr uint64_t USER_TASK_START_ADDRESS = 0x10000000;
 constexpr uint64_t USER_TASK_LIMIT = 100;
 
@@ -29,13 +32,7 @@ void Yield();
 int Create(int priority, void (*function)());
 
 // Debug utility functions because user prints are unreliable
-void KernelPrint(const char* msg);
-void LogTime();
-
-// Register Idle Tid should only be called by the idle task,
-// and it is used to tell the kernel what the tid of the idle task is
-// (the kernel can see the tid of the idle task if it knows it called this)
-void RegisterIdleTid();
+void _KernelPrint(const char* msg);
 }
 
 /**
@@ -147,9 +144,7 @@ public:
 		DELAY = 12,
 		DELAY_UNTIL = 13,
 		AWAIT_EVENT = 14,
-		PRINT = 15,
-		LOG_TIME = 16,
-		REGISTER_IDLE_TID = 17
+		PRINT = 15
 	};
 
 	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
@@ -162,6 +157,7 @@ public:
 	void handle();
 	void handle_syscall();
 	void handle_interrupt(InterruptCode icode);
+	void start_timer();
 
 private:
 	int p_id_counter = 0;					  // keeps track of new task creation id
@@ -176,8 +172,10 @@ private:
 	SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()> task_allocator
 		= SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()>((char*)Task::USER_TASK_START_ADDRESS, Task::USER_TASK_LIMIT);
 
-	// a queue that stores the task id that is waiting for timer interrupt
-	etl::queue<int, Clock::CLOCK_QUEUE_LENGTH> clock_queue = etl::queue<int, Clock::CLOCK_QUEUE_LENGTH>();
+	Clock::TimeKeeper time_keeper = Clock::TimeKeeper();
+
+	// clock notifier "list", a pointer to the notifier
+	int clock_notifier_tid = Task::CLOCK_QUEUE_EMPTY;
 
 	void allocate_new_task(int parent_id, int priority, void (*pc)()); // create, and push a new task onto the actual scheduler
 	void handle_send();
@@ -188,9 +186,11 @@ private:
 	uint64_t tick_tracker = 0;
 
 	// Variables for timing idle time
-	int idle_tid = -1;
+	int idle_tid = SystemTask::IDLE_TID;
 	uint64_t idle_time = 0;
 	uint64_t last_ping = 0;
 	uint64_t total_time = 1;
+
+	// Time since last print. Used to print every 5 seconds
 	uint64_t last_print = 0;
 };

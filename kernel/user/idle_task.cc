@@ -1,4 +1,5 @@
 #include "idle_task.h"
+#include "../kernel.h"
 #include "../server/clock_server.h"
 #include "../utils/printf.h"
 #include "user_tasks.h"
@@ -16,15 +17,14 @@ void SystemTask::k3_client_task() {
 	int repeat = buf[1];
 	for (int i = 1; i <= repeat; ++i) {
 		Clock::Delay(clock_tid, delay);
-		sprintf(buf, "T%d D%d C%d\r\n", my_tid, delay, i);
-		Task::KernelPrint(buf);
+		sprintf(buf, "Task: %d | Delay: %d | Counter: %d\r\n", my_tid, delay, i);
+		Task::_KernelPrint(buf);
 	}
 
 	Task::Exit();
 }
 
 void SystemTask::idle_task() {
-	Task::RegisterIdleTid();
 	while (true) {
 		// asm volatile("wfi");
 		Task::Yield();

@@ -21,11 +21,30 @@ uint32_t Clock::chi() {
 	return timer->CHI;
 }
 
-uint64_t Clock::time() {
+// Fetches the current system time in microseconds, counting from power on.
+uint64_t Clock::system_time() {
 	return ((uint64_t)timer->CHI << 32) | (uint64_t)timer->CLO;
 }
 
-void Clock::set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
+void Clock::enable_clock_one_interrupts() {
+	Interrupt::enable_interrupt_for(TIMER_INTERRUPT_ID);
+}
+
+Clock::TimeKeeper::TimeKeeper() { }
+
+Clock::TimeKeeper::~TimeKeeper() { }
+
+void Clock::TimeKeeper::start() {
+	tick_tracker = system_time() + MICROS_PER_TICK;
+	set_comparator(tick_tracker);
+}
+
+void Clock::TimeKeeper::tick() {
+	tick_tracker += MICROS_PER_TICK;
+	set_comparator(tick_tracker);
+}
+
+void Clock::TimeKeeper::set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
 #ifdef OUR_DEBUG
 	if (reg_num > 3) {
 		return;
@@ -43,18 +62,4 @@ void Clock::set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
 	} else if (reg_num == 3) {
 		timer->C3 = interrupt_time;
 	}
-}
-
-void Clock::clear_cs(uint32_t reg_num) {
-#ifdef OUR_DEBUG
-	if (reg_num > 3) {
-		return;
-	}
-#endif
-
-	timer->CS |= 1 << reg_num;
-}
-
-void Clock::enable_clock_one_interrupts() {
-	Interrupt::enable_interrupt_for(TIMER_INTERRUPT_ID);
 }

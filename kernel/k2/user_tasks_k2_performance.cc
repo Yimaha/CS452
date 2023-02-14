@@ -17,7 +17,7 @@ void send_helper(int to) {
 	print_int(SIZE);
 	char a[] = "test for data sender start: ";
 	print(a, sizeof(a) - 1);
-	uint64_t start = Clock::time();
+	uint64_t start = Clock::system_time();
 	char msg[SIZE];
 	char reply[SIZE];
 	int final_len;
@@ -26,7 +26,7 @@ void send_helper(int to) {
 	for (int i = 0; i < TASK_TOTAL_CYCLE; i++) {
 		final_len = Message::Send::Send(to, msg, SIZE, reply, SIZE);
 	}
-	uint64_t end = Clock::time();
+	uint64_t end = Clock::system_time();
 	char a2[] = "test for data sender end: ";
 	print(a2, sizeof(a2) - 1);
 	print_int(end);
@@ -48,14 +48,14 @@ void receive_helper() {
 	print_int(SIZE);
 	char a[] = "test for data receiver start: ";
 	print(a, sizeof(a) - 1);
-	uint64_t start = Clock::time();
+	uint64_t start = Clock::system_time();
 	print_int(start);
 	print("\r\n", 2);
 	for (int i = 0; i < TASK_TOTAL_CYCLE; i++) {
 		msglen = Message::Receive::Receive(&from, receiver, SIZE);
 		msglen = Message::Reply::Reply(from, reply, SIZE);
 	}
-	uint64_t end = Clock::time();
+	uint64_t end = Clock::system_time();
 
 	char a2[] = "test for data receiver end: ";
 	print(a2, sizeof(a2) - 1);

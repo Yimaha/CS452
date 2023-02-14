@@ -1,0 +1,48 @@
+init kernel                                                                    Idle time: 4958129
+finished kernel init, started scheduling user tasks                            Total time: 5015967
+mmu setup complete                                                             Percentage: 98.846
+creating name server
+registering first user task
+creating clock server
+creating clock notifier
+creating idle task
+creating client tasks
+exiting first user task
+Task: 5 | Delay: 10 | Counter: 1
+Task: 5 | Delay: 10 | Counter: 2
+Task: 6 | Delay: 23 | Counter: 1
+Task: 5 | Delay: 10 | Counter: 3
+Task: 7 | Delay: 33 | Counter: 1
+Task: 5 | Delay: 10 | Counter: 4
+Task: 6 | Delay: 23 | Counter: 2
+Task: 5 | Delay: 10 | Counter: 5
+Task: 5 | Delay: 10 | Counter: 6
+Task: 7 | Delay: 33 | Counter: 2
+Task: 6 | Delay: 23 | Counter: 3
+Task: 5 | Delay: 10 | Counter: 7
+Task: 8 | Delay: 71 | Counter: 1
+Task: 5 | Delay: 10 | Counter: 8
+Task: 5 | Delay: 10 | Counter: 9
+Task: 6 | Delay: 23 | Counter: 4
+Task: 7 | Delay: 33 | Counter: 3
+Task: 5 | Delay: 10 | Counter: 10
+Task: 5 | Delay: 10 | Counter: 11
+Task: 6 | Delay: 23 | Counter: 5
+Task: 5 | Delay: 10 | Counter: 12
+Task: 5 | Delay: 10 | Counter: 13
+Task: 7 | Delay: 33 | Counter: 4
+Task: 6 | Delay: 23 | Counter: 6
+Task: 5 | Delay: 10 | Counter: 14
+Task: 8 | Delay: 71 | Counter: 2
+Task: 5 | Delay: 10 | Counter: 15
+Task: 5 | Delay: 10 | Counter: 16
+Task: 6 | Delay: 23 | Counter: 7
+Task: 7 | Delay: 33 | Counter: 5
+Task: 5 | Delay: 10 | Counter: 17
+Task: 5 | Delay: 10 | Counter: 18
+Task: 6 | Delay: 23 | Counter: 8
+Task: 5 | Delay: 10 | Counter: 19
+Task: 7 | Delay: 33 | Counter: 6
+Task: 5 | Delay: 10 | Counter: 20
+Task: 6 | Delay: 23 | Counter: 9
+Task: 8 | Delay: 71 | Counter: 3

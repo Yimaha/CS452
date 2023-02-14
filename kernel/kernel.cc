@@ -21,12 +21,8 @@ void Task::Yield() {
 	to_kernel(Kernel::HandlerCode::YIELD);
 }
 
-void Task::KernelPrint(const char* msg) {
+void Task::_KernelPrint(const char* msg) {
 	to_kernel(Kernel::HandlerCode::PRINT, msg);
-}
-
-void Task::RegisterIdleTid() {
-	to_kernel(Kernel::HandlerCode::REGISTER_IDLE_TID);
 }
 
 int Message::Send::Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
@@ -42,19 +38,17 @@ int Message::Reply::Reply(int tid, const char* msg, int msglen) {
 }
 
 Kernel::Kernel() {
-	tick_tracker = Clock::time() + Clock::MICROS_PER_TICK;
-	Clock::set_comparator(tick_tracker);
 	allocate_new_task(Task::MAIDENLESS, 0, &UserTask::first_user_task);
+
+	if (last_ping == 0) {
+		last_ping = Clock::system_time();
+	}
 }
 
 void Kernel::schedule_next_task() {
 	int prev_task = active_task;
 	active_task = scheduler.get_next();
-	// Save the cursor location, move to top right, print time, then restore cursor
-	uint64_t t = Clock::time();
-	if (last_ping == 0) {
-		last_ping = t;
-	}
+	uint64_t t = Clock::system_time();
 
 	total_time += t - last_ping;
 	if (active_task == idle_tid) {
@@ -150,11 +144,6 @@ void Kernel::handle_syscall() {
 		tasks[active_task]->to_ready(0x0, &scheduler);
 		break;
 	}
-	case HandlerCode::REGISTER_IDLE_TID: {
-		idle_tid = active_task;
-		tasks[active_task]->to_ready(0x0, &scheduler);
-		break;
-	}
 	case HandlerCode::EXIT:
 		tasks[active_task]->kill();
 		break;
@@ -165,6 +154,8 @@ void Kernel::handle_syscall() {
 	}
 	default:
 		printf("Unknown syscall: %d from %d\r\n", request, active_task);
+		uint64_t error_code = (read_esr() >> 26) & 0x3f;
+		printf("ESR: %llx\r\n", error_code);
 		while (true) {
 		}
 	}
@@ -173,21 +164,15 @@ void Kernel::handle_syscall() {
 void Kernel::handle_interrupt(InterruptCode icode) {
 	switch (icode) {
 	case InterruptCode::TIMER: {
-		tick_tracker += Clock::MICROS_PER_TICK;
-#ifdef OUR_DEBUG
-		printf("Tick: %llu\r\n", tick_tracker);
-#endif
-		Clock::set_comparator(tick_tracker);
+		time_keeper.tick();
 
 #ifdef OUR_DEBUG
 		// kernel_assert(clock_queue.size() == 1, "only clock notifier should be here, ");
 #endif
 
 		tasks[active_task]->to_ready(0x0, &scheduler);
-		while (!clock_queue.empty()) {
-			int tid = clock_queue.front();
-			clock_queue.pop();
-			tasks[tid]->to_ready(0x0, &scheduler);
+		if (clock_notifier_tid != Task::CLOCK_QUEUE_EMPTY) {
+			tasks[clock_notifier_tid]->to_ready(0x0, &scheduler);
 		}
 		break;
 	}
@@ -266,7 +251,7 @@ void Kernel::handle_reply() {
 void Kernel::handle_await_event(int eventId) {
 	switch (eventId) {
 	case Clock::TIMER_INTERRUPT_ID: {
-		clock_queue.push(active_task);
+		clock_notifier_tid = active_task;
 		tasks[active_task]->to_event_block();
 		break;
 	}
@@ -274,6 +259,10 @@ void Kernel::handle_await_event(int eventId) {
 		printf("Unknown event id: %d\r\n", eventId);
 		break;
 	}
+}
+
+void Kernel::start_timer() {
+	time_keeper.start();
 }
 
 int name_server_interface_helper(const char* name, Name::RequestHeader header) {
