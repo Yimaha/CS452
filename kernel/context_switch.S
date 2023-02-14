@@ -55,7 +55,7 @@ first_el0_entry:
 	// Switch to EL0
 
 	msr SP_EL0, x0 // assuming stack address is passed in x0
-    msr elr_el1, x1 // we need another thing when the function get back since it is bidirectional, but this will do for now
+	msr elr_el1, x1 // we need another thing when the function get back since it is bidirectional, but this will do for now
 
 	// save kernel registers
 	save_regs
@@ -71,7 +71,7 @@ to_kernel:
 	
 	save_regs
 
-	// does not need to save sp since sp is banked
+	// does not need to save sp since sp is banked in SP_EL0
 	svc 0x1
 
 .global handle_syscall
@@ -103,9 +103,46 @@ to_user:
 
 	eret // ready to jump
 
-// this is a private function
+.global to_user_interrupted
+to_user_interrupted:
+
+	// x0 = stack address of user task
+	// x1 = SPSR_EL1
+	// x2 = program counter
+	// Switch to EL0
+
+	save_regs
+
+	msr SPSR_EL1, x1
+	msr elr_el1, x2
+
+	ldp x2, x3, [x0, 1*16]
+	ldp x4, x5, [x0, 2*16]
+	ldp x6, x7, [x0, 3*16]
+	ldp x8, x9, [x0, 4*16]
+	ldp x10, x11, [x0, 5*16]
+	ldp x12, x13, [x0, 6*16]
+	ldp x14, x15, [x0, 7*16]
+	ldp x16, x17, [x0, 8*16]
+	ldp x18, x19, [x0, 9*16]
+	ldp x20, x21, [x0, 10*16]
+	ldp x22, x23, [x0, 11*16]
+	ldp x24, x25, [x0, 12*16]
+	ldp x26, x27, [x0, 13*16]
+	ldp x28, x29, [x0, 14*16]
+	ldp x30, xzr, [x0, 15*16]
+
+	add x0, x0, 17*16
+	msr SP_EL0, x0 // assuming stack address is passed in x0
+
+	ldp x0, x1, [x0, -17*16]
+
+	eret // ready to jump
+
+
+// these are private functions
 // unlike handle_syscall which is needed by the exception table
-// there is no reason why this label exists outside of this file
+// there is no reason why these label exists outside of this file
 handle_return_to_user:
 
 	ldp xzr, x1, [sp, 0*16]
@@ -120,7 +157,31 @@ handle_return_to_user:
 
 	add sp, sp, 17*16
 
-	msr DAIFClr, #0b1111 // enable interrupts
-
 	// x0 should already be filled
+	ret
+
+
+# I want to set up MAIR such that the entry is following
+# |outer write back transient, inner write back transient|outer write back non-transient, inner write back non-transient|nGnRnE|not cachable|
+#define MAIR_TABLE  0b01110111111111110000000001000100
+# we want to run 32 bit addressing since we won't go above 4gb even with all the device address
+#define DISABLE_TTBR1_EL1 (1 << 23)
+#define TTBR0_EL1_OUTER_SHARABLE (2 << 12)
+#define TTBR0_EL1_ORGN_0 (1<<10)
+#define TTBR0_EL1_IRGN_0 (1<<8)
+#define T0SZ 32
+#define TCR_ENABLE (DISABLE_TTBR1_EL1 | TTBR0_EL1_OUTER_SHARABLE | TTBR0_EL1_ORGN_0 | TTBR0_EL1_IRGN_0 | T0SZ)
+
+.global mmu_registers
+mmu_registers:
+    msr TTBR0_EL1, x0
+    ldr x1, =MAIR_TABLE
+    msr MAIR_EL1, x1
+    ldr x1, =TCR_ENABLE
+    msr TCR_EL1, x1
+    ISB
+    MRS x0, SCTLR_EL1
+    ORR x0, x0, #1
+    MSR SCTLR_EL1, x0
+    ISB
 	ret

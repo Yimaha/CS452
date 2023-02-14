@@ -321,13 +321,6 @@ extern "C" void val_print(uint64_t c) {
 	uart_puts(0, 0, buf, 8);
 }
 
-extern "C" void print_exception() {
-	char m1[] = "reaching invalid location\r\n";
-	uart_puts(0, 0, m1, sizeof(m1) - 1);
-	while (1) {
-	};
-}
-
 extern "C" void print_interrupt() {
 	uart_puts(0, 0, "interrupt!\r\n", 12);
 	while (1) {
@@ -340,6 +333,10 @@ extern "C" void print_exception_arg(uint64_t arg) {
 	};
 }
 
+extern "C" void print_hex_arg(uint64_t arg) {
+	printf("arg: %x\r\n", arg);
+}
+
 // Crash the system
 extern "C" void crash(void) {
 	asm volatile("b reboot");
@@ -347,14 +344,14 @@ extern "C" void crash(void) {
 
 // Function that crashes the system
 // Called when an assert fails
-extern "C" void assert_crash(const char* msg, const size_t len) {
+extern "C" void assert_crash(const char* msg) {
 
 	if (msg != nullptr) {
-		uart_puts(0, 0, msg, len);
+		printf(msg);
 	}
 
 	char fail[] = "assertion failed\r\n";
-	uart_puts(0, 0, fail, sizeof(fail) - 1);
+	printf(fail);
 
 	// Wait a bit
 	for (int i = 0; i < 100000; ++i)
@@ -368,7 +365,7 @@ extern "C" void assert_crash(const char* msg, const size_t len) {
 // If cond is false, the system crashes
 // Also takes an optional message to print
 // (will only print first `len` chars of message)
-void kernel_assert(const bool cond, const char* msg, const size_t len) {
+void kernel_assert(const bool cond, const char* msg) {
 	if (!cond)
-		assert_crash(msg, len);
+		assert_crash(msg);
 }

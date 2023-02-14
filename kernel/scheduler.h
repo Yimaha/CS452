@@ -9,7 +9,7 @@
 namespace Task
 {
 const static int NO_TASKS = -1;
-const static int NUM_PRIORITIES = 4;
+const static int NUM_PRIORITIES = 8;
 const static int SCHEDULER_QUEUE_SIZE = 64;
 class Scheduler {
 public:

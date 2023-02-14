@@ -15,7 +15,16 @@ struct GICD {
 
 struct GICC {
 	uint32_t GICC_CTLR;
-	// more to come
+	uint32_t GICC_PMR;
+	uint32_t GICC_BPR;
+	uint32_t GICC_IAR;
+	uint32_t GICC_EOIR;
+	uint32_t GICC_RPR;
+	uint32_t GICC_HPPIR;
+	uint32_t GICC_ABPR;
+	uint32_t GICC_AIAR;
+	uint32_t GICC_AEOIR;
+	uint32_t GICC_AHPPIR;
 };
 
 static volatile GICD* const gicd = (GICD*)(GIC_BASE + 0x1000);
@@ -27,6 +36,15 @@ void Interrupt::init_interrupt() {
 
 	Clock::enable_clock_one_interrupts();
 }
+
+uint32_t Interrupt::get_interrupt_id() {
+	return gicc->GICC_IAR;
+}
+
+void Interrupt::end_interrupt(uint32_t id) {
+	gicc->GICC_EOIR = id;
+}
+
 void Interrupt::enable_interrupt_for(uint32_t id) {
 
 	gicd->GICD_ISENABLERN[id / 32] = 1 << (id % 32);

@@ -38,10 +38,10 @@ extern "C" void RockPaperScissors::RPSServer() {
 		matches[i].active = false;
 	}
 
-	while (true) {
+	while (1) {
 		int from = -1;
 		RockPaperScissors::RPSMessage msg;
-		MessagePassing::Receive::Receive(&from, (char*)&msg, sizeof(msg));
+		Message::Receive::Receive(&from, (char*)&msg, sizeof(msg));
 		switch (msg) {
 		case RockPaperScissors::RPSMessage::SIGNUP: {
 			int first_inactive = -1;
@@ -61,7 +61,7 @@ extern "C" void RockPaperScissors::RPSServer() {
 			}
 
 			RockPaperScissors::RPSMessage reply = RockPaperScissors::RPSMessage::NONE;
-			MessagePassing::Reply::Reply(from, (char*)&reply, 0);
+			Message::Reply::Reply(from, (char*)&reply, 0);
 			break;
 		}
 		case RockPaperScissors::RPSMessage::QUIT:
@@ -87,7 +87,7 @@ extern "C" void RockPaperScissors::RPSServer() {
 
 			if (!found) {
 				// player not found, hasn't signed up
-				MessagePassing::Reply::Reply(from, nullptr, 0);
+				Message::Reply::Reply(from, nullptr, 0);
 				break;
 			}
 
@@ -165,31 +165,31 @@ extern "C" void RockPaperScissors::RPSServer() {
 				if (winner_tid >= 0 && loser_tid >= 0) {
 					RockPaperScissors::RPSMessage winner_msg = RockPaperScissors::RPSMessage::WIN;
 					RockPaperScissors::RPSMessage loser_msg = RockPaperScissors::RPSMessage::LOSE;
-					MessagePassing::Reply::Reply(winner_tid, (char*)&winner_msg, sizeof(RockPaperScissors::RPSMessage));
-					MessagePassing::Reply::Reply(loser_tid, (char*)&loser_msg, sizeof(RockPaperScissors::RPSMessage));
+					Message::Reply::Reply(winner_tid, (char*)&winner_msg, sizeof(RockPaperScissors::RPSMessage));
+					Message::Reply::Reply(loser_tid, (char*)&loser_msg, sizeof(RockPaperScissors::RPSMessage));
 
 					print("The winner is: ", 15);
 					print_int(winner_tid);
 					print("!\r\n", 3);
 				} else if (winner_tid == DRAW_GAME && loser_tid == DRAW_GAME) {
 					RockPaperScissors::RPSMessage draw_msg = RockPaperScissors::RPSMessage::DRAW;
-					MessagePassing::Reply::Reply(matches[i].player1, (char*)&draw_msg, sizeof(RockPaperScissors::RPSMessage));
-					MessagePassing::Reply::Reply(matches[i].player2, (char*)&draw_msg, sizeof(RockPaperScissors::RPSMessage));
+					Message::Reply::Reply(matches[i].player1, (char*)&draw_msg, sizeof(RockPaperScissors::RPSMessage));
+					Message::Reply::Reply(matches[i].player2, (char*)&draw_msg, sizeof(RockPaperScissors::RPSMessage));
 					print("It's a draw!\r\n", 14);
 				} else if (winner_tid == P1_QUIT) {
 					RockPaperScissors::RPSMessage quit_msg = RockPaperScissors::RPSMessage::QUIT;
-					MessagePassing::Reply::Reply(matches[i].player1, (char*)&quit_msg, sizeof(RockPaperScissors::RPSMessage));
+					Message::Reply::Reply(matches[i].player1, (char*)&quit_msg, sizeof(RockPaperScissors::RPSMessage));
 					if (matches[i].player2 != NO_PLAYER) {
-						MessagePassing::Reply::Reply(matches[i].player2, (char*)&quit_msg, sizeof(RockPaperScissors::RPSMessage));
+						Message::Reply::Reply(matches[i].player2, (char*)&quit_msg, sizeof(RockPaperScissors::RPSMessage));
 					}
 
 					matches[i].player1 = NO_PLAYER;
 					matches[i].player2 = NO_PLAYER;
 				} else if (winner_tid == P2_QUIT) {
 					RockPaperScissors::RPSMessage quit_msg = RockPaperScissors::RPSMessage::QUIT;
-					MessagePassing::Reply::Reply(matches[i].player2, (char*)&quit_msg, sizeof(RockPaperScissors::RPSMessage));
+					Message::Reply::Reply(matches[i].player2, (char*)&quit_msg, sizeof(RockPaperScissors::RPSMessage));
 					if (matches[i].player1 != NO_PLAYER) {
-						MessagePassing::Reply::Reply(matches[i].player1, (char*)&quit_msg, sizeof(RockPaperScissors::RPSMessage));
+						Message::Reply::Reply(matches[i].player1, (char*)&quit_msg, sizeof(RockPaperScissors::RPSMessage));
 					}
 
 					matches[i].player1 = NO_PLAYER;
@@ -216,16 +216,16 @@ extern "C" void RockPaperScissors::RPSClient() {
 
 	RockPaperScissors::RPSMessage msg = RockPaperScissors::RPSMessage::SIGNUP;
 	RockPaperScissors::RPSMessage reply;
-	MessagePassing::Send::Send(server_tid, (char*)&msg, sizeof(RockPaperScissors::RPSMessage), (char*)&reply, sizeof(RockPaperScissors::RPSMessage));
+	Message::Send::Send(server_tid, (char*)&msg, sizeof(RockPaperScissors::RPSMessage), (char*)&reply, sizeof(RockPaperScissors::RPSMessage));
 
 	print("My tid is: ", 11);
 	print_int(tid);
 	print(" and I am ready to play!\r\n", 26);
 	int moves = 0;
 
-	while (true) {
+	while (1) {
 		// Get a "random" move
-		uint64_t rand_int = Clock::time() % 3;
+		uint64_t rand_int = Clock::system_time() % 3;
 		if (moves > 3 + static_cast<int>(rand_int)) {
 			rand_int = 3;
 		}
@@ -270,18 +270,18 @@ extern "C" void RockPaperScissors::RPSClient() {
 		}
 
 		// Send the move
-		MessagePassing::Send::Send(server_tid, (char*)&move, sizeof(RockPaperScissors::RPSMessage), (char*)&reply, sizeof(RockPaperScissors::RPSMessage));
+		Message::Send::Send(server_tid, (char*)&move, sizeof(RockPaperScissors::RPSMessage), (char*)&reply, sizeof(RockPaperScissors::RPSMessage));
 
 		// Wait for the reply
 		if (reply == RockPaperScissors::RPSMessage::QUIT) {
 			printf(":(\r\n");
 
 			// Do another random check. 25% of the time, rejoin.
-			rand_int = Clock::time() % 4;
+			rand_int = Clock::system_time() % 4;
 			if (rand_int == 0) {
 				printf("Task %d is rejoining!\r\n", tid);
 				msg = RockPaperScissors::RPSMessage::SIGNUP;
-				MessagePassing::Send::Send(server_tid, (char*)&msg, sizeof(RockPaperScissors::RPSMessage), (char*)&reply, sizeof(RockPaperScissors::RPSMessage));
+				Message::Send::Send(server_tid, (char*)&msg, sizeof(RockPaperScissors::RPSMessage), (char*)&reply, sizeof(RockPaperScissors::RPSMessage));
 				printf("My tid is: %d and I am ready to play!\r\n", tid);
 				moves = 0;
 			} else {

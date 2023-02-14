@@ -9,6 +9,7 @@ SECTIONS {
   . = 0x80000;          /* load address */
 	.text.boot : {        /* boot code must start at 0x80000 */
 		KEEP(*(.text.boot))
+		*(.text*)
 	}
 
 	/* mark constructor initialization array */
@@ -17,5 +18,11 @@ SECTIONS {
 			*(.init_array)
 			*(SORT_BY_INIT_PRIORITY(.init_array.*))
 		__init_array_end = .;
+	}
+
+
+  . = 0x200000;
+	.rodata : {
+		*(.rodata*)
 	}
 }

@@ -1,4 +1,5 @@
 #include "clock.h"
+#include "../utils/printf.h"
 
 struct TIMER {
 	uint32_t CS;  // System Timer Control/Status
@@ -12,34 +13,70 @@ struct TIMER {
 
 static char* const TIMER_BASE = (char*)(0xFE000000 + 0x3000);
 static volatile TIMER* const timer = (TIMER*)(TIMER_BASE);
-static const int TIMER_INTERRUPT_ID = 97; // base timer interrupt is 96, +1 for C1
 
-uint32_t Clock::clo(void) {
+uint32_t Clock::clo() {
 	return timer->CLO;
 }
 
-uint32_t Clock::chi(void) {
+uint32_t Clock::chi() {
 	return timer->CHI;
 }
 
-uint64_t Clock::time(void) {
+// Fetches the current system time in microseconds, counting from power on.
+uint64_t Clock::system_time() {
 	return ((uint64_t)timer->CHI << 32) | (uint64_t)timer->CLO;
 }
 
-void Clock::set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
+void Clock::enable_clock_one_interrupts() {
+	Interrupt::enable_interrupt_for(TIMER_INTERRUPT_ID);
+}
+
+Clock::TimeKeeper::TimeKeeper() {
+	if (last_ping == 0) {
+		last_ping = Clock::system_time();
+	}
+}
+
+Clock::TimeKeeper::~TimeKeeper() { }
+
+void Clock::TimeKeeper::start() {
+	tick_tracker = system_time() + MICROS_PER_TICK;
+	set_comparator(tick_tracker);
+}
+
+void Clock::TimeKeeper::tick() {
+	tick_tracker += MICROS_PER_TICK;
+	set_comparator(tick_tracker);
+}
+
+void Clock::TimeKeeper::calculate_and_print_idle_time(int active_task, int prev_task, int idle_tid) {
+	uint64_t t = system_time();
+
+	total_time += t - last_ping;
+	if (active_task == idle_tid) {
+		idle_time += t - last_ping;
+	}
+
+	last_ping = t;
+
+	if (t - last_print > 5000000 && prev_task == idle_tid) {
+		uint64_t leading = idle_time * 100 / total_time;
+		uint64_t trailing = (idle_time * 100000) / total_time % 1000;
+		printf("\0337\033[1;80HIdle time: %llu\033[2;80HTotal time: %llu", idle_time, total_time);
+		printf("\033[3;80HPercentage: %llu.%03llu\r\n\0338", leading, trailing);
+
+		last_print = t;
+	}
+}
+
+void Clock::TimeKeeper::set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
 #ifdef OUR_DEBUG
 	if (reg_num > 3) {
 		return;
 	}
 #endif
-#ifdef OUR_DEBUG
-	if (timer->CS & (1 << reg_num)) {
-#endif
-		// Clear the match detect status bit
-		timer->CS |= 1 << reg_num;
-#ifdef OUR_DEBUu
-	}
-#endif
+	// Clear the match detect status bit
+	timer->CS |= 1 << reg_num;
 
 	if (reg_num == 0) {
 		timer->C0 = interrupt_time;
@@ -50,8 +87,4 @@ void Clock::set_comparator(uint32_t interrupt_time, uint32_t reg_num) {
 	} else if (reg_num == 3) {
 		timer->C3 = interrupt_time;
 	}
-}
-
-void Clock::enable_clock_one_interrupts(void) {
-	Interrupt::enable_interrupt_for(TIMER_INTERRUPT_ID);
 }

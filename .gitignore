@@ -59,3 +59,9 @@ main.S
 
 # VSCode
 .vscode/
+
+# Useful text files
+!k1/k1_out.txt
+!k2/performance.txt
+!k2/rps.txt
+!k3/k3_out.txt

@@ -7,28 +7,41 @@
 
 #include "context_switch.h"
 #include "descriptor.h"
+#include "interrupt_handler.h"
+#include "k1/user_tasks_k1.h"
+#include "k2/user_tasks_k2.h"
+#include "k2/user_tasks_k2_performance.h"
 #include "rpi.h"
 #include "scheduler.h"
-#include "user/name_server.h"
-#include "user/user_tasks_k1.h"
-#include "user/user_tasks_k2.h"
-#include "user/user_tasks_k2_performance.h"
+#include "server/clock_server.h"
+#include "server/name_server.h"
+#include "user/idle_task.h"
 #include "utils/slab_allocator.h"
 
 namespace Task
 {
 constexpr int MAIDENLESS = -1;
+constexpr int CLOCK_QUEUE_EMPTY = -2;
 constexpr uint64_t USER_TASK_START_ADDRESS = 0x10000000;
 constexpr uint64_t USER_TASK_LIMIT = 100;
 
 int MyTid();
 int MyParentTid();
 void Exit();
-void Yield(); // since it is more like a debug functin, it is consider as "else" namespace
+void Yield();
 int Create(int priority, void (*function)());
+
+// Debug utility functions because user prints are unreliable
+void _KernelPrint(const char* msg);
 }
 
-namespace MessagePassing
+/**
+ * User communication interface, all user tasks should use these functions to talk to the kernel
+ * to signify the importance as these all trigger context switches,
+ * note that they follow Capitalized Camel Case
+ * unlike all other functions within our code
+ */
+namespace Message
 {
 namespace Send
 {
@@ -77,17 +90,74 @@ int RegisterAs(const char* name);
 int WhoIs(const char* name);
 }
 
+namespace Clock
+{
+const uint64_t CLOCK_SERVER_ID = 2;
+constexpr uint32_t CLOCK_QUEUE_LENGTH = 64;
+
+//*****************************************************************************
+/// Gets the current time in ticks, where a tick is 10ms.
+///\return The current time in ticks, or -1 if the clock server tid is invalid.
+//*****************************************************************************
+int Time(int tid);
+
+//*************************************************************************
+/// Delays the current task for the given number of ticks.
+///\return The current time in ticks, or
+// 	-1 if the clock server tid is invalid, or
+// 	-2 if the delay is negative.
+//*************************************************************************
+int Delay(int tid, int ticks);
+
+//*************************************************************************
+/// Delays the current task until the given time.
+///\return The current time in ticks, or
+// 	-1 if the clock server tid is invalid, or
+// 	-2 if the delay is negative.
+//*************************************************************************
+int DelayUntil(int tid, int ticks);
+}
+
+namespace Interrupt
+{
+int AwaitEvent(int eventid);
+}
+
 /**
  * Kernel state class, stores important information about the kernel and control the flow
  * */
 class Kernel {
 public:
-	enum HandlerCode { NONE = 0, CREATE = 1, MY_TID = 2, MY_PARENT_ID = 3, YIELD = 4, EXIT = 5, SEND = 6, RECEIVE = 7, REPLY = 8, REGISTER_AS = 9, WHO_IS = 10 };
+	enum HandlerCode {
+		NONE = 0,
+		CREATE = 1,
+		MY_TID = 2,
+		MY_PARENT_ID = 3,
+		YIELD = 4,
+		EXIT = 5,
+		SEND = 6,
+		RECEIVE = 7,
+		REPLY = 8,
+		REGISTER_AS = 9,
+		WHO_IS = 10,
+		TIME = 11,
+		DELAY = 12,
+		DELAY_UNTIL = 13,
+		AWAIT_EVENT = 14,
+		PRINT = 15
+	};
+
+	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
+	enum InterruptCode { TIMER = Clock::TIMER_INTERRUPT_ID };
+
 	Kernel();
 	~Kernel();
 	void schedule_next_task();
 	void activate();
 	void handle();
+	void handle_syscall();
+	void handle_interrupt(InterruptCode icode);
+	void start_timer();
 
 private:
 	int p_id_counter = 0;					  // keeps track of new task creation id
@@ -102,14 +172,16 @@ private:
 	SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()> task_allocator
 		= SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()>((char*)Task::USER_TASK_START_ADDRESS, Task::USER_TASK_LIMIT);
 
+	Clock::TimeKeeper time_keeper = Clock::TimeKeeper();
+
+	// clock notifier "list", a pointer to the notifier
+	int clock_notifier_tid = Task::CLOCK_QUEUE_EMPTY;
+
 	void allocate_new_task(int parent_id, int priority, void (*pc)()); // create, and push a new task onto the actual scheduler
 	void handle_send();
 	void handle_receive();
 	void handle_reply();
+	void handle_await_event(int eventId);
+
+	int idle_tid = SystemTask::IDLE_TID;
 };
-/**
- * User communication interface, all user tasks should use these functions to talk to the kernel
- * to signify the importance as these all trigger context switches,
- * note that they follow Capitalized Camel Case
- * unlike all other functions within our code
- */
