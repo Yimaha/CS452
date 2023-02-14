@@ -1,4 +1,5 @@
 #include "clock.h"
+#include "../utils/printf.h"
 
 struct TIMER {
 	uint32_t CS;  // System Timer Control/Status
@@ -30,7 +31,11 @@ void Clock::enable_clock_one_interrupts() {
 	Interrupt::enable_interrupt_for(TIMER_INTERRUPT_ID);
 }
 
-Clock::TimeKeeper::TimeKeeper() { }
+Clock::TimeKeeper::TimeKeeper() {
+	if (last_ping == 0) {
+		last_ping = Clock::system_time();
+	}
+}
 
 Clock::TimeKeeper::~TimeKeeper() { }
 
@@ -42,6 +47,26 @@ void Clock::TimeKeeper::start() {
 void Clock::TimeKeeper::tick() {
 	tick_tracker += MICROS_PER_TICK;
 	set_comparator(tick_tracker);
+}
+
+void Clock::TimeKeeper::calculate_and_print_idle_time(int active_task, int prev_task, int idle_tid) {
+	uint64_t t = system_time();
+
+	total_time += t - last_ping;
+	if (active_task == idle_tid) {
+		idle_time += t - last_ping;
+	}
+
+	last_ping = t;
+
+	if (t - last_print > 5000000 && prev_task == idle_tid) {
+		uint64_t leading = idle_time * 100 / total_time;
+		uint64_t trailing = (idle_time * 100000) / total_time % 1000;
+		printf("\0337\033[1;80HIdle time: %llu\033[2;80HTotal time: %llu", idle_time, total_time);
+		printf("\033[3;80HPercentage: %llu.%03llu\r\n\0338", leading, trailing);
+
+		last_print = t;
+	}
 }
 
 void Clock::TimeKeeper::set_comparator(uint32_t interrupt_time, uint32_t reg_num) {

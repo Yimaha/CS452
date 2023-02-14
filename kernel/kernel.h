@@ -183,14 +183,5 @@ private:
 	void handle_reply();
 	void handle_await_event(int eventId);
 
-	uint64_t tick_tracker = 0;
-
-	// Variables for timing idle time
 	int idle_tid = SystemTask::IDLE_TID;
-	uint64_t idle_time = 0;
-	uint64_t last_ping = 0;
-	uint64_t total_time = 1;
-
-	// Time since last print. Used to print every 5 seconds
-	uint64_t last_print = 0;
 };

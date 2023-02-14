@@ -21,6 +21,7 @@ public:
 
 	void start();
 	void tick();
+	void calculate_and_print_idle_time(int active_task, int prev_task, int idle_tid);
 
 private:
 	/*
@@ -36,5 +37,13 @@ private:
 	 */
 	void set_comparator(uint32_t interrupt_time, uint32_t reg_num = 1);
 	uint64_t tick_tracker = 0;
+
+	// Time tracking variables
+	uint64_t idle_time = 0;
+	uint64_t last_ping = 0;
+	uint64_t total_time = 1;
+
+	// Time since last print. Used to print every 5 seconds
+	uint64_t last_print = 0;
 };
 }

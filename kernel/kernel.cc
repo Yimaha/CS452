@@ -39,32 +39,12 @@ int Message::Reply::Reply(int tid, const char* msg, int msglen) {
 
 Kernel::Kernel() {
 	allocate_new_task(Task::MAIDENLESS, 0, &UserTask::first_user_task);
-
-	if (last_ping == 0) {
-		last_ping = Clock::system_time();
-	}
 }
 
 void Kernel::schedule_next_task() {
 	int prev_task = active_task;
 	active_task = scheduler.get_next();
-	uint64_t t = Clock::system_time();
-
-	total_time += t - last_ping;
-	if (active_task == idle_tid) {
-		idle_time += t - last_ping;
-	}
-
-	last_ping = t;
-
-	if (t - last_print > 5000000 && prev_task == idle_tid) {
-		uint64_t leading = idle_time * 100 / total_time;
-		uint64_t trailing = (idle_time * 100000) / total_time % 1000;
-		printf("\0337\033[1;80HIdle time: %llu\033[2;80HTotal time: %llu", idle_time, total_time);
-		printf("\033[3;80HPercentage: %llu.%03llu\r\n\0338", leading, trailing);
-
-		last_print = t;
-	}
+	time_keeper.calculate_and_print_idle_time(prev_task, active_task, idle_tid);
 
 	while (active_task == Task::NO_TASKS) {
 		char m[] = "no tasks available...\r\n";
