@@ -38,7 +38,7 @@ int Message::Reply::Reply(int tid, const char* msg, int msglen) {
 }
 
 Kernel::Kernel() {
-	allocate_new_task(Task::MAIDENLESS, 0, &UserTask::first_user_task);
+	allocate_new_task(Task::MAIDENLESS, 0, &SystemTask::idle_task);
 }
 
 void Kernel::schedule_next_task() {
@@ -77,13 +77,21 @@ void Kernel::handle() {
 		handle_syscall();
 		break;
 	case KernelEntryCode::INTERRUPT: {
-		tasks[active_task]->set_interrupted(true);
-		uint32_t interrupt_id = Interrupt::get_interrupt_id();
+		/**
+		 * The detail is that when you receive an interrupt, it doesn't mean there is only 1 interrupt happening
+		 * You can have multiple interrupt, or maybe as you process this interrupt, a new interrupt come up
+		 * to avoid excess context switching, we loop through all interrupt until it is completely cleared
+		 */
+		while (!Interrupt::is_interrupt_clear()) {
+			tasks[active_task]->set_interrupted(true);
+			uint32_t interrupt_id = Interrupt::get_interrupt_id();
 
-		// Use mask to obtain the last 10 bits, see GICC_IAR spec
-		InterruptCode icode = static_cast<InterruptCode>(interrupt_id & 0x3ff);
-		handle_interrupt(icode);
-		Interrupt::end_interrupt(interrupt_id);
+			// Use mask to obtain the last 10 bits, see GICC_IAR spec
+			InterruptCode icode = static_cast<InterruptCode>(interrupt_id & 0x3ff);
+			handle_interrupt(icode);
+			Interrupt::end_interrupt(interrupt_id);
+		}
+
 		break;
 	}
 	default:
@@ -137,6 +145,12 @@ void Kernel::handle_syscall() {
 		handle_await_event(eventId);
 		break;
 	}
+	case HandlerCode::AWAIT_EVENT_WITH_BUFFER: {
+		int eventId = active_request->x1;
+		char *buffer = (char*)active_request->x2;
+		handle_await_event_with_buffer(eventId, buffer);
+		break;
+	}
 	default:
 		printf("Unknown syscall: %d from %d\r\n", request, active_task);
 		uint64_t error_code = (read_esr() >> 26) & 0x3f;
@@ -151,13 +165,41 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 	case InterruptCode::TIMER: {
 		time_keeper.tick();
 
-#ifdef OUR_DEBUG
-		// kernel_assert(clock_queue.size() == 1, "only clock notifier should be here, ");
-#endif
-
-		tasks[active_task]->to_ready(0x0, &scheduler);
 		if (clock_notifier_tid != Task::CLOCK_QUEUE_EMPTY) {
 			tasks[clock_notifier_tid]->to_ready(0x0, &scheduler);
+		} else {
+			printf("Clock Too Slow \r\n");
+			while (true) {
+			}
+		}
+		break;
+	}
+	case InterruptCode::UART: {
+		/**
+		 * Note that no matter which interrupt, you receive from the same id, UART_INTERRUPT_ID
+		 * this is kinda a problem, since a large variety of stuff can be from that type of interrupt,
+		 * even same type, but uart0 vs uart1
+		 *
+		 * in order to differentiate them, we relies on checking the register later, IIR,
+		 * IIR includes both the information about if there is an interrupt to handle, and if so, what is the interrupt exactly.
+		 *
+		 * the general work flow is 1. we receive UART_INTERRUPT_ID interrupt, thus recognize interrupt happened
+		 * we check IIR to see what type of interrupt happened, we could potentially get a large quantity of interrupt
+		 * overall, the goal is that if we receive interrupt in the form of UART_INTERRUPT_ID, we keep cleraing interrupt
+		 * until every interrupt associated with uart is cleared
+		 *
+		 * Also note that server is in control of which register is flipped, thus also in control of which interrupt is happening.
+		 */
+		int exception_code = (int)(uart_get(0, 0, UART_IIR) & 0x3F);
+		// this is a really shitty way to handle this, I think it would probably be better if we something similar to a dedicated class object
+		// but we will fix it soon once experiementa go through.
+		if (exception_code = UART::UART_RX_TIMEOUT && uart_0_receive_tid != Task::UART_0_RECEIVE_EMPTY) {
+			int input_len = uart_get_all(0,0,tasks[uart_0_receive_tid]->get_event_buffer());
+			tasks[uart_0_receive_tid]->to_ready(input_len, &scheduler);
+		} else {
+			printf("Uart Too Slow \r\n");
+			while (true) {
+			}
 		}
 		break;
 	}
@@ -166,6 +208,7 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 		while (true) {
 		}
 	}
+	tasks[active_task]->to_ready(0x0, &scheduler);
 }
 
 void Kernel::allocate_new_task(int parent_id, int priority, void (*pc)()) {
@@ -246,6 +289,20 @@ void Kernel::handle_await_event(int eventId) {
 	}
 }
 
+void Kernel::handle_await_event_with_buffer(int eventId, char* buffer) {
+	switch (eventId) {
+	case UART::UART_RX_TIMEOUT: {
+		uart_0_receive_tid = active_task;
+		tasks[active_task]->to_event_block_with_buffer(buffer);
+		break;
+	}
+	default:
+		printf("Unknown event id: %d\r\n", eventId);
+		break;
+	}
+}
+
+
 void Kernel::start_timer() {
 	time_keeper.start();
 }
@@ -311,4 +368,10 @@ int Clock::DelayUntil(int tid, int ticks) {
 
 int Interrupt::AwaitEvent(int eventId) {
 	return to_kernel(Kernel::HandlerCode::AWAIT_EVENT, eventId);
+}
+
+int Interrupt::AwaitEventWithBuffer(int eventId, char* buffer) {
+	// this is a specialized version of await event, where we also accept a buffer which will be used to copy information
+	// due to the natural size of event registers, it is assumed buffer holds at least 64 bytes
+	return to_kernel(Kernel::HandlerCode::AWAIT_EVENT_WITH_BUFFER, eventId, buffer);
 }

@@ -36,6 +36,7 @@ public:
 	int fill_message(Message msg, int* from, char* msg_container, int msglen);
 	int fill_response(int from, char* msg, int msglen); // the reverse of last function, fill the response buffer
 	Message pop_inbox();
+	char* get_event_buffer();
 	// state modifying api
 	InterruptFrame* to_active();
 	void to_ready(int system_response, Task::Scheduler* scheduler);
@@ -46,6 +47,7 @@ public:
 	void to_reply_block(char* reply, int replylen);
 	// k3 will have to_event_block
 	void to_event_block();
+	void to_event_block_with_buffer(char* buffer);
 	void set_interrupted(bool val);
 
 	// state checking api
@@ -73,7 +75,8 @@ private:
 	bool interrupted;
 
 	void (*pc)();						   // program counter, but typically only used as a reference value to see where the start of the program is
-	MessageReceiver response;			   // used to store response if task decided to call send, or receive (anything that can block)
+	MessageReceiver response;			   // used to store response if task decided to call send, or receive 
+	char* event_buffer; 				   // used to store response if block on event that need reading (note that I could use response, but for good practice, no)
 	etl::queue<Message, INBOX_SIZE> inbox; // receiver of message
 	char* sp;							   // stack pointer
 	char* spsr;							   // saved program status register

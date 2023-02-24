@@ -9,6 +9,7 @@ extern char __bss_start, __bss_end;					   // defined in linker script
 extern uintptr_t __init_array_start, __init_array_end; // defined in linker script
 typedef void (*funcvoid0_t)();
 
+
 extern "C" void kmain() {
 	printf("init kernel\r\n");
 	Kernel kernel = Kernel();

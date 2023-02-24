@@ -46,6 +46,10 @@ Message TaskDescriptor::pop_inbox() {
 	return msg;
 }
 
+char* TaskDescriptor::get_event_buffer() {
+	return event_buffer;
+}
+
 void TaskDescriptor::to_ready(int system_response, Task::Scheduler* scheduler) {
 #ifdef OUR_DEBUG
 	if (state == ACTIVE || state == SEND_BLOCK || state == RECEIVE_BLOCK || state == REPLY_BLOCK || state == EVENT_BLOCK) // ignoring event block for k2
@@ -94,6 +98,10 @@ void TaskDescriptor::to_event_block() {
 	state = TaskDescriptor::TaskState::EVENT_BLOCK;
 }
 
+void TaskDescriptor::to_event_block_with_buffer(char* buffer) {
+	event_buffer = buffer;
+	state = TaskDescriptor::TaskState::EVENT_BLOCK;
+}
 void TaskDescriptor::set_interrupted(bool val) {
 	interrupted = val;
 }

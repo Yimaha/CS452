@@ -22,6 +22,7 @@ namespace Task
 {
 constexpr int MAIDENLESS = -1;
 constexpr int CLOCK_QUEUE_EMPTY = -2;
+constexpr int UART_0_RECEIVE_EMPTY = -3;
 constexpr uint64_t USER_TASK_START_ADDRESS = 0x10000000;
 constexpr uint64_t USER_TASK_LIMIT = 100;
 
@@ -122,6 +123,7 @@ int DelayUntil(int tid, int ticks);
 namespace Interrupt
 {
 int AwaitEvent(int eventid);
+int AwaitEventWithBuffer(int eventId, char* buffer);
 }
 
 /**
@@ -145,11 +147,12 @@ public:
 		DELAY = 12,
 		DELAY_UNTIL = 13,
 		AWAIT_EVENT = 14,
-		PRINT = 15
+		AWAIT_EVENT_WITH_BUFFER = 15,
+		PRINT = 16
 	};
 
 	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
-	enum InterruptCode { TIMER = Clock::TIMER_INTERRUPT_ID };
+	enum InterruptCode { TIMER = Clock::TIMER_INTERRUPT_ID, UART = UART::UART_INTERRUPT_ID };
 
 	Kernel();
 	~Kernel();
@@ -161,6 +164,7 @@ public:
 	void start_timer();
 
 private:
+
 	int p_id_counter = 0;					  // keeps track of new task creation id
 	int active_task = 0;					  // keeps track of the active_task id
 	InterruptFrame* active_request = nullptr; // a storage that saves the active user request
@@ -176,11 +180,17 @@ private:
 	Clock::TimeKeeper time_keeper = Clock::TimeKeeper();
 
 	// clock notifier "list", a pointer to the notifier
-	int clock_notifier_tid = Task::CLOCK_QUEUE_EMPTY;
+	int clock_notifier_tid = Task::CLOCK_QUEUE_EMPTY; // always 1 agent for time
+	// problem, what if 1 agent is not enough? a.k.a interrupt came through but agent is not yet freed
+	// solution, maybe a pool of identical agents, all responsible for uart0 (typing can potentally come really fast)
+	int uart_0_receive_tid = Task::UART_0_RECEIVE_EMPTY; // always 1 agent for receiving
+
 
 	void allocate_new_task(int parent_id, int priority, void (*pc)()); // create, and push a new task onto the actual scheduler
 	void handle_send();
 	void handle_receive();
 	void handle_reply();
 	void handle_await_event(int eventId);
+	void handle_await_event_with_buffer(int eventId, char* buffer);
+
 };

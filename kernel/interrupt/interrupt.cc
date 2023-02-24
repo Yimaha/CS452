@@ -35,10 +35,15 @@ void Interrupt::init_interrupt() {
 	gicc->GICC_CTLR = 1; // GICC
 
 	Clock::enable_clock_one_interrupts();
+	UART::enable_uart_interrupt();
 }
 
 uint32_t Interrupt::get_interrupt_id() {
 	return gicc->GICC_IAR;
+}
+
+bool Interrupt::is_interrupt_clear() {
+	return gicc->GICC_IAR == 1023; // when 1023 is read interrupt is cleared, I think?
 }
 
 void Interrupt::end_interrupt(uint32_t id) {
