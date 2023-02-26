@@ -9,11 +9,17 @@ using namespace UART;
 // ideally, both interrupt should be off by default, and server determine if certain register needed to be flipped
 void UART::uart_server() {
 	Name::RegisterAs(UART_SERVER_NAME);
+
+	// create it's worker
+	Task::Create(1, &uart_receive_notifier);
+	Task::Create(1, &uart_transmission_notifier);
+
 	etl::queue<char, 128> receive_queue;
 	etl::queue<char, 128> transmit_queue;
 	etl::queue<int, 32> await_c;
+
 	int from;
-	UARTServerReq req = { RequestHeader::NOTIFY_RECEIVE, (char)0 };
+	UARTServerReq req;
 	bool full_transmit_buffer = false;
 
 	while (true) {
@@ -26,6 +32,26 @@ void UART::uart_server() {
 			int length = body.msg_len;
 			for (int i = 0; i < length; i++) {
 				receive_queue.push(body.msg[i]);
+			}
+			break;
+		}
+		case RequestHeader::NOTIFY_TRANSMISSION: {
+			Message::Reply::Reply(from, nullptr, 0); // unblock receiver right away right away
+			full_transmit_buffer = false;
+			while (!transmit_queue.empty()) {
+				bool put_successful = uart_put(0, 0, UART_THR, transmit_queue.front());
+				if (!put_successful) {
+					break; // we filled the buffer again, very unlikely to happen though.
+				} else {
+					transmit_queue.pop();
+				}
+			}
+
+			if(!transmit_queue.empty()) {
+				full_transmit_buffer = true;
+				uart_put(0, 0, UART_IER, 0b01);
+			} else {
+				uart_put(0, 0, UART_IER, 0b00);
 			}
 			break;
 		}
@@ -51,10 +77,10 @@ void UART::uart_server() {
 					transmit_queue.push(c);
 					// enable the interrupt
 					full_transmit_buffer = true;
-					uart_put(0, 0, UART_IER, 0b01);
-
+					uart_put(0, 0, UART_IER, 0b01); // enable interrupt and wait for the fifo to be come empty, THIS BEHAVIOURN need ot change
 				}
 			}
+			break;
 		}
 		}
 	}
@@ -72,11 +98,15 @@ void UART::uart_receive_notifier() {
 	}
 }
 
+/**
+ * The job of the transmission notifier is to prepare THR interrupt, ewhich is only triggered if the amount of space left reaches a certian point
+ * default value is 0
+*/
 void UART::uart_transmission_notifier() {
 	int uart_tid = Name::WhoIs(UART_SERVER_NAME);
 	UARTServerReq req = { RequestHeader::NOTIFY_TRANSMISSION, { 0 } };
 	while (true) {
-		Interrupt::AwaitEvent(UART_RX_TIMEOUT);
+		Interrupt::AwaitEvent(UART_TXR_INTERRUPT);
 		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0);
 	}
 }

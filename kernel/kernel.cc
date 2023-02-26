@@ -193,9 +193,11 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 		int exception_code = (int)(uart_get(0, 0, UART_IIR) & 0x3F);
 		// this is a really shitty way to handle this, I think it would probably be better if we something similar to a dedicated class object
 		// but we will fix it soon once experiementa go through.
-		if (exception_code = UART::UART_RX_TIMEOUT && uart_0_receive_tid != Task::UART_0_RECEIVE_EMPTY) {
+		if (exception_code == UART::UART_RX_TIMEOUT && uart_0_receive_tid != Task::UART_0_RECEIVE_EMPTY) {
 			int input_len = uart_get_all(0,0,tasks[uart_0_receive_tid]->get_event_buffer());
 			tasks[uart_0_receive_tid]->to_ready(input_len, &scheduler);
+		} else if (exception_code == UART::UART_TXR_INTERRUPT && uart_0_transmit_tid != Task::UART_0_TRANSMIT_FULL) {
+			tasks[uart_0_transmit_tid]->to_ready(0x0, &scheduler);
 		} else {
 			printf("Uart Too Slow \r\n");
 			while (true) {

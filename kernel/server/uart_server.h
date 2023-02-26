@@ -30,12 +30,26 @@ struct WorkerRequestBody {
 
 
 union RequestBody {
-	WorkerRequestBody worker_msg;
 	char regular_msg;
+	WorkerRequestBody worker_msg;
 };
 
 struct UARTServerReq {
-	RequestHeader header;
-	RequestBody body;
+	RequestHeader header = RequestHeader::NOTIFY_RECEIVE;
+	RequestBody body = {0};
+
+	UARTServerReq() {}
+
+	UARTServerReq(RequestHeader header, char b) {
+		header = header;
+		body.regular_msg = b;
+	}
+
+
+	UARTServerReq(RequestHeader header, WorkerRequestBody worker_msg) {
+		header = header;
+		body.worker_msg = worker_msg;
+	}
+
 } __attribute__((aligned(8)));
 }

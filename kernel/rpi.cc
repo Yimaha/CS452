@@ -202,7 +202,12 @@ void uart_puts(size_t spiChannel, size_t uartChannel, const char* buf, size_t bl
 }
 
 bool uart_put(size_t spiChannel, size_t uartChannel, char reg, char data) {
-	uart_write_register(spiChannel, uartChannel, reg, data);
+	if (uart_read_register(spiChannel, uartChannel, UART_TXLVL) == 0) {
+		return false;
+	} else {
+		uart_write_register(spiChannel, uartChannel, reg, data);
+		return true;
+	}
 }
 
 

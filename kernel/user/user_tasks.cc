@@ -3,6 +3,7 @@
 #include "../rpi.h"
 #include "../utils/utility.h"
 #include "../k3/k3_client.h"
+#include "../server/uart_server.h"
 
 void UserTask::first_user_task() {
 	while (true) {
@@ -24,6 +25,9 @@ void UserTask::first_user_task() {
 
 		printf("creating idle task\r\n");
 		Task::Create(7, &SystemTask::idle_task);
+
+		// at the moment, only support uart0
+		Task::Create(1, &UART::uart_server);
 
 		// Set the client tasks running
 		printf("creating client tasks\r\n");

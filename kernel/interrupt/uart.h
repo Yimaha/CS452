@@ -7,5 +7,6 @@ namespace UART
 {
 const int UART_INTERRUPT_ID = 145;
 const int UART_RX_TIMEOUT = 12;
+const int UART_TXR_INTERRUPT = 2;
 void enable_uart_interrupt();
 }

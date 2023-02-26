@@ -23,6 +23,7 @@ namespace Task
 constexpr int MAIDENLESS = -1;
 constexpr int CLOCK_QUEUE_EMPTY = -2;
 constexpr int UART_0_RECEIVE_EMPTY = -3;
+constexpr int UART_0_TRANSMIT_FULL = -4;
 constexpr uint64_t USER_TASK_START_ADDRESS = 0x10000000;
 constexpr uint64_t USER_TASK_LIMIT = 100;
 
@@ -184,7 +185,7 @@ private:
 	// problem, what if 1 agent is not enough? a.k.a interrupt came through but agent is not yet freed
 	// solution, maybe a pool of identical agents, all responsible for uart0 (typing can potentally come really fast)
 	int uart_0_receive_tid = Task::UART_0_RECEIVE_EMPTY; // always 1 agent for receiving
-
+	int uart_0_transmit_tid = Task::UART_0_TRANSMIT_FULL;
 
 	void allocate_new_task(int parent_id, int priority, void (*pc)()); // create, and push a new task onto the actual scheduler
 	void handle_send();
