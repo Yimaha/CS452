@@ -15,6 +15,7 @@
 #include "scheduler.h"
 #include "server/clock_server.h"
 #include "server/name_server.h"
+#include "server/uart_server.h"
 #include "user/idle_task.h"
 #include "utils/slab_allocator.h"
 
@@ -126,6 +127,12 @@ namespace Interrupt
 int AwaitEvent(int eventid);
 int AwaitEventWithBuffer(int eventId, char* buffer);
 }
+
+namespace UART {
+	int PutC(int tid, int uart, char ch);
+	int GetC(int tid, int uart);
+}
+
 
 /**
  * Kernel state class, stores important information about the kernel and control the flow

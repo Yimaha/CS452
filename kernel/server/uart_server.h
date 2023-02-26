@@ -12,39 +12,35 @@ namespace UART
 // similarly, while reading, it is also nice to have a buffer that keeps reading whenever intrrupted
 
 constexpr char UART_SERVER_NAME[] = "UART_SERVER";
+constexpr int UART_0_SERVER_TID = 5;
+
 void uart_server();
-
 void uart_receive_notifier();
-
 void uart_transmission_notifier();
-
 
 enum class RequestHeader : uint32_t { NOTIFY_RECEIVE, NOTIFY_TRANSMISSION, GETC, PUTC };
 
-
 struct WorkerRequestBody {
 	uint64_t msg_len = 0;
-	char msg[64];
+	char msg[32];
 };
 
-
-
-union RequestBody {
+union RequestBody
+{
 	char regular_msg;
 	WorkerRequestBody worker_msg;
 };
 
 struct UARTServerReq {
 	RequestHeader header = RequestHeader::NOTIFY_RECEIVE;
-	RequestBody body = {0};
+	RequestBody body = { 0 };
 
-	UARTServerReq() {}
+	UARTServerReq() { }
 
 	UARTServerReq(RequestHeader header, char b) {
 		header = header;
 		body.regular_msg = b;
 	}
-
 
 	UARTServerReq(RequestHeader header, WorkerRequestBody worker_msg) {
 		header = header;

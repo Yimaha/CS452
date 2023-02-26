@@ -284,6 +284,10 @@ void Kernel::handle_await_event(int eventId) {
 		clock_notifier_tid = active_task;
 		tasks[active_task]->to_event_block();
 		break;
+	} case UART::UART_TXR_INTERRUPT: {
+		uart_0_transmit_tid = active_task;
+		tasks[active_task]->to_event_block();
+		break;
 	}
 	default:
 		printf("Unknown event id: %d\r\n", eventId);
@@ -377,3 +381,25 @@ int Interrupt::AwaitEventWithBuffer(int eventId, char* buffer) {
 	// due to the natural size of event registers, it is assumed buffer holds at least 64 bytes
 	return to_kernel(Kernel::HandlerCode::AWAIT_EVENT_WITH_BUFFER, eventId, buffer);
 }
+
+int UART::PutC(int tid, int uart, char ch) {
+	// since we only have uart0, uart param is ignored
+	if (tid != UART::UART_0_SERVER_TID) {
+		return -1;
+	}	
+	UART::UARTServerReq req = { UART::RequestHeader::PUTC, { ch } }; 
+	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
+	return 0;
+}
+
+int UART::GetC(int tid, int uart) {
+	// since we only have uart0, uart param is ignored
+	if (tid != UART::UART_0_SERVER_TID) {
+		return -1;
+	}	
+	UART::UARTServerReq req = { UART::RequestHeader::GETC, { 0x0 } }; // body is irrelevant
+	char c;
+	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), &c, 1);
+	return (int)c;
+}
+
