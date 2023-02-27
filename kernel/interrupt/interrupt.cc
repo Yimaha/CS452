@@ -43,7 +43,7 @@ uint32_t Interrupt::get_interrupt_id() {
 }
 
 bool Interrupt::is_interrupt_clear() {
-	return gicc->GICC_IAR == 1023; // when 1023 is read interrupt is cleared, I think?
+	return (gicc->GICC_IAR & 0x3ff) == 1023; // when 1023 is read interrupt is cleared, I think?
 }
 
 void Interrupt::end_interrupt(uint32_t id) {

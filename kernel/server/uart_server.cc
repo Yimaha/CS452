@@ -21,6 +21,9 @@ void UART::uart_server() {
 	int from;
 	UARTServerReq req;
 	bool full_transmit_buffer = false;
+	char test[30];
+	sprintf(test, "header: [%d]\r\n", sizeof(UARTServerReq));
+	Task::_KernelPrint(test);
 
 	while (true) {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(UARTServerReq));
@@ -30,7 +33,12 @@ void UART::uart_server() {
 			// then we worry about the message
 			WorkerRequestBody body = req.body.worker_msg;
 			int length = body.msg_len;
-			for (int i = 0; i < length; i++) {
+			int i = 0; 
+			for (; !await_c.empty() && i < length; i++) {
+				Message::Reply::Reply(await_c.front(), &body.msg[i], 1);
+				await_c.pop();
+			}
+			for (; i < length; i++) {
 				receive_queue.push(body.msg[i]);
 			}
 			break;
@@ -39,7 +47,7 @@ void UART::uart_server() {
 			Message::Reply::Reply(from, nullptr, 0); // unblock receiver right away right away
 			full_transmit_buffer = false;
 			while (!transmit_queue.empty()) {
-				bool put_successful = uart_put(0, 0, UART_THR, transmit_queue.front());
+				bool put_successful = UART::UartWriteRegister(0, UART_THR, transmit_queue.front());
 				if (!put_successful) {
 					break; // we filled the buffer again, very unlikely to happen though.
 				} else {
@@ -47,11 +55,11 @@ void UART::uart_server() {
 				}
 			}
 
-			if(!transmit_queue.empty()) {
+			if (!transmit_queue.empty()) {
 				full_transmit_buffer = true;
-				uart_put(0, 0, UART_IER, 0b01);
+				UART::UartWriteRegister(0, UART_IER, 0b01);
 			} else {
-				uart_put(0, 0, UART_IER, 0b00);
+				UART::UartWriteRegister(0, UART_IER, 0b00);
 			}
 			break;
 		}
@@ -69,18 +77,26 @@ void UART::uart_server() {
 			Message::Reply::Reply(from, nullptr, 0); // unblock putc guy right away right away
 			// the default behaviour is putc, but if we are full, then we wait for interrupt
 			char c = req.body.regular_msg;
+
 			if (full_transmit_buffer) {
 				transmit_queue.push(c);
 			} else {
-				bool put_successful = uart_put(0, 0, UART_THR, c);
-				if (!put_successful) {
+				int put_successful = UART::UartWriteRegister(0, UART_THR, c);
+				if (put_successful != UART::SUCCESSFUL) {
 					transmit_queue.push(c);
 					// enable the interrupt
 					full_transmit_buffer = true;
-					uart_put(0, 0, UART_IER, 0b01); // enable interrupt and wait for the fifo to be come empty, THIS BEHAVIOURN need ot change
+					UART::UartWriteRegister(0, UART_IER, 0b01); // enable interrupt and wait for the fifo to be come empty, THIS BEHAVIOURN need ot change
 				}
 			}
 			break;
+		}
+		default: {
+			char exception[30];
+			sprintf(exception, "illegal type: [%d]\r\n", req.header);
+			Task::_KernelPrint(exception);
+			while (1) {
+			}
 		}
 		}
 	}
@@ -91,7 +107,7 @@ void UART::uart_server() {
  */
 void UART::uart_receive_notifier() {
 	int uart_tid = Name::WhoIs(UART_SERVER_NAME);
-	UARTServerReq req = { RequestHeader::NOTIFY_RECEIVE, WorkerRequestBody({ 0, 0 }) };
+	UARTServerReq req = { RequestHeader::NOTIFY_RECEIVE, WorkerRequestBody({ 0x0, 0x0 }) };
 	while (true) {
 		req.body.worker_msg.msg_len = Interrupt::AwaitEventWithBuffer(UART_RX_TIMEOUT, req.body.worker_msg.msg);
 		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0); // we don't worry about response
@@ -101,7 +117,7 @@ void UART::uart_receive_notifier() {
 /**
  * The job of the transmission notifier is to prepare THR interrupt, ewhich is only triggered if the amount of space left reaches a certian point
  * default value is 0
-*/
+ */
 void UART::uart_transmission_notifier() {
 	int uart_tid = Name::WhoIs(UART_SERVER_NAME);
 	UARTServerReq req = { RequestHeader::NOTIFY_TRANSMISSION, { 0 } };

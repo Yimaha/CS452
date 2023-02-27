@@ -1,6 +1,6 @@
 #include "rpi.h"
 #include "utils/printf.h"
-
+#include "interrupt_handler.h"
 
 
 /*************** GPIO ***************/
@@ -215,10 +215,21 @@ char uart_get(size_t spiChannel, size_t uartChannel, char reg) {
 	return uart_read_register(spiChannel, uartChannel, reg);
 }
 
-int uart_get_all(size_t spiChannel, size_t uartChannel, char* reg) {
+// char uart_getc_non_blocking(size_t spiChannel, size_t uartChannel) {
+// #ifdef DEBUG
+// 	if (uart_read_register(spiChannel, uartChannel, UART_RXLVL) == 0) {
+// 		printf("try to read an empty fifo")
+// 		while (true) {};
+// 	}
+// #endif
+
+// 	return uart_read_register(spiChannel, uartChannel, UART_RHR);
+// }
+
+int uart_get_all(size_t spiChannel, size_t uartChannel, char* buffer) {
 	int i = 0;
 	while (uart_read_register(spiChannel, uartChannel, UART_RXLVL) != 0){
-		reg[i] = uart_read_register(spiChannel, uartChannel, UART_RHR);
+		buffer[i] = uart_read_register(spiChannel, uartChannel, UART_RHR);
 		i+=1;
 	}
 	return i;
@@ -260,6 +271,8 @@ extern "C" void print_interrupt() {
 
 extern "C" void print_exception_arg(uint64_t arg) {
 	printf("exception arg: %x\r\n", arg);
+	uint64_t error_code = (read_esr() >> 26) & 0x3f;
+	printf("ESR: %llx\r\n", error_code);
 	while (1) {
 	};
 }

@@ -116,7 +116,7 @@ void init_uart(uint32_t spiChannel);
 char uart_getc(size_t spiChannel, size_t uartChannel);
 void uart_putc(size_t spiChannel, size_t uartChannel, char c);
 void uart_puts(size_t spiChannel, size_t uartChannel, const char* buf, size_t blen);
-bool uart_put(size_t spiChannel, size_t uartChannel, char c, char datas);
+bool uart_put(size_t spiChannel, size_t uartChannel, char reg, char datas);
 char uart_get(size_t spiChannel, size_t uartChannel, char c);
 int uart_get_all(size_t spiChannel, size_t uartChannel, char* reg);
 // anything that can be invoked from assembly and is useful goes here

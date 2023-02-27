@@ -37,8 +37,107 @@ int Message::Reply::Reply(int tid, const char* msg, int msglen) {
 	return to_kernel(Kernel::HandlerCode::REPLY, tid, msg, msglen);
 }
 
+int name_server_interface_helper(const char* name, Name::RequestHeader header) {
+	char reply[4];
+	const int rplen = sizeof(int);
+	Name::NameServerReq req = { header, { 0 } };
+
+	for (uint64_t i = 0; name[i] != '\0' && i < Name::MAX_NAME_LENGTH; ++i)
+		req.name.arr[i] = name[i];
+
+	const int res = Message::Send::Send(Name::NAME_SERVER_ID, reinterpret_cast<const char*>(&req), Name::NAME_REQ_LENGTH, reply, rplen);
+	if (res < 0) // Send failed
+		return Name::Exception::INVALID_NS_TASK_ID;
+
+	const int* r = reinterpret_cast<int*>(reply);
+	return *r;
+}
+
+int Name::RegisterAs(const char* name) {
+	const int ret = name_server_interface_helper(name, Name::RequestHeader::REGISTER_AS);
+	return (ret >= 0) ? 0 : Name::Exception::INVALID_NS_TASK_ID;
+}
+
+int Name::WhoIs(const char* name) {
+	return name_server_interface_helper(name, Name::RequestHeader::WHO_IS);
+}
+
+int timer_server_interface_helper(int tid, Clock::RequestHeader header, uint32_t ticks = 0) {
+	char reply[4];
+	Clock::ClockServerReq req = { header, { ticks } }; // body is irrelevant
+	if (tid != Clock::CLOCK_SERVER_ID) {
+		return Clock::Exception::INVALID_ID;
+	}
+#ifdef OUR_DEBUG
+	const int res = Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(Clock::ClockServerReq), reply, 4);
+	if (res < 0) // Send failed
+		return Name::Exception::INVALID_NS_TASK_ID;
+#else
+	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(Clock::ClockServerReq), reply, 4);
+#endif
+	return *(reinterpret_cast<int*>(reply)); // return the number of ticks since the dawn of time
+}
+
+int Clock::Time(int tid) {
+	return timer_server_interface_helper(tid, Clock::RequestHeader::TIME);
+}
+
+int Clock::Delay(int tid, int ticks) {
+	if (ticks < 0) {
+		return Clock::Exception::NEGATIVE_DELAY;
+	}
+	return timer_server_interface_helper(tid, Clock::RequestHeader::DELAY, (uint32_t)ticks);
+}
+
+int Clock::DelayUntil(int tid, int ticks) {
+	if (ticks < 0) {
+		return Clock::Exception::NEGATIVE_DELAY;
+	}
+	return timer_server_interface_helper(tid, Clock::RequestHeader::DELAY_UNTIL, (uint32_t)ticks);
+}
+
+int Interrupt::AwaitEvent(int eventId) {
+	return to_kernel(Kernel::HandlerCode::AWAIT_EVENT, eventId);
+}
+
+int Interrupt::AwaitEventWithBuffer(int eventId, char* buffer) {
+	// this is a specialized version of await event, where we also accept a buffer which will be used to copy information
+	// due to the natural size of event registers, it is assumed buffer holds at least 64 bytes
+	// note the return value is how much of the buffer is used
+	return to_kernel(Kernel::HandlerCode::AWAIT_EVENT_WITH_BUFFER, eventId, buffer);
+}
+
+int UART::UartWriteRegister(int channel, char reg, char data) {
+	return to_kernel(Kernel::HandlerCode::WRITE_REGISTER, channel, reg, data);
+}
+
+int UART::UartReadRegister(int channel, char reg) {
+	return 1; // dummy for now
+}
+
+int UART::PutC(int tid, int uart, char ch) {
+	// since we only have uart0, uart param is ignored
+	if (tid != UART::UART_0_SERVER_TID) {
+		return -1;
+	}
+	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::PUTC, ch);
+	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
+	return 0;
+}
+
+int UART::GetC(int tid, int uart) {
+	// since we only have uart0, uart param is ignored
+	if (tid != UART::UART_0_SERVER_TID) {
+		return -1;
+	}
+	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::GETC, '0'); // body is irrelevant
+	char c;
+	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), &c, 1);
+	return (int)c;
+}
+
 Kernel::Kernel() {
-	allocate_new_task(Task::MAIDENLESS, 0, &SystemTask::idle_task);
+	allocate_new_task(Task::MAIDENLESS, 0, &UserTask::first_user_task);
 }
 
 void Kernel::schedule_next_task() {
@@ -82,15 +181,17 @@ void Kernel::handle() {
 		 * You can have multiple interrupt, or maybe as you process this interrupt, a new interrupt come up
 		 * to avoid excess context switching, we loop through all interrupt until it is completely cleared
 		 */
-		while (!Interrupt::is_interrupt_clear()) {
-			tasks[active_task]->set_interrupted(true);
-			uint32_t interrupt_id = Interrupt::get_interrupt_id();
-
-			// Use mask to obtain the last 10 bits, see GICC_IAR spec
-			InterruptCode icode = static_cast<InterruptCode>(interrupt_id & 0x3ff);
+		tasks[active_task]->set_interrupted(true);
+		uint32_t interrupt_id = Interrupt::get_interrupt_id();
+		// Use mask to obtain the last 10 bits, see GICC_IAR spec
+		InterruptCode icode = static_cast<InterruptCode>(interrupt_id & 0x3ff);
+		do {
 			handle_interrupt(icode);
 			Interrupt::end_interrupt(interrupt_id);
-		}
+			interrupt_id = Interrupt::get_interrupt_id();
+			// Use mask to obtain the last 10 bits, see GICC_IAR spec
+			icode = static_cast<InterruptCode>(interrupt_id & 0x3ff);
+		} while (icode != InterruptCode::CLEAR);
 
 		break;
 	}
@@ -147,8 +248,15 @@ void Kernel::handle_syscall() {
 	}
 	case HandlerCode::AWAIT_EVENT_WITH_BUFFER: {
 		int eventId = active_request->x1;
-		char *buffer = (char*)active_request->x2;
+		char* buffer = (char*)active_request->x2;
 		handle_await_event_with_buffer(eventId, buffer);
+		break;
+	}
+	case HandlerCode::WRITE_REGISTER: {
+		int channel = active_request->x1;
+		char reg = active_request->x2;
+		char data = active_request->x3;
+		tasks[active_task]->to_ready((uart_put(UART::SPI_CHANNEL, channel, reg, data) ? UART::SUCCESSFUL : UART::Exception::FAILED_TO_WRITE), &scheduler);
 		break;
 	}
 	default:
@@ -191,15 +299,20 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 		 * Also note that server is in control of which register is flipped, thus also in control of which interrupt is happening.
 		 */
 		int exception_code = (int)(uart_get(0, 0, UART_IIR) & 0x3F);
+
 		// this is a really shitty way to handle this, I think it would probably be better if we something similar to a dedicated class object
 		// but we will fix it soon once experiementa go through.
 		if (exception_code == UART::UART_RX_TIMEOUT && uart_0_receive_tid != Task::UART_0_RECEIVE_EMPTY) {
-			int input_len = uart_get_all(0,0,tasks[uart_0_receive_tid]->get_event_buffer());
+			int input_len = uart_get_all(0, 0, tasks[uart_0_receive_tid]->get_event_buffer());
 			tasks[uart_0_receive_tid]->to_ready(input_len, &scheduler);
+			uart_0_receive_tid = Task::UART_0_RECEIVE_EMPTY;
 		} else if (exception_code == UART::UART_TXR_INTERRUPT && uart_0_transmit_tid != Task::UART_0_TRANSMIT_FULL) {
 			tasks[uart_0_transmit_tid]->to_ready(0x0, &scheduler);
+			uart_0_transmit_tid = Task::UART_0_TRANSMIT_FULL;
+		} else if (exception_code == UART::UART_CLEAR) {
+			UART::clear_uart_interrupt();
 		} else {
-			printf("Uart Too Slow \r\n");
+			printf("Uart Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d", exception_code, uart_0_receive_tid, uart_0_transmit_tid);
 			while (true) {
 			}
 		}
@@ -284,7 +397,8 @@ void Kernel::handle_await_event(int eventId) {
 		clock_notifier_tid = active_task;
 		tasks[active_task]->to_event_block();
 		break;
-	} case UART::UART_TXR_INTERRUPT: {
+	}
+	case UART::UART_TXR_INTERRUPT: {
 		uart_0_transmit_tid = active_task;
 		tasks[active_task]->to_event_block();
 		break;
@@ -308,98 +422,6 @@ void Kernel::handle_await_event_with_buffer(int eventId, char* buffer) {
 	}
 }
 
-
 void Kernel::start_timer() {
 	time_keeper.start();
 }
-
-int name_server_interface_helper(const char* name, Name::RequestHeader header) {
-	char reply[4];
-	const int rplen = sizeof(int);
-	Name::NameServerReq req = { header, { 0 } };
-
-	for (uint64_t i = 0; name[i] != '\0' && i < Name::MAX_NAME_LENGTH; ++i)
-		req.name.arr[i] = name[i];
-
-	const int res = Message::Send::Send(Name::NAME_SERVER_ID, reinterpret_cast<const char*>(&req), Name::NAME_REQ_LENGTH, reply, rplen);
-	if (res < 0) // Send failed
-		return Name::Exception::INVALID_NS_TASK_ID;
-
-	const int* r = reinterpret_cast<int*>(reply);
-	return *r;
-}
-
-int Name::RegisterAs(const char* name) {
-	const int ret = name_server_interface_helper(name, Name::RequestHeader::REGISTER_AS);
-	return (ret >= 0) ? 0 : Name::Exception::INVALID_NS_TASK_ID;
-}
-
-int Name::WhoIs(const char* name) {
-	return name_server_interface_helper(name, Name::RequestHeader::WHO_IS);
-}
-
-int timer_server_interface_helper(int tid, Clock::RequestHeader header, uint32_t ticks = 0) {
-	char reply[4];
-	Clock::ClockServerReq req = { header, { ticks } }; // body is irrelevant
-	if (tid != Clock::CLOCK_SERVER_ID) {
-		return Clock::Exception::INVALID_ID;
-	}
-#ifdef OUR_DEBUG
-	const int res = Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(Clock::ClockServerReq), reply, 4);
-	if (res < 0) // Send failed
-		return Name::Exception::INVALID_NS_TASK_ID;
-#else
-	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(Clock::ClockServerReq), reply, 4);
-#endif
-	return *(reinterpret_cast<int*>(reply)); // return the number of ticks since the dawn of time
-}
-
-int Clock::Time(int tid) {
-	return timer_server_interface_helper(tid, Clock::RequestHeader::TIME);
-}
-
-int Clock::Delay(int tid, int ticks) {
-	if (ticks < 0) {
-		return Clock::Exception::NEGATIVE_DELAY;
-	}
-	return timer_server_interface_helper(tid, Clock::RequestHeader::DELAY, (uint32_t)ticks);
-}
-
-int Clock::DelayUntil(int tid, int ticks) {
-	if (ticks < 0) {
-		return Clock::Exception::NEGATIVE_DELAY;
-	}
-	return timer_server_interface_helper(tid, Clock::RequestHeader::DELAY_UNTIL, (uint32_t)ticks);
-}
-
-int Interrupt::AwaitEvent(int eventId) {
-	return to_kernel(Kernel::HandlerCode::AWAIT_EVENT, eventId);
-}
-
-int Interrupt::AwaitEventWithBuffer(int eventId, char* buffer) {
-	// this is a specialized version of await event, where we also accept a buffer which will be used to copy information
-	// due to the natural size of event registers, it is assumed buffer holds at least 64 bytes
-	return to_kernel(Kernel::HandlerCode::AWAIT_EVENT_WITH_BUFFER, eventId, buffer);
-}
-
-int UART::PutC(int tid, int uart, char ch) {
-	// since we only have uart0, uart param is ignored
-	if (tid != UART::UART_0_SERVER_TID) {
-		return -1;
-	}	
-	UART::UARTServerReq req = { UART::RequestHeader::PUTC, { ch } }; 
-	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
-	return 0;
-}
-
-int UART::GetC(int tid, int uart) {
-	// since we only have uart0, uart param is ignored
-	if (tid != UART::UART_0_SERVER_TID) {
-		return -1;
-	}	
-	UART::UARTServerReq req = { UART::RequestHeader::GETC, { 0x0 } }; // body is irrelevant
-	char c;
-	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), &c, 1);
-	return (int)c;
-}
-

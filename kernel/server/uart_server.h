@@ -18,7 +18,7 @@ void uart_server();
 void uart_receive_notifier();
 void uart_transmission_notifier();
 
-enum class RequestHeader : uint32_t { NOTIFY_RECEIVE, NOTIFY_TRANSMISSION, GETC, PUTC };
+enum class RequestHeader : uint32_t { NONE, NOTIFY_RECEIVE, NOTIFY_TRANSMISSION, GETC, PUTC };
 
 struct WorkerRequestBody {
 	uint64_t msg_len = 0;
@@ -32,18 +32,18 @@ union RequestBody
 };
 
 struct UARTServerReq {
-	RequestHeader header = RequestHeader::NOTIFY_RECEIVE;
-	RequestBody body = { 0 };
+	RequestHeader header = RequestHeader::NONE;
+	RequestBody body = {'0'};
 
-	UARTServerReq() { }
+	UARTServerReq() {}
 
-	UARTServerReq(RequestHeader header, char b) {
-		header = header;
+	UARTServerReq(RequestHeader h, char b) {
+		header = h;
 		body.regular_msg = b;
 	}
 
-	UARTServerReq(RequestHeader header, WorkerRequestBody worker_msg) {
-		header = header;
+	UARTServerReq(RequestHeader h, WorkerRequestBody worker_msg) {
+		header = h;
 		body.worker_msg = worker_msg;
 	}
 

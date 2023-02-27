@@ -128,11 +128,17 @@ int AwaitEvent(int eventid);
 int AwaitEventWithBuffer(int eventId, char* buffer);
 }
 
-namespace UART {
-	int PutC(int tid, int uart, char ch);
-	int GetC(int tid, int uart);
-}
+namespace UART
+{
+int UartWriteRegister(int channel, char reg, char data);
+int UartReadRegister(int channel, char reg);
+int PutC(int tid, int uart, char ch);
+int GetC(int tid, int uart);
+const int SPI_CHANNEL = 0;
+const int SUCCESSFUL = 0;
+enum Exception { INVALID_SERVER_TASK = -1, FAILED_TO_WRITE = -2 };
 
+}
 
 /**
  * Kernel state class, stores important information about the kernel and control the flow
@@ -156,11 +162,13 @@ public:
 		DELAY_UNTIL = 13,
 		AWAIT_EVENT = 14,
 		AWAIT_EVENT_WITH_BUFFER = 15,
-		PRINT = 16
+		PRINT = 16,
+		WRITE_REGISTER = 17,
+		READ_REGISTER = 18
 	};
 
 	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
-	enum InterruptCode { TIMER = Clock::TIMER_INTERRUPT_ID, UART = UART::UART_INTERRUPT_ID };
+	enum InterruptCode { TIMER = Clock::TIMER_INTERRUPT_ID, UART = UART::UART_INTERRUPT_ID, CLEAR = 1023 };
 
 	Kernel();
 	~Kernel();
@@ -172,7 +180,6 @@ public:
 	void start_timer();
 
 private:
-
 	int p_id_counter = 0;					  // keeps track of new task creation id
 	int active_task = 0;					  // keeps track of the active_task id
 	InterruptFrame* active_request = nullptr; // a storage that saves the active user request
@@ -200,5 +207,4 @@ private:
 	void handle_reply();
 	void handle_await_event(int eventId);
 	void handle_await_event_with_buffer(int eventId, char* buffer);
-
 };
