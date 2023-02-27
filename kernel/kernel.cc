@@ -115,6 +115,10 @@ int UART::UartReadRegister(int channel, char reg) {
 	return 1; // dummy for now
 }
 
+int UART::UartReadAll(int channel, char* buffer) { // designed for reading all the bytes out of UART_RHR
+	return to_kernel(Kernel::HandlerCode::READ_ALL, channel, buffer);
+}
+
 int UART::PutC(int tid, int uart, char ch) {
 	// since we only have uart0, uart param is ignored
 	if (tid != UART::UART_0_SERVER_TID) {
@@ -257,6 +261,13 @@ void Kernel::handle_syscall() {
 		char reg = active_request->x2;
 		char data = active_request->x3;
 		tasks[active_task]->to_ready((uart_put(UART::SPI_CHANNEL, channel, reg, data) ? UART::SUCCESSFUL : UART::Exception::FAILED_TO_WRITE), &scheduler);
+		break;
+	}
+	case HandlerCode::READ_ALL: {
+		int channel = active_request->x1;
+		char* buffer = (char*) active_request->x2;
+		int length = uart_get_all(UART::SPI_CHANNEL, channel, buffer);
+		tasks[active_task]-> to_ready(length, &scheduler);
 		break;
 	}
 	default:

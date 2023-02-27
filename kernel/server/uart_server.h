@@ -13,6 +13,9 @@ namespace UART
 
 constexpr char UART_SERVER_NAME[] = "UART_SERVER";
 constexpr int UART_0_SERVER_TID = 5;
+constexpr int CHAR_QUEUE_SIZE = 128;
+constexpr int TASK_QUEUE_SIZE = 64;
+constexpr int UART_FIFO_MAX_SIZE = 64;
 
 void uart_server();
 void uart_receive_notifier();

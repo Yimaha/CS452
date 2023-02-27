@@ -134,6 +134,7 @@ int UartWriteRegister(int channel, char reg, char data);
 int UartReadRegister(int channel, char reg);
 int PutC(int tid, int uart, char ch);
 int GetC(int tid, int uart);
+int UartReadAll(int channel, char* buffer);
 const int SPI_CHANNEL = 0;
 const int SUCCESSFUL = 0;
 enum Exception { INVALID_SERVER_TASK = -1, FAILED_TO_WRITE = -2 };
@@ -164,7 +165,8 @@ public:
 		AWAIT_EVENT_WITH_BUFFER = 15,
 		PRINT = 16,
 		WRITE_REGISTER = 17,
-		READ_REGISTER = 18
+		READ_REGISTER = 18,
+		READ_ALL = 19
 	};
 
 	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
