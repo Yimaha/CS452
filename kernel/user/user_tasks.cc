@@ -22,7 +22,9 @@ void UserTask::first_user_task() {
 		Task::Create(7, &SystemTask::idle_task);
 
 		// at the moment, only support uart0
-		Task::Create(1, &UART::uart_server);
+		Task::Create(1, &UART::uart_0_server_transmit);
+		Task::Create(1, &UART::uart_0_server_receive);
+
 		// // printf("exiting first user task\r\n");
 		Task::Create(2, &SystemTask::k4_dummy); // temp dummy test to see if io works
 		Task::Exit();

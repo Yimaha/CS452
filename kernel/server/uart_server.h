@@ -11,13 +11,17 @@ namespace UART
 // meaning, by nature, it must have some form of queue, that queues up input message
 // similarly, while reading, it is also nice to have a buffer that keeps reading whenever intrrupted
 
-constexpr char UART_SERVER_NAME[] = "UART_SERVER";
-constexpr int UART_0_SERVER_TID = 5;
+constexpr char UART_0_TRANSMITTER[] = "UART_0_TRANS";
+constexpr char UART_0_RECEIVER[] = "UART_0_RECEIVE";
+constexpr int UART_0_TRANSMITTER_TID = 5;
+constexpr int UART_0_RECEIVER_TID = 6;
 constexpr int CHAR_QUEUE_SIZE = 128;
 constexpr int TASK_QUEUE_SIZE = 64;
 constexpr int UART_FIFO_MAX_SIZE = 64;
 
-void uart_server();
+// broken down version of uart_server
+void uart_0_server_transmit();
+void uart_0_server_receive();
 void uart_receive_notifier();
 void uart_transmission_notifier();
 

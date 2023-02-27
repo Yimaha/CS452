@@ -134,6 +134,8 @@ int UartWriteRegister(int channel, char reg, char data);
 int UartReadRegister(int channel, char reg);
 int PutC(int tid, int uart, char ch);
 int GetC(int tid, int uart);
+int TransInterrupt(int channel, bool enable);
+int ReceiveInterrupt(int channel, bool enable);
 int UartReadAll(int channel, char* buffer);
 const int SPI_CHANNEL = 0;
 const int SUCCESSFUL = 0;
@@ -166,7 +168,9 @@ public:
 		PRINT = 16,
 		WRITE_REGISTER = 17,
 		READ_REGISTER = 18,
-		READ_ALL = 19
+		READ_ALL = 19,
+		TRANSMIT_INTERRUPT = 20,
+		RECEIVE_INTERRUPT = 21
 	};
 
 	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
@@ -202,6 +206,10 @@ private:
 	// solution, maybe a pool of identical agents, all responsible for uart0 (typing can potentally come really fast)
 	int uart_0_receive_tid = Task::UART_0_RECEIVE_EMPTY; // always 1 agent for receiving
 	int uart_0_transmit_tid = Task::UART_0_TRANSMIT_FULL;
+
+	bool enable_transmit_interrupt[2] = {false, false};
+	bool enable_receive_interrupt[2] = {false, false};
+
 
 	void allocate_new_task(int parent_id, int priority, void (*pc)()); // create, and push a new task onto the actual scheduler
 	void handle_send();

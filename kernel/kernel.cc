@@ -115,13 +115,21 @@ int UART::UartReadRegister(int channel, char reg) {
 	return 1; // dummy for now
 }
 
+int UART::TransInterrupt(int channel, bool enable) {
+	return to_kernel(Kernel::HandlerCode::TRANSMIT_INTERRUPT, channel, enable);
+}
+
+int UART::ReceiveInterrupt(int channel, bool enable) { 
+	return to_kernel(Kernel::HandlerCode::RECEIVE_INTERRUPT, channel, enable);
+}
+
 int UART::UartReadAll(int channel, char* buffer) { // designed for reading all the bytes out of UART_RHR
 	return to_kernel(Kernel::HandlerCode::READ_ALL, channel, buffer);
 }
 
 int UART::PutC(int tid, int uart, char ch) {
 	// since we only have uart0, uart param is ignored
-	if (tid != UART::UART_0_SERVER_TID) {
+	if (tid != UART::UART_0_TRANSMITTER_TID) {
 		return -1;
 	}
 	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::PUTC, ch);
@@ -131,7 +139,7 @@ int UART::PutC(int tid, int uart, char ch) {
 
 int UART::GetC(int tid, int uart) {
 	// since we only have uart0, uart param is ignored
-	if (tid != UART::UART_0_SERVER_TID) {
+	if (tid != UART::UART_0_RECEIVER_TID) {
 		return -1;
 	}
 	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::GETC, '0'); // body is irrelevant
@@ -268,6 +276,22 @@ void Kernel::handle_syscall() {
 		char* buffer = (char*) active_request->x2;
 		int length = uart_get_all(UART::SPI_CHANNEL, channel, buffer);
 		tasks[active_task]-> to_ready(length, &scheduler);
+		break;
+	} 
+	case HandlerCode::TRANSMIT_INTERRUPT: {
+		int channel = active_request->x1;
+		bool enable = active_request->x2;
+		enable_transmit_interrupt[channel] = enable;
+		uart_put(UART::SPI_CHANNEL, channel, UART_IER, UART::get_control_bits(enable_transmit_interrupt[channel], enable_receive_interrupt[channel]));
+		tasks[active_task]-> to_ready(0x0, &scheduler);
+		break;
+	}
+	case HandlerCode::RECEIVE_INTERRUPT: {
+		int channel = active_request->x1;
+		bool enable = active_request->x2;
+		enable_receive_interrupt[channel] = enable;
+		uart_put(UART::SPI_CHANNEL, channel, UART_IER, UART::get_control_bits(enable_transmit_interrupt[channel], enable_receive_interrupt[channel]));
+		tasks[active_task]-> to_ready(0x0, &scheduler);
 		break;
 	}
 	default:
