@@ -1,11 +1,13 @@
 #include "user_tasks.h"
 #include "../k3/k3_client.h"
+#include "../k4/couriers.h"
 #include "../k4/k4_client.h"
 #include "../kernel.h"
 #include "../rpi.h"
 #include "../server/train_admin.h"
 #include "../server/uart_server.h"
 #include "../utils/utility.h"
+
 void UserTask::first_user_task() {
 	while (true) {
 		// Create the name server
@@ -29,6 +31,7 @@ void UserTask::first_user_task() {
 		Task::Create(1, &UART::uart_1_server_receive);
 
 		Task::Create(2, &Train::train_admin);
+<<<<<<< HEAD
 		Task::Create(2, &Sensor::sensor_admin);
 
 		// // printf("exiting first user task\r\n");
@@ -36,6 +39,18 @@ void UserTask::first_user_task() {
 		Task::Create(3, &SystemTask::k4_dummy_train_rev); // temp dummy test to see if io works
 		Task::Create(3, &SystemTask::k4_dummy_train_sensor); // temp dummy test to see if io works
 		Task::Create(3, &SystemTask::k4_dummy_train_switch); // temp dummy test to see if io works
+=======
+
+		// Task::Create(2, &Sensor::sensor_admin);
+
+		// Task::Create(3, &SystemTask::k4_dummy); // temp dummy test to see if io works
+		// Task::Create(3, &SystemTask::k4_dummy_train_rev); // temp dummy test to see if io works
+		// Task::Create(3, &SystemTask::k4_dummy_train_sensor); // temp dummy test to see if io works
+>>>>>>> 9f5f1cb (A0-style user input functioning)
+
+		// Create the terminal admin and user input
+		Task::Create(2, &Terminal::terminal_admin);
+		Task::Create(3, &Courier::user_input);
 
 		Task::Exit();
 	}

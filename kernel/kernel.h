@@ -15,6 +15,7 @@
 #include "scheduler.h"
 #include "server/clock_server.h"
 #include "server/name_server.h"
+#include "server/terminal_admin.h"
 #include "server/uart_server.h"
 #include "user/idle_task.h"
 #include "utils/slab_allocator.h"
@@ -144,6 +145,12 @@ enum Exception { INVALID_SERVER_TASK = -1, FAILED_TO_WRITE = -2 };
 
 }
 
+namespace Terminal
+{
+int Putc(int tid, char ch);
+int Puts(int tid, const char* str);
+}
+
 /**
  * Kernel state class, stores important information about the kernel and control the flow
  * */
@@ -208,16 +215,15 @@ private:
 	int uart_0_receive_tid = Task::UART_RECEIVE_EMPTY; // always 1 agent for receiving
 	int uart_0_transmit_tid = Task::UART_TRANSMIT_FULL;
 
-	int uart_1_receive_tid = Task::UART_RECEIVE_EMPTY; // always 1 agent for receiving
+	int uart_1_receive_tid = Task::UART_RECEIVE_EMPTY;		   // always 1 agent for receiving
 	int uart_1_receive_timeout_tid = Task::UART_RECEIVE_EMPTY; // always 1 agent for receiving
 
 	int uart_1_transmit_tid = Task::UART_TRANSMIT_FULL;
 	int uart_1_msr_tid = Task::UART_TRANSMIT_FULL;
 
-	bool enable_transmit_interrupt[2] = {false, false};
-	bool enable_receive_interrupt[2] = {false, false};
-	bool enable_CTS[2] = {false, true};	
-
+	bool enable_transmit_interrupt[2] = { false, false };
+	bool enable_receive_interrupt[2] = { false, false };
+	bool enable_CTS[2] = { false, true };
 
 	void allocate_new_task(int parent_id, int priority, void (*pc)()); // create, and push a new task onto the actual scheduler
 	void handle_send();

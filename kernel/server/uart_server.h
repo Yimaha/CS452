@@ -19,7 +19,7 @@ constexpr int UART_0_TRANSMITTER_TID = 5;
 constexpr int UART_0_RECEIVER_TID = 6;
 constexpr int UART_1_TRANSMITTER_TID = 7;
 constexpr int UART_1_RECEIVER_TID = 8;
-constexpr int CHAR_QUEUE_SIZE = 128;
+constexpr int CHAR_QUEUE_SIZE = 512;
 constexpr int TASK_QUEUE_SIZE = 64;
 constexpr int UART_FIFO_MAX_SIZE = 64;
 
@@ -34,7 +34,6 @@ void uart_1_transmission_notifier();
 void uart_1_CTS_notifier();
 void uart_1_receive_notifier();
 void uart_1_receive_timeout_notifier();
-
 
 enum class RequestHeader : uint32_t { NONE, NOTIFY_RECEIVE, NOTIFY_TRANSMISSION, NOTIFY_CTS, GETC, PUTC, PUTS };
 
@@ -51,9 +50,9 @@ union RequestBody
 
 struct UARTServerReq {
 	RequestHeader header = RequestHeader::NONE;
-	RequestBody body = {'0'};
+	RequestBody body = { '0' };
 
-	UARTServerReq() {}
+	UARTServerReq() { }
 
 	UARTServerReq(RequestHeader h, char b) {
 		header = h;

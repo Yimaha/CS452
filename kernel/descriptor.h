@@ -75,8 +75,8 @@ private:
 	bool interrupted;
 
 	void (*pc)();						   // program counter, but typically only used as a reference value to see where the start of the program is
-	MessageReceiver response;			   // used to store response if task decided to call send, or receive 
-	char* event_buffer; 				   // used to store response if block on event that need reading (note that I could use response, but for good practice, no)
+	MessageReceiver response;			   // used to store response if task decided to call send, or receive
+	char* event_buffer;					   // used to store response if block on event that need reading (note that I could use response, but for good practice, no)
 	etl::queue<Message, INBOX_SIZE> inbox; // receiver of message
 	char* sp;							   // stack pointer
 	char* spsr;							   // saved program status register
