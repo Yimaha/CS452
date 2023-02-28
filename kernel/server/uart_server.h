@@ -13,8 +13,12 @@ namespace UART
 
 constexpr char UART_0_TRANSMITTER[] = "UART_0_TRANS";
 constexpr char UART_0_RECEIVER[] = "UART_0_RECEIVE";
+constexpr char UART_1_TRANSMITTER[] = "UART_1_TRANS";
+constexpr char UART_1_RECEIVER[] = "UART_1_RECEIVE";
 constexpr int UART_0_TRANSMITTER_TID = 5;
 constexpr int UART_0_RECEIVER_TID = 6;
+constexpr int UART_1_TRANSMITTER_TID = 7;
+constexpr int UART_1_RECEIVER_TID = 8;
 constexpr int CHAR_QUEUE_SIZE = 128;
 constexpr int TASK_QUEUE_SIZE = 64;
 constexpr int UART_FIFO_MAX_SIZE = 64;
@@ -22,10 +26,14 @@ constexpr int UART_FIFO_MAX_SIZE = 64;
 // broken down version of uart_server
 void uart_0_server_transmit();
 void uart_0_server_receive();
-void uart_receive_notifier();
-void uart_transmission_notifier();
+void uart_0_receive_notifier();
+void uart_0_transmission_notifier();
+void uart_1_server_transmit();
+void uart_1_transmission_notifier();
+void uart_1_CTS_notifier();
 
-enum class RequestHeader : uint32_t { NONE, NOTIFY_RECEIVE, NOTIFY_TRANSMISSION, GETC, PUTC };
+
+enum class RequestHeader : uint32_t { NONE, NOTIFY_RECEIVE, NOTIFY_TRANSMISSION, NOTIFY_CTS, GETC, PUTC };
 
 struct WorkerRequestBody {
 	uint64_t msg_len = 0;
