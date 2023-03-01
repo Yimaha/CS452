@@ -10,6 +10,7 @@ public:
 	~RingBuffer();
 	bool is_empty();
 	bool is_full();
+	int length();
 	T top();
 	T bottom();
 	void push_front(T data);
@@ -45,6 +46,11 @@ bool RingBuffer<T>::is_full() {
 }
 
 template <typename T>
+int RingBuffer<T>::length() {
+	return size;
+}
+
+template <typename T>
 T RingBuffer<T>::top() {
 #ifdef OUR_DEBUG
 	if (is_empty()) {
@@ -60,13 +66,13 @@ T RingBuffer<T>::bottom() {
 	if (is_empty()) {
 		return 0;
 	}
-#endif 
+#endif
 	return buffer[(tail - 1 + MAX_BUFFER_SIZE) % MAX_BUFFER_SIZE];
 }
 
 template <typename T>
 void RingBuffer<T>::push_front(T data) {
-#ifdef OUR_DEBUG	
+#ifdef OUR_DEBUG
 	if (is_full()) {
 		return;
 	}

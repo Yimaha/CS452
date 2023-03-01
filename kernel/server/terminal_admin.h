@@ -12,6 +12,8 @@ constexpr char TOP_LEFT[] = "\x1b[H";
 constexpr char RESET_CURSOR[] = "\033[0m";
 constexpr char SAVE_CURSOR[] = "\0337";
 constexpr char RESTORE_CURSOR[] = "\0338";
+constexpr char SENSOR_CURSOR[] = "\033[5;1H";
+constexpr char RED_CURSOR[] = "\033[31m";
 
 const char SWITCH_UI_L0[] = "SWITCHES:\r\n";
 const char SWITCH_UI_L1[] = "+-----+-----+-----+-----+-----+-----+\r\n";
@@ -26,8 +28,9 @@ const char SWITCH_UI_L9[] = "+--------+--------+--------+--------+\r\n";
 const char* const SWITCH_UI[] = { SWITCH_UI_L0, SWITCH_UI_L1, SWITCH_UI_L2, SWITCH_UI_L3, SWITCH_UI_L4, SWITCH_UI_L5, SWITCH_UI_L6, SWITCH_UI_L7, SWITCH_UI_L8, SWITCH_UI_L9 };
 
 const int SWITCH_UI_LEN = 10;
+const int NUM_SENSOR_BYTES = 10;
 
-void terminal_puts(const char* msg);
+void terminal_puts(const char* msg, int clock_server_tid, int delay = 1);
 void terminal_admin();
 
 enum class RequestHeader : uint32_t { NONE, PUTC, CLOCK, SENSORS, SWITCH };

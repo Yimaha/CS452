@@ -49,7 +49,9 @@ void UserTask::first_user_task() {
 >>>>>>> 9f5f1cb (A0-style user input functioning)
 
 		// Create the terminal admin and user input
+		// Create the terminal admin, terminal timer and user input
 		Task::Create(2, &Terminal::terminal_admin);
+		Task::Create(3, &Courier::terminal_clock_courier);
 		Task::Create(3, &Courier::user_input);
 
 		Task::Exit();

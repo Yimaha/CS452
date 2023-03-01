@@ -155,7 +155,7 @@ void Courier::user_input() {
 	UART::Getc(UART::UART_0_RECEIVER_TID, 0);
 	Terminal::Puts(terminal_tid, Terminal::CLEAR_SCREEN);
 	Terminal::Puts(terminal_tid, Terminal::TOP_LEFT);
-	Terminal::Puts(terminal_tid, "\r\n\r\n\r\n");
+	Terminal::Puts(terminal_tid, "\r\n\r\n\r\nSENSOR DATA:\r\n\r\n\r\n");
 
 	for (int i = 0; i < Terminal::SWITCH_UI_LEN; ++i) {
 		Terminal::Puts(terminal_tid, Terminal::SWITCH_UI[i]);
@@ -167,6 +167,11 @@ void Courier::user_input() {
 
 	Terminal::Puts(terminal_tid, "Welcome to AbyssOS!\r\n");
 	Terminal::Puts(terminal_tid, PROMPT);
+	Clock::Delay(clock_tid, 10);
+
+	// Activate the terminal timer
+	int clock_courier_tid = Name::WhoIs(CLOCK_COURIER_NAME);
+	Message::Send::Send(clock_courier_tid, nullptr, 0, nullptr, 0);
 	while (true) {
 		c = UART::Getc(UART::UART_0_RECEIVER_TID, 0);
 		if (char_count > CMD_LEN) {
@@ -244,4 +249,24 @@ void Courier::user_input() {
 	}
 
 	Task::Exit();
+}
+
+void Courier::terminal_clock_courier() {
+	int repeat = TERMINAL_TIMER_TICKS;
+	int clock_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
+	int terminal_tid = Name::WhoIs(Terminal::TERMINAL_ADMIN);
+	Terminal::TerminalServerReq req = Terminal::TerminalServerReq(Terminal::RequestHeader::CLOCK, 'C');
+
+	Name::RegisterAs(CLOCK_COURIER_NAME);
+
+	int from;
+	Message::Receive::Receive(&from, nullptr, 0);
+	Message::Reply::Reply(from, nullptr, 0);
+
+	int internal_timer = Clock::Time(clock_tid);
+	while (true) {
+		internal_timer += repeat;
+		Clock::DelayUntil(clock_tid, internal_timer);
+		Message::Send::Send(terminal_tid, reinterpret_cast<char*>(&req), sizeof(Terminal::TerminalServerReq), nullptr, 0);
+	}
 }
