@@ -162,10 +162,9 @@ void UART::uart_0_server_receive() {
  */
 void UART::uart_0_receive_notifier() {
 	int uart_tid = Name::WhoIs(UART_0_RECEIVER);
-	char input[64];
-	UARTServerReq req = { RequestHeader::NOTIFY_RECEIVE, WorkerRequestBody { 0x0, input } };
+	UARTServerReq req = { RequestHeader::NOTIFY_RECEIVE, WorkerRequestBody { 0x0, 0x0 } };
 	while (true) {
-		req.body.worker_msg.msg_len = Interrupt::AwaitEventWithBuffer(UART_0_RX_TIMEOUT, input);
+		req.body.worker_msg.msg_len = Interrupt::AwaitEventWithBuffer(UART_0_RX_TIMEOUT, req.body.worker_msg.msg);
 		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0); // we don't worry about response
 	}
 }

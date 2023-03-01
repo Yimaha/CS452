@@ -14,4 +14,5 @@ void k4_dummy();
 void k4_dummy_train();
 void k4_dummy_train_rev();
 void k4_dummy_train_sensor();
+void k4_dummy_train_switch();
 }

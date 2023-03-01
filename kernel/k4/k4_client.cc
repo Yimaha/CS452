@@ -13,7 +13,7 @@ void SystemTask::k4_dummy_train() {
 	Train::TrainAdminReq req = { Train::RequestHeader::SPEED, Train::RequestBody { 2, 0 } };
 	while (1) {
 		for (int i = 0; i < 10; i++) {
-			req.body.id = 2;
+			req.body.id = 78;
 			req.body.action = i * 2;
 			Message::Send::Send(train_tid, (const char*)&req, sizeof(req), nullptr, 0);
 			Clock::Delay(clock_tid, 100);
@@ -58,5 +58,22 @@ void SystemTask::k4_dummy_train_sensor() {
 			}
 		}
 		UART::Puts(uart_tid, 0, "\r\n", 2);
+	}
+}
+
+void SystemTask::k4_dummy_train_switch() {
+	int train_tid = Name::WhoIs(Train::TRAIN_SERVER_NAME);
+	int uart_0_tid = Name::WhoIs(UART::UART_0_TRANSMITTER);
+	int clock_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
+
+	while (1) {
+		Train::TrainAdminReq req = { Train::RequestHeader::SWITCH, Train::RequestBody { 10, 'c' } };
+		Message::Send::Send(train_tid, (const char*)&req, sizeof(req), nullptr, 0);
+		Clock::Delay(clock_tid, 200);
+		UART::Puts(uart_0_tid, 0, "curve\r\n", 7);
+		req = { Train::RequestHeader::SWITCH, Train::RequestBody { 10, 's' } };
+		Message::Send::Send(train_tid, (const char*)&req, sizeof(req), nullptr, 0);
+		Clock::Delay(clock_tid, 200);
+		UART::Puts(uart_0_tid, 0, "straight\r\n", 10);
 	}
 }

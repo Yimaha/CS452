@@ -143,7 +143,11 @@ int UART::Puts(int tid, int uart, const char* s, uint64_t len) {
 	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID)) {
 		return -1;
 	}
-	UART::WorkerRequestBody body = {len, s};
+	UART::WorkerRequestBody body;
+	body.msg_len = len;
+	for (uint64_t i = 0; i < len; i++) {
+		body.msg[i] = s[i];
+	}	
 	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::PUTS, body);
 	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
 	return 0;
@@ -415,10 +419,11 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 				enable_receive_interrupt[1] = false;
 				interrupt_control(1);
 			}else if (exception_code == UART::InterruptType::UART_MODEM_INTERRUPT && uart_1_msr_tid != Task::UART_TRANSMIT_FULL) {
-				tasks[uart_1_msr_tid]->to_ready(0x0, &scheduler);
-				uart_1_msr_tid = Task::UART_TRANSMIT_FULL;
-				// this one need a special care, as it need to clear bit individually
-				uart_get(0, 1, UART_MSR); // enable the
+				char state = uart_get(0, 1, UART_MSR);
+				if ((state & 0x1) == 0x1) {
+					tasks[uart_1_msr_tid]->to_ready(0x0, &scheduler);
+					uart_1_msr_tid = Task::UART_TRANSMIT_FULL;
+				}
 			} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT && uart_1_transmit_tid != Task::UART_TRANSMIT_FULL) {
 				tasks[uart_1_transmit_tid]->to_ready(0x0, &scheduler);
 				uart_1_transmit_tid = Task::UART_TRANSMIT_FULL;
