@@ -135,26 +135,45 @@ static void uart_write_register(size_t spiChannel, size_t uartChannel, char reg,
 	spi_send_recv(spiChannel, req, 2, NULL, 0);
 }
 
-static void uart_init_channel(size_t spiChannel, size_t uartChannel, size_t baudRate) {
-	// set baud rate
-	uart_write_register(spiChannel, uartChannel, UART_LCR, UART_LCR_DIV_LATCH_EN);
-	uint32_t bauddiv = 14745600 / (baudRate * 16);
-	uart_write_register(spiChannel, uartChannel, UART_DLH, (bauddiv & 0xFF00) >> 4);
-	uart_write_register(spiChannel, uartChannel, UART_DLL, (bauddiv & 0x00FF));
 
-	// set serial byte configuration: 8 bit, no parity, 1 stop bit
-	uart_write_register(spiChannel, uartChannel, UART_LCR, 0x3);
+static void uart_init_channel(size_t spiChannel, size_t uartChannel, size_t baudRate)
+{
+  // set baud rate
+  uart_write_register(spiChannel, uartChannel, UART_LCR, UART_LCR_DIV_LATCH_EN);
+  uint32_t bauddiv = 14745600 / (baudRate * 16);
+  uart_write_register(spiChannel, uartChannel, UART_DLH, (bauddiv & 0xFF00) >> 8);
+  uart_write_register(spiChannel, uartChannel, UART_DLL, (bauddiv & 0x00FF));
 
-	// clear and enable fifos, (wait since clearing fifos takes time)
-	uart_write_register(spiChannel, uartChannel, UART_FCR, UART_FCR_RX_FIFO_RESET | UART_FCR_TX_FIFO_RESET | UART_FCR_FIFO_EN);
-	for (int i = 0; i < 65535; ++i)
-		asm volatile("yield");
+  // set serial byte configuration: 8 bit, no parity, 1 stop bit
+  uart_write_register(spiChannel, uartChannel, UART_LCR, 0x3);
+
+  // clear and enable fifos,u(wait since clearing fifos takes time)
+  uart_write_register(spiChannel, uartChannel, UART_FCR, UART_FCR_RX_FIFO_RESET | UART_FCR_TX_FIFO_RESET | UART_FCR_FIFO_EN);
+  for (int i = 0; i < 65535; ++i)
+    asm volatile("yield");
+}
+
+static void uart_init_channel_train(size_t spiChannel, size_t uartChannel, size_t baudRate)
+{
+  // set baud rate
+  uart_write_register(spiChannel, uartChannel, UART_LCR, UART_LCR_DIV_LATCH_EN);
+  uint32_t bauddiv = 14745600 / (baudRate * 16);
+  uart_write_register(spiChannel, uartChannel, UART_DLH, (bauddiv & 0xFF00) >> 8);
+  uart_write_register(spiChannel, uartChannel, UART_DLL, (bauddiv & 0x00FF));
+
+  // set serial byte configuration: 8 bit, no parity, 2 stop bit
+  uart_write_register(spiChannel, uartChannel, UART_LCR, 0x7);
+
+  // clear and enable fifos,u(wait since clearing fifos takes time)
+  uart_write_register(spiChannel, uartChannel, UART_FCR, UART_FCR_RX_FIFO_RESET | UART_FCR_TX_FIFO_RESET | UART_FCR_FIFO_EN);
+  for (int i = 0; i < 65535; ++i)
+    asm volatile("yield");
 }
 
 void init_uart(uint32_t spiChannel) {
 	uart_write_register(spiChannel, 0, UART_IOControl, UART_IOControl_RESET); // resets both channels
 	uart_init_channel(spiChannel, 0, 115200);
-	uart_init_channel(spiChannel, 1, 2400);
+	uart_init_channel_train(spiChannel, 1, 2400);
 }
 
 char uart_getc(size_t spiChannel, size_t uartChannel) {
@@ -176,6 +195,7 @@ bool uart_putc_non_blocking(size_t spiChannel, size_t uartChannel, char c) {
 	uart_write_register(spiChannel, uartChannel, UART_THR, c);
 	return true;
 }
+
 
 void uart_puts(size_t spiChannel, size_t uartChannel, const char* buf, size_t blen) {
 	static const size_t max = 32;
@@ -201,13 +221,8 @@ void uart_puts(size_t spiChannel, size_t uartChannel, const char* buf, size_t bl
 	}
 }
 
-bool uart_put(size_t spiChannel, size_t uartChannel, char reg, char data) {
-	if (uart_read_register(spiChannel, uartChannel, UART_TXLVL) == 0) {
-		return false;
-	} else {
-		uart_write_register(spiChannel, uartChannel, reg, data);
-		return true;
-	}
+void uart_put(size_t spiChannel, size_t uartChannel, char reg, char data) {
+	uart_write_register(spiChannel, uartChannel, reg, data);
 }
 
 
@@ -215,16 +230,14 @@ char uart_get(size_t spiChannel, size_t uartChannel, char reg) {
 	return uart_read_register(spiChannel, uartChannel, reg);
 }
 
-// char uart_getc_non_blocking(size_t spiChannel, size_t uartChannel) {
-// #ifdef DEBUG
-// 	if (uart_read_register(spiChannel, uartChannel, UART_RXLVL) == 0) {
-// 		printf("try to read an empty fifo")
-// 		while (true) {};
-// 	}
-// #endif
+bool uart_getc_non_blocking(size_t spiChannel, size_t uartChannel, char* c) {
+	if (uart_read_register(spiChannel, uartChannel, UART_RXLVL) == 0) {
+		return false;
+	}
 
-// 	return uart_read_register(spiChannel, uartChannel, UART_RHR);
-// }
+	*c = uart_read_register(spiChannel, uartChannel, UART_RHR);
+	return true;
+}
 
 int uart_get_all(size_t spiChannel, size_t uartChannel, char* buffer) {
 	int i = 0;

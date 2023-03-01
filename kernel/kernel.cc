@@ -112,14 +112,14 @@ int UART::UartWriteRegister(int channel, char reg, char data) {
 }
 
 int UART::UartReadRegister(int channel, char reg) {
-	return 1; // dummy for now
+	return to_kernel(Kernel::HandlerCode::READ_REGISTER, channel, reg);
 }
 
 int UART::TransInterrupt(int channel, bool enable) {
 	return to_kernel(Kernel::HandlerCode::TRANSMIT_INTERRUPT, channel, enable);
 }
 
-int UART::ReceiveInterrupt(int channel, bool enable) { 
+int UART::ReceiveInterrupt(int channel, bool enable) {
 	return to_kernel(Kernel::HandlerCode::RECEIVE_INTERRUPT, channel, enable);
 }
 
@@ -129,7 +129,7 @@ int UART::UartReadAll(int channel, char* buffer) { // designed for reading all t
 
 int UART::PutC(int tid, int uart, char ch) {
 	// since we only have uart0, uart param is ignored
-	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID) ) {
+	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID)) {
 		return -1;
 	}
 	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::PUTC, ch);
@@ -139,7 +139,7 @@ int UART::PutC(int tid, int uart, char ch) {
 
 int UART::GetC(int tid, int uart) {
 	// since we only have uart0, uart param is ignored
-	if ((uart == 0 && tid != UART::UART_0_RECEIVER_TID) || (uart == 1 && tid != UART::UART_1_RECEIVER_TID) ) {
+	if ((uart == 0 && tid != UART::UART_0_RECEIVER_TID) || (uart == 1 && tid != UART::UART_1_RECEIVER_TID)) {
 		return -1;
 	}
 	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::GETC, '0'); // body is irrelevant
@@ -268,30 +268,51 @@ void Kernel::handle_syscall() {
 		int channel = active_request->x1;
 		char reg = active_request->x2;
 		char data = active_request->x3;
-		tasks[active_task]->to_ready((uart_put(UART::SPI_CHANNEL, channel, reg, data) ? UART::SUCCESSFUL : UART::Exception::FAILED_TO_WRITE), &scheduler);
+		
+		bool success = true;
+		if (reg == UART_THR) {
+			success = uart_putc_non_blocking(UART::SPI_CHANNEL, channel, data);
+		} else {
+			uart_put(UART::SPI_CHANNEL, channel, reg, data);
+		} 
+		tasks[active_task]->to_ready((success ? UART::SUCCESSFUL : UART::Exception::FAILED_TO_WRITE), &scheduler);
+		break;
+	}
+	case HandlerCode::READ_REGISTER: {
+		int channel = active_request->x1;
+		char reg = active_request->x2;
+		
+		bool success = true;
+		char c;
+		if (reg == UART_RHR) {
+			success = uart_getc_non_blocking(UART::SPI_CHANNEL, channel, &c);
+		} else {
+			c = uart_get(UART::SPI_CHANNEL, channel, reg);
+		} 
+		tasks[active_task]->to_ready((success ? c : -1), &scheduler);
 		break;
 	}
 	case HandlerCode::READ_ALL: {
 		int channel = active_request->x1;
-		char* buffer = (char*) active_request->x2;
+		char* buffer = (char*)active_request->x2;
 		int length = uart_get_all(UART::SPI_CHANNEL, channel, buffer);
-		tasks[active_task]-> to_ready(length, &scheduler);
+		tasks[active_task]->to_ready(length, &scheduler);
 		break;
-	} 
+	}
 	case HandlerCode::TRANSMIT_INTERRUPT: {
 		int channel = active_request->x1;
 		bool enable = active_request->x2;
 		enable_transmit_interrupt[channel] = enable;
-		uart_put(UART::SPI_CHANNEL, channel, UART_IER, UART::get_control_bits(enable_transmit_interrupt[channel], enable_receive_interrupt[channel], enable_CTS[channel]));
-		tasks[active_task]-> to_ready(0x0, &scheduler);
+		interrupt_control(channel);
+		tasks[active_task]->to_ready(0x0, &scheduler);
 		break;
 	}
 	case HandlerCode::RECEIVE_INTERRUPT: {
 		int channel = active_request->x1;
 		bool enable = active_request->x2;
 		enable_receive_interrupt[channel] = enable;
-		uart_put(UART::SPI_CHANNEL, channel, UART_IER, UART::get_control_bits(enable_transmit_interrupt[channel], enable_receive_interrupt[channel], enable_CTS[channel]));
-		tasks[active_task]-> to_ready(0x0, &scheduler);
+		interrupt_control(channel);
+		tasks[active_task]->to_ready(0x0, &scheduler);
 		break;
 	}
 	default:
@@ -301,6 +322,11 @@ void Kernel::handle_syscall() {
 		while (true) {
 		}
 	}
+}
+
+void Kernel::interrupt_control(int channel) {
+	int control = UART::get_control_bits(enable_transmit_interrupt[channel], enable_receive_interrupt[channel], enable_CTS[channel]);
+	uart_put(UART::SPI_CHANNEL, channel, UART_IER, control);
 }
 
 void Kernel::handle_interrupt(InterruptCode icode) {
@@ -334,47 +360,69 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 		 * Also note that server is in control of which register is flipped, thus also in control of which interrupt is happening.
 		 */
 
+		int exception_code = (int)(uart_get(0, 0, UART_IIR) & 0x3F);
 		
-		int exception_code;
 		do {
-		exception_code = (int)(uart_get(0, 0, UART_IIR) & 0x3F);
-		// this is a really shitty way to handle this, I think it would probably be better if we something similar to a dedicated class object
-		// but we will fix it soon once experiementa go through.
-		if (exception_code == UART::InterruptType::UART_RX_TIMEOUT && uart_0_receive_tid != Task::UART_RECEIVE_EMPTY) {
-			int input_len = uart_get_all(0, 0, tasks[uart_0_receive_tid]->get_event_buffer());
-			tasks[uart_0_receive_tid]->to_ready(input_len, &scheduler);
-			uart_0_receive_tid = Task::UART_RECEIVE_EMPTY;
-		} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT && uart_0_transmit_tid != Task::UART_TRANSMIT_FULL) {
-			tasks[uart_0_transmit_tid]->to_ready(0x0, &scheduler);
-			uart_0_transmit_tid = Task::UART_TRANSMIT_FULL;
-		} else if (exception_code == UART::InterruptType::UART_CLEAR) {
-			UART::clear_uart_0_interrupt();
-		} else {
-			printf("Uart Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d", exception_code, uart_0_receive_tid, uart_0_transmit_tid);
-			while (true) {
+			// this is a really shitty way to handle this, I think it would probably be better if we something similar to a dedicated class object
+			// but we will fix it soon once experiementa go through.
+			if (exception_code == UART::InterruptType::UART_RX_TIMEOUT && uart_0_receive_tid != Task::UART_RECEIVE_EMPTY) {
+				int input_len = uart_get_all(0, 0, tasks[uart_0_receive_tid]->get_event_buffer());
+				tasks[uart_0_receive_tid]->to_ready(input_len, &scheduler);
+				uart_0_receive_tid = Task::UART_RECEIVE_EMPTY;
+				enable_receive_interrupt[0] = false;
+				interrupt_control(0);
+			} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT && uart_0_transmit_tid != Task::UART_TRANSMIT_FULL) {
+				tasks[uart_0_transmit_tid]->to_ready(0x0, &scheduler);
+				uart_0_transmit_tid = Task::UART_TRANSMIT_FULL;
+				enable_transmit_interrupt[0] = false;
+				printf("turning off transmit\r\n");
+				interrupt_control(0);
+			} else if (exception_code == UART::InterruptType::UART_CLEAR) {
+				break;
+			} else {
+				printf("Uart 0 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d\r\n", exception_code, uart_0_receive_tid, uart_0_transmit_tid);
+				while (true) {
+				}
 			}
-		}
+			exception_code = (int)(uart_get(0, 0, UART_IIR) & 0x3F);
 		} while (exception_code != UART::InterruptType::UART_CLEAR);
 
-		do {
 		exception_code = (int)(uart_get(0, 1, UART_IIR) & 0x3F);
+		do {
+			// printf("Uart 1: exception code: %d receive_tid: %d transmit_tid %d msr_tid %d \r\n", exception_code, uart_1_receive_tid, uart_1_transmit_tid, uart_1_msr_tid);
 
-		// this is a really shitty way to handle this, I think it would probably be better if we something similar to a dedicated class object
-		// but we will fix it soon once experiementa go through.
-		if (exception_code == UART::InterruptType::UART_MODEM_INTERRUPT && uart_1_msr_tid != Task::UART_TRANSMIT_FULL) {
-			tasks[uart_1_msr_tid]->to_ready(0x0, &scheduler);
-			uart_1_msr_tid = Task::UART_TRANSMIT_FULL;
-		} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT && uart_1_transmit_tid != Task::UART_TRANSMIT_FULL) {
-			tasks[uart_1_transmit_tid]->to_ready(0x0, &scheduler);
-			uart_1_transmit_tid = Task::UART_TRANSMIT_FULL;
-		} else if (exception_code == UART::InterruptType::UART_CLEAR) {
-			UART::clear_uart_1_interrupt();
-		} else {
-			printf("Uart Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d", exception_code, uart_1_receive_tid, uart_1_transmit_tid);
-			while (true) {
+			// this is a really shitty way to handle this, I think it would probably be better if we something similar to a dedicated class object
+			// but we will fix it soon once experiementa go through.
+			if (exception_code == UART::InterruptType::UART_RX_TIMEOUT && uart_1_receive_timeout_tid != Task::UART_RECEIVE_EMPTY) {
+				tasks[uart_1_receive_timeout_tid]->to_ready(0x0, &scheduler);
+				uart_1_receive_timeout_tid = Task::UART_RECEIVE_EMPTY;
+				enable_receive_interrupt[1] = false;
+				interrupt_control(1);
+			} else if (exception_code == UART::InterruptType::UART_RX_INTERRUPT && uart_1_receive_tid != Task::UART_RECEIVE_EMPTY) {
+				tasks[uart_1_receive_tid]->to_ready(0x0, &scheduler);
+				uart_1_receive_tid = Task::UART_RECEIVE_EMPTY;
+				enable_receive_interrupt[1] = false;
+				interrupt_control(1);
+			}else if (exception_code == UART::InterruptType::UART_MODEM_INTERRUPT && uart_1_msr_tid != Task::UART_TRANSMIT_FULL) {
+				tasks[uart_1_msr_tid]->to_ready(0x0, &scheduler);
+				uart_1_msr_tid = Task::UART_TRANSMIT_FULL;
+				// this one need a special care, as it need to clear bit individually
+				uart_get(0, 1, UART_MSR); // enable the
+			} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT && uart_1_transmit_tid != Task::UART_TRANSMIT_FULL) {
+				tasks[uart_1_transmit_tid]->to_ready(0x0, &scheduler);
+				uart_1_transmit_tid = Task::UART_TRANSMIT_FULL;
+				enable_transmit_interrupt[1] = false;
+				interrupt_control(1);
+			} else if (exception_code == UART::InterruptType::UART_CLEAR) {
+				break;
+			} else {
+				printf("Uart 1 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d msr_tid %d\r\n", exception_code, uart_1_receive_tid, uart_1_transmit_tid, uart_1_msr_tid);
+				while (true) {
+				}
 			}
-		}
+			exception_code = (int)(uart_get(0, 1, UART_IIR) & 0x3F);
 		} while (exception_code != UART::InterruptType::UART_CLEAR);
+		UART::clear_uart_interrupt();
 		break;
 	}
 	default:
@@ -469,6 +517,16 @@ void Kernel::handle_await_event(int eventId) {
 	}
 	case UART::InterruptEvents::UART_1_MSR_INTERRUPT: {
 		uart_1_msr_tid = active_task;
+		tasks[active_task]->to_event_block();
+		break;
+	}
+	case UART::InterruptEvents::UART_1_RX_INTERRUPT: {
+		uart_1_receive_tid = active_task;
+		tasks[active_task]->to_event_block();
+		break;
+	}
+	case UART::InterruptEvents::UART_1_RX_TIMEOUT: {
+		uart_1_receive_timeout_tid = active_task;
 		tasks[active_task]->to_event_block();
 		break;
 	}

@@ -208,6 +208,8 @@ private:
 	int uart_0_transmit_tid = Task::UART_TRANSMIT_FULL;
 
 	int uart_1_receive_tid = Task::UART_RECEIVE_EMPTY; // always 1 agent for receiving
+	int uart_1_receive_timeout_tid = Task::UART_RECEIVE_EMPTY; // always 1 agent for receiving
+
 	int uart_1_transmit_tid = Task::UART_TRANSMIT_FULL;
 	int uart_1_msr_tid = Task::UART_TRANSMIT_FULL;
 
@@ -222,4 +224,5 @@ private:
 	void handle_reply();
 	void handle_await_event(int eventId);
 	void handle_await_event_with_buffer(int eventId, char* buffer);
+	void interrupt_control(int channel);
 };

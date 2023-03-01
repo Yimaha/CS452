@@ -29,8 +29,11 @@ void uart_0_server_receive();
 void uart_0_receive_notifier();
 void uart_0_transmission_notifier();
 void uart_1_server_transmit();
+void uart_1_server_receive();
 void uart_1_transmission_notifier();
 void uart_1_CTS_notifier();
+void uart_1_receive_notifier();
+void uart_1_receive_timeout_notifier();
 
 
 enum class RequestHeader : uint32_t { NONE, NOTIFY_RECEIVE, NOTIFY_TRANSMISSION, NOTIFY_CTS, GETC, PUTC };

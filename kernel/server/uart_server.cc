@@ -22,13 +22,14 @@ void UART::uart_0_server_transmit() {
 			transmit_interrupt_enable = false;
 			while (!transmit_queue.empty()) {
 				bool put_successful = UART::UartWriteRegister(uart_channel, UART_THR, transmit_queue.front());
-				if (!put_successful) {
+				if (put_successful != UART::SUCCESSFUL) {
+					UART::TransInterrupt(uart_channel, true);
 					break; // we filled the buffer again, very unlikely to happen though.
 				} else {
 					transmit_queue.pop();
 				}
 			}
-			UART::TransInterrupt(uart_channel, false);
+			// kernel disable the THR interrupt
 			break;
 		}
 		case RequestHeader::PUTC: {
@@ -40,6 +41,7 @@ void UART::uart_0_server_transmit() {
 				transmit_queue.push(c);
 			} else {
 				int put_successful = UART::UartWriteRegister(uart_channel, UART_THR, c);
+
 				if (put_successful != UART::SUCCESSFUL) {
 					transmit_queue.push(c);
 					// enable the interrupt
@@ -79,11 +81,10 @@ void UART::uart_0_server_receive() {
 		switch (req.header) {
 		case RequestHeader::NOTIFY_RECEIVE: {
 			Message::Reply::Reply(from, nullptr, 0); // unblock receiver right away right away
-			UART::ReceiveInterrupt(uart_channel, false);
 
 			WorkerRequestBody body = req.body.worker_msg;
 			int length = body.msg_len;
-			int i = 0; 
+			int i = 0;
 			for (; !await_c.empty() && i < length; i++) {
 				Message::Reply::Reply(await_c.front(), &body.msg[i], 1);
 				await_c.pop();
@@ -109,7 +110,7 @@ void UART::uart_0_server_receive() {
 					Message::Reply::Reply(from, receive_buffer, 1); // unblock receiver right away right away
 					for (int i = 1; i < length; i++) {
 						receive_queue.push(receive_buffer[i]);
-					} 
+					}
 				}
 			}
 			break;
@@ -151,10 +152,9 @@ void UART::uart_0_transmission_notifier() {
 	}
 }
 
-
 /**
  * Unlike uart0, uart1 has fifo and CTS on transmitter
-*/
+ */
 void UART::uart_1_server_transmit() {
 	const int uart_channel = 1;
 	Name::RegisterAs(UART_1_TRANSMITTER);
@@ -165,18 +165,27 @@ void UART::uart_1_server_transmit() {
 	etl::queue<char, CHAR_QUEUE_SIZE> transmit_queue;
 	int from;
 	UARTServerReq req;
-	
+
 	/**
 	 * Idea, putc keep accept input, yet the input is either fired right away, or wait until all interrupt came back.
-	 * it needs to wait for both CTS and the interrput come back being ready. if you don't 
-	*/
+	 * it needs to wait for both CTS and the interrput come back being ready. if you don't
+	 */
 
 	int CTS_await = 2; // wait for it to go down then go up
 	bool TX_await = false;
 
 	auto send_if_possible = [&](char c) {
 		if (CTS_await == 2 && !TX_await) {
+#ifdef OUR_DEBUG
+			int result = UART::UartWriteRegister(uart_channel, UART_THR, c);
+			if (result != UART::SUCCESSFUL) {
+				Task::_KernelPrint("why am I here? \r\n");
+			} else {
+				Task::_KernelPrint("Successful \r\n");
+			}
+#else
 			UART::UartWriteRegister(uart_channel, UART_THR, c);
+#endif
 			// enable the interrupt
 			CTS_await = 0;
 			TX_await = true;
@@ -196,11 +205,9 @@ void UART::uart_1_server_transmit() {
 			TX_await = false;
 
 			if (!transmit_queue.empty()) {
-				if(send_if_possible(transmit_queue.front())) {
+				if (send_if_possible(transmit_queue.front())) {
 					transmit_queue.pop();
 				}
-			} else {
-				UART::TransInterrupt(uart_channel, false);
 			}
 			break;
 		}
@@ -209,13 +216,14 @@ void UART::uart_1_server_transmit() {
 			CTS_await += 1;
 
 			if (!transmit_queue.empty()) {
-				if(send_if_possible(transmit_queue.front())) {
+				if (send_if_possible(transmit_queue.front())) {
 					transmit_queue.pop();
 				}
 			}
 			break;
 		}
 		case RequestHeader::PUTC: {
+
 			Message::Reply::Reply(from, nullptr, 0); // unblock putc guy right away right away
 			// the default behaviour is putc, but if we are full, then we wait for interrupt
 			char c = req.body.regular_msg;
@@ -236,20 +244,105 @@ void UART::uart_1_server_transmit() {
 	}
 }
 
+
+
+void UART::uart_1_server_receive() {
+	const int uart_channel = 1;
+	Name::RegisterAs(UART_1_RECEIVER);
+
+	// create it's worker
+	Task::Create(1, &uart_1_receive_notifier);
+	Task::Create(1, &uart_1_receive_timeout_notifier);
+
+	etl::queue<char, CHAR_QUEUE_SIZE> receive_queue;
+	etl::queue<int, TASK_QUEUE_SIZE> await_c;
+	char receive_buffer[UART_FIFO_MAX_SIZE];
+
+	int from;
+	UARTServerReq req;
+
+	while (true) {
+		Message::Receive::Receive(&from, (char*)&req, sizeof(UARTServerReq));
+		switch (req.header) {
+		case RequestHeader::NOTIFY_RECEIVE: {
+			Message::Reply::Reply(from, nullptr, 0); // unblock receiver right away right away
+			// body is irrlevant, we simply try to read until we 
+			int i = 0;
+			int c = UartReadRegister(uart_channel, UART_RHR);
+			while (c != -1) { // until there is nothing to read
+				char reply = (char) c;
+				if (!await_c.empty()) {
+ 					Message::Reply::Reply(await_c.front(), &reply, 1);
+					await_c.pop();
+				} else {
+					receive_queue.push(c);
+				}
+				c = UartReadRegister(uart_channel, UART_RHR);
+			}
+			break;
+		}
+		case RequestHeader::GETC: {
+			// you first need to exhaust the existing queue
+			if (!receive_queue.empty()) {
+				Message::Reply::Reply(from, &receive_queue.front(), 1); // unblock receiver right away right away
+				receive_queue.pop();			
+			} else {
+				// we now have an empty queue, try to see if there is any uart event
+				int output = UartReadRegister(uart_channel, UART_RHR);
+				if (output == -1) {
+					// we now have an empty receive queue as well, meaning we need interrupt
+					UART::ReceiveInterrupt(uart_channel, true);
+					await_c.push(from); // block until we receive some uart in future
+				} else {
+					char real_value = (char)output;
+					Message::Reply::Reply(from, (const char*)&real_value, 1); // unblock receiver right away right away
+				}
+			}
+			break;
+		}
+		default: {
+			char exception[30];
+			sprintf(exception, "illegal type: [%d]\r\n", req.header);
+			Task::_KernelPrint(exception);
+			while (1) {
+			}
+		}
+		}
+	}
+}
+
 void UART::uart_1_transmission_notifier() {
 	int uart_tid = Name::WhoIs(UART_1_TRANSMITTER);
 	UARTServerReq req = { RequestHeader::NOTIFY_TRANSMISSION, { 0 } };
 	while (true) {
-		Interrupt::AwaitEvent(UART_TXR_INTERRUPT);
+		Interrupt::AwaitEvent(UART_1_TXR_INTERRUPT);
 		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0);
 	}
-} 
+}
 
 void UART::uart_1_CTS_notifier() {
 	int uart_tid = Name::WhoIs(UART_1_TRANSMITTER);
 	UARTServerReq req = { RequestHeader::NOTIFY_CTS, { 0 } };
 	while (true) {
-		Interrupt::AwaitEvent(UART_MSR);
+		Interrupt::AwaitEvent(UART_1_MSR_INTERRUPT);
 		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0);
 	}
-} 
+}
+
+void UART::uart_1_receive_notifier() {
+	int uart_tid = Name::WhoIs(UART_1_TRANSMITTER);
+	UARTServerReq req = { RequestHeader::NOTIFY_RECEIVE, { 0 } };
+	while (true) {
+		Interrupt::AwaitEvent(UART_1_RX_INTERRUPT);
+		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0);
+	}
+}
+
+void UART::uart_1_receive_timeout_notifier() {
+	int uart_tid = Name::WhoIs(UART_1_TRANSMITTER);
+	UARTServerReq req = { RequestHeader::NOTIFY_RECEIVE, { 0 } };
+	while (true) {
+		Interrupt::AwaitEvent(UART_1_RX_TIMEOUT);
+		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0);
+	}
+}
