@@ -12,11 +12,10 @@ constexpr int SENSOR_UART_CHANNEL = 1;
 void sensor_admin();
 void sensor_courier();
 
-enum class RequestHeader : uint32_t { SENSOR_UPDATE }; // note that notify is an exclusive, clock notifier message.
+enum class RequestHeader : uint32_t { SENSOR_UPDATE, GET_SENSOR_STATE }; // note that notify is an exclusive, clock notifier message.
 
 struct RequestBody {
-	char id;
-	char action;
+	char sensor_state[10];
 };
 
 struct SensorAdminReq {
@@ -24,11 +23,16 @@ struct SensorAdminReq {
 	RequestBody body; // depending on the header, it treats the body differently
 } __attribute__((aligned(8)));
 
-// enum class CourierRequestHeader : uint32_t { REV }; // note that notify is an exclusive, clock notifier message.
+enum class CourierRequestHeader : uint32_t { OBSERVER }; // note that notify is an exclusive, clock notifier message.
 
-// struct TrainCourierReq {
-// 	CourierRequestHeader header;
-// 	RequestBody body; // depending on the header, it treats the body differently
-// } __attribute__((aligned(8)));
+struct CourierRequestBody {
+	int delay = 0;
+};
+
+
+struct SensorCourierReq {
+	CourierRequestHeader header;
+	CourierRequestBody body;
+} __attribute__((aligned(8)));
 }
 

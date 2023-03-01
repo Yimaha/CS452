@@ -234,7 +234,6 @@ bool uart_getc_non_blocking(size_t spiChannel, size_t uartChannel, char* c) {
 	if (uart_read_register(spiChannel, uartChannel, UART_RXLVL) == 0) {
 		return false;
 	}
-
 	*c = uart_read_register(spiChannel, uartChannel, UART_RHR);
 	return true;
 }

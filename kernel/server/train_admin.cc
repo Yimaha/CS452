@@ -10,30 +10,29 @@ void Train::train_admin() {
         courier_pool.push(Task::Create(2, &train_courier));
     }
     int uart_tid = Name::WhoIs(UART::UART_1_TRANSMITTER);
-
+    char command[2];
 	int from;
 	TrainAdminReq req;
 
-    // note, similar to UART::PutC, train server does not guarentee that command is fired right away
+    // note, similar to UART::Putc, train server does not guarentee that command is fired right away
 	while (true) {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(TrainAdminReq));
 		switch (req.header) {
 		case RequestHeader::SPEED: {
             char train_id = req.body.id;
             char desire_speed = req.body.action; // should be an integer within 0 - 31
-            // char st[100];
-            // sprintf(st, "reached speed, train_id: %d, desire_speed, %d, TRAIN_UART_CHANNEL: %d, uart_tid: %d \r\n", train_id, desire_speed, TRAIN_UART_CHANNEL, uart_tid);
-            // Task::_KernelPrint(st);
-            UART::PutC(uart_tid, TRAIN_UART_CHANNEL, desire_speed);
-            UART::PutC(uart_tid, TRAIN_UART_CHANNEL, train_id);
+            command[0] = desire_speed;
+            command[1] = train_id;
+            UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
             Message::Reply::Reply(from, nullptr, 0); // unblock after job is done
 			break;
 		} 
         case RequestHeader::REV: {
             // note if action is passed, it speed is the desire final speed of the train
             char train_id = req.body.id;
-            UART::PutC(uart_tid, TRAIN_UART_CHANNEL, 0);
-            UART::PutC(uart_tid, TRAIN_UART_CHANNEL, train_id);
+            command[0] = 0;
+            command[1] = train_id;
+            UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
             TrainCourierReq req_to_courier = {CourierRequestHeader::REV, {train_id, req.body.action}};
             Message::Send::Send(courier_pool.front(), (const char*) &req_to_courier, sizeof(TrainCourierReq), nullptr, 0);
             Message::Reply::Reply(from, nullptr, 0); // unblock after job is done
@@ -60,6 +59,7 @@ void Train::train_courier() {
     int train_admin_tid = Name::WhoIs(TRAIN_SERVER_NAME);
     int uart_tid = Name::WhoIs(UART::UART_1_TRANSMITTER);
     int from;
+    char command[2];
     TrainCourierReq req;
     TrainAdminReq req_to_admin;
 
@@ -74,10 +74,11 @@ void Train::train_courier() {
             char train_id = req.body.id;
             char desire_speed = req.body.action; // should be an integer within 0 - 31
             Clock::Delay(clock_tid, 400);
-            UART::PutC(uart_tid, TRAIN_UART_CHANNEL, REV_COMMAND);
-            UART::PutC(uart_tid, TRAIN_UART_CHANNEL, train_id);
-            UART::PutC(uart_tid, TRAIN_UART_CHANNEL, desire_speed);
-            UART::PutC(uart_tid, TRAIN_UART_CHANNEL, train_id);
+            command[0] = REV_COMMAND;
+            command[1] = train_id;
+            UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
+            command[0] = desire_speed;
+            UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
 	        req_to_admin = { RequestHeader::COURIER_COMPLETE, RequestBody{ 0x0, 0x0 } };
 
             Message::Send::Send(train_admin_tid, (const char*) &req_to_admin, sizeof(TrainAdminReq), nullptr, 0);

@@ -26,7 +26,7 @@ constexpr int CLOCK_QUEUE_EMPTY = -2;
 constexpr int UART_RECEIVE_EMPTY = -3;
 constexpr int UART_TRANSMIT_FULL = -4;
 constexpr uint64_t USER_TASK_START_ADDRESS = 0x10000000;
-constexpr uint64_t USER_TASK_LIMIT = 100;
+constexpr uint64_t USER_TASK_LIMIT = 200;
 
 int MyTid();
 int MyParentTid();
@@ -132,8 +132,9 @@ namespace UART
 {
 int UartWriteRegister(int channel, char reg, char data);
 int UartReadRegister(int channel, char reg);
-int PutC(int tid, int uart, char ch);
-int GetC(int tid, int uart);
+int Putc(int tid, int uart, char ch);
+int Puts(int tid, int uart, const char* s, uint64_t len);
+int Getc(int tid, int uart);
 int TransInterrupt(int channel, bool enable);
 int ReceiveInterrupt(int channel, bool enable);
 int UartReadAll(int channel, char* buffer);

@@ -36,11 +36,11 @@ void uart_1_receive_notifier();
 void uart_1_receive_timeout_notifier();
 
 
-enum class RequestHeader : uint32_t { NONE, NOTIFY_RECEIVE, NOTIFY_TRANSMISSION, NOTIFY_CTS, GETC, PUTC };
+enum class RequestHeader : uint32_t { NONE, NOTIFY_RECEIVE, NOTIFY_TRANSMISSION, NOTIFY_CTS, GETC, PUTC, PUTS };
 
 struct WorkerRequestBody {
 	uint64_t msg_len = 0;
-	char msg[32];
+	const char* msg;
 };
 
 union RequestBody

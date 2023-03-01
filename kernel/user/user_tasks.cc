@@ -26,12 +26,17 @@ void UserTask::first_user_task() {
 		Task::Create(1, &UART::uart_0_server_transmit);
 		Task::Create(1, &UART::uart_0_server_receive);
 		Task::Create(1, &UART::uart_1_server_transmit);
+		Task::Create(1, &UART::uart_1_server_receive);
+
 		Task::Create(2, &Train::train_admin);
+		
+		// Task::Create(2, &Sensor::sensor_admin);
+
 
 		// // printf("exiting first user task\r\n");
 		Task::Create(3, &SystemTask::k4_dummy); // temp dummy test to see if io works
-		Task::Create(3, &SystemTask::k4_dummy_train); // temp dummy test to see if io works
-		Task::Create(3, &SystemTask::k4_dummy_train_sensor); // temp dummy test to see if io works
+		Task::Create(3, &SystemTask::k4_dummy_train_rev); // temp dummy test to see if io works
+		// Task::Create(3, &SystemTask::k4_dummy_train_sensor); // temp dummy test to see if io works
 
 		Task::Exit();
 	}

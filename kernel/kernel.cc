@@ -127,7 +127,7 @@ int UART::UartReadAll(int channel, char* buffer) { // designed for reading all t
 	return to_kernel(Kernel::HandlerCode::READ_ALL, channel, buffer);
 }
 
-int UART::PutC(int tid, int uart, char ch) {
+int UART::Putc(int tid, int uart, char ch) {
 	// since we only have uart0, uart param is ignored
 	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID)) {
 		return -1;
@@ -137,7 +137,19 @@ int UART::PutC(int tid, int uart, char ch) {
 	return 0;
 }
 
-int UART::GetC(int tid, int uart) {
+
+int UART::Puts(int tid, int uart, const char* s, uint64_t len) {
+	// since we only have uart0, uart param is ignored
+	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID)) {
+		return -1;
+	}
+	UART::WorkerRequestBody body = {len, s};
+	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::PUTS, body);
+	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
+	return 0;
+}
+
+int UART::Getc(int tid, int uart) {
 	// since we only have uart0, uart param is ignored
 	if ((uart == 0 && tid != UART::UART_0_RECEIVER_TID) || (uart == 1 && tid != UART::UART_1_RECEIVER_TID)) {
 		return -1;
@@ -170,9 +182,9 @@ void Kernel::activate() {
 	if (active_task != SystemTask::IDLE_TID) {
 		active_request = tasks[active_task]->to_active();
 	} else {
-		time_keeper.idle_start();
+		// time_keeper.idle_start();
 		active_request = tasks[active_task]->to_active();
-		time_keeper.idle_end();
+		// time_keeper.idle_end();
 	}
 }
 
@@ -375,7 +387,6 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 				tasks[uart_0_transmit_tid]->to_ready(0x0, &scheduler);
 				uart_0_transmit_tid = Task::UART_TRANSMIT_FULL;
 				enable_transmit_interrupt[0] = false;
-				printf("turning off transmit\r\n");
 				interrupt_control(0);
 			} else if (exception_code == UART::InterruptType::UART_CLEAR) {
 				break;
