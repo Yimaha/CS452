@@ -96,6 +96,10 @@ int Clock::DelayUntil(int tid, int ticks) {
 	return timer_server_interface_helper(tid, Clock::RequestHeader::DELAY_UNTIL, (uint32_t)ticks);
 }
 
+int Clock::IdleStats(uint64_t* idle_time, uint64_t* total_time) {
+	return to_kernel(Kernel::HandlerCode::IDLE_STATS, idle_time, total_time);
+}
+
 int Interrupt::AwaitEvent(int eventId) {
 	return to_kernel(Kernel::HandlerCode::AWAIT_EVENT, eventId);
 }
@@ -170,8 +174,21 @@ int Terminal::Putc(int tid, char ch) {
 }
 
 int Terminal::Puts(int tid, const char* str) {
-	for (int i = 0; str[i] != '\0'; ++i) {
-		TerminalServerReq req = TerminalServerReq(RequestHeader::PUTC, str[i]);
+	int len = 0;
+	while (str[len] != '\0') {
+		++len;
+	}
+
+	// Send things to the server in 64 byte chunks
+	for (int i = 0; i < len; i += Terminal::MAX_PUTS_LEN) {
+		int j = 0;
+		WorkerRequestBody body = { 0, { 0 } };
+		for (; j < Terminal::MAX_PUTS_LEN && i + j < len; ++j) {
+			body.msg[j] = str[i + j];
+		}
+
+		body.msg_len = j;
+		TerminalServerReq req = TerminalServerReq(RequestHeader::PUTS, body);
 		Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(TerminalServerReq), nullptr, 0);
 	}
 
@@ -200,9 +217,9 @@ void Kernel::activate() {
 	if (active_task != SystemTask::IDLE_TID) {
 		active_request = tasks[active_task]->to_active();
 	} else {
-		// time_keeper.idle_start();
+		time_keeper.idle_start();
 		active_request = tasks[active_task]->to_active();
-		// time_keeper.idle_end();
+		time_keeper.idle_end();
 	}
 }
 
@@ -342,6 +359,15 @@ void Kernel::handle_syscall() {
 		bool enable = active_request->x2;
 		enable_receive_interrupt[channel] = enable;
 		interrupt_control(channel);
+		tasks[active_task]->to_ready(0x0, &scheduler);
+		break;
+	}
+	case HandlerCode::IDLE_STATS: {
+		uint64_t* idle = reinterpret_cast<uint64_t*>(active_request->x1);
+		uint64_t* total = reinterpret_cast<uint64_t*>(active_request->x2);
+
+		*idle = time_keeper.get_idle_time();
+		*total = time_keeper.get_total_time();
 		tasks[active_task]->to_ready(0x0, &scheduler);
 		break;
 	}

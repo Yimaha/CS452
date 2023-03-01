@@ -90,6 +90,12 @@ void Terminal::terminal_admin() {
 			UART::Putc(UART::UART_0_TRANSMITTER_TID, 0, req.body.regular_msg);
 			break;
 		}
+		case RequestHeader::PUTS: {
+			uint64_t len = req.body.worker_msg.msg_len;
+			req.body.worker_msg.msg[len] = '\0';
+			UART::Puts(UART::UART_0_TRANSMITTER_TID, 0, req.body.worker_msg.msg, len);
+			break;
+		}
 		case RequestHeader::CLOCK: {
 			// 100ms clock update
 			ticks += 1;

@@ -1,7 +1,6 @@
 #include "clock.h"
+#include "../server/terminal_admin.h"
 #include "../utils/printf.h"
-
-
 
 struct TIMER {
 	uint32_t CS;  // System Timer Control/Status
@@ -51,6 +50,14 @@ void Clock::TimeKeeper::tick() {
 	set_comparator(tick_tracker);
 }
 
+uint64_t Clock::TimeKeeper::get_idle_time() {
+	return idle_time;
+}
+
+uint64_t Clock::TimeKeeper::get_total_time() {
+	return total_time;
+}
+
 void Clock::TimeKeeper::idle_start() {
 	last_idle_ping = system_time();
 }
@@ -62,17 +69,10 @@ void Clock::TimeKeeper::idle_end() {
 
 void Clock::TimeKeeper::update_total_time(int prev_task) {
 	uint64_t t = system_time();
+	char buf[100];
 
 	total_time += t - last_ping;
 	last_ping = t;
-
-	if (t - last_print > 2000000 && prev_task == SystemTask::IDLE_TID) {
-		uint64_t leading = idle_time * 100 / total_time;
-		uint64_t trailing = (idle_time * 100000) / total_time % 1000;
-		printf("\0337\033[1;80HIdle time: %llu\033[2;80HTotal time: %llu", idle_time, total_time);
-		printf("\033[3;80HPercentage: %llu.%03llu\r\n\0338", leading, trailing);
-		last_print = t;
-	}
 }
 
 void Clock::TimeKeeper::set_comparator(uint32_t interrupt_time, uint32_t reg_num) {

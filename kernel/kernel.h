@@ -18,6 +18,7 @@
 #include "server/terminal_admin.h"
 #include "server/uart_server.h"
 #include "user/idle_task.h"
+#include "user/idle_time_task.h"
 #include "utils/slab_allocator.h"
 
 namespace Task
@@ -121,6 +122,13 @@ int Delay(int tid, int ticks);
 // 	-2 if the delay is negative.
 //*************************************************************************
 int DelayUntil(int tid, int ticks);
+
+//*************************************************************************
+/// Gets the current idle time and total time in microseconds,
+/// and stores them in the given pointers.
+///\return 0 on success, or -1 if there are errors for some reason.
+//*************************************************************************
+int IdleStats(uint64_t* idle_time, uint64_t* total_time);
 }
 
 namespace Interrupt
@@ -178,7 +186,8 @@ public:
 		READ_REGISTER = 18,
 		READ_ALL = 19,
 		TRANSMIT_INTERRUPT = 20,
-		RECEIVE_INTERRUPT = 21
+		RECEIVE_INTERRUPT = 21,
+		IDLE_STATS = 22
 	};
 
 	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };

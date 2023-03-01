@@ -22,6 +22,8 @@ public:
 
 	void start();
 	void tick();
+	uint64_t get_idle_time();
+	uint64_t get_total_time();
 	void idle_start();
 	void idle_end();
 	void update_total_time(int prev_task);

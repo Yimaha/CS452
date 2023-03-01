@@ -1,5 +1,6 @@
 #include "couriers.h"
 #include "../server/terminal_admin.h"
+#include "../server/train_admin.h"
 #include "../utils/printf.h"
 #include "../utils/utility.h"
 
@@ -21,7 +22,7 @@ bool check_char(int terminal_tid, const char c, const char expected, const char*
 	return false;
 }
 
-int handle_tr(int terminal_tid, const char cmd[], int* char_count) {
+int handle_tr(int terminal_tid, int train_server_tid, const char cmd[], int* char_count) {
 	// Okay we assume good faith actors for now
 	if (check_char(terminal_tid, cmd[1], 'r', ERROR, PROMPT, char_count))
 		return -1;
@@ -64,10 +65,16 @@ int handle_tr(int terminal_tid, const char cmd[], int* char_count) {
 		}
 	}
 
+	Train::TrainAdminReq req;
+	req.header = Train::RequestHeader::SPEED;
+	req.body.id = train;
+	req.body.action = speed;
+	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
+
 	return 0;
 }
 
-int handle_rv(int terminal_tid, const char cmd[], int* char_count) {
+int handle_rv(int terminal_tid, int train_server_tid, const char cmd[], int* char_count) {
 	if (check_char(terminal_tid, cmd[1], 'v', ERROR, PROMPT, char_count))
 		return -1;
 	if (check_char(terminal_tid, cmd[2], ' ', ERROR, PROMPT, char_count))
@@ -96,10 +103,15 @@ int handle_rv(int terminal_tid, const char cmd[], int* char_count) {
 		}
 	}
 
+	Train::TrainAdminReq req;
+	req.header = Train::RequestHeader::REV;
+	req.body.id = train;
+	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
+
 	return 0;
 }
 
-int handle_sw(int terminal_tid, const char cmd[], int* char_count) {
+int handle_sw(int terminal_tid, int train_server_tid, const char cmd[], int* char_count) {
 	if (check_char(terminal_tid, cmd[1], 'w', ERROR, PROMPT, char_count))
 		return -1;
 	if (check_char(terminal_tid, cmd[2], ' ', ERROR, PROMPT, char_count))
@@ -141,6 +153,12 @@ int handle_sw(int terminal_tid, const char cmd[], int* char_count) {
 		}
 	}
 
+	Train::TrainAdminReq req;
+	req.header = Train::RequestHeader::SWITCH;
+	req.body.id = snum;
+	req.body.action = status;
+	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
+
 	return 0;
 }
 
@@ -149,6 +167,7 @@ void Courier::user_input() {
 	char c;
 	int char_count = 0;
 	int terminal_tid = Name::WhoIs(Terminal::TERMINAL_ADMIN);
+	int train_server_tid = Name::WhoIs(Train::TRAIN_SERVER_NAME);
 	int clock_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
 
 	Terminal::Puts(terminal_tid, "Press any key to enter OS mode\r\n");
@@ -175,73 +194,73 @@ void Courier::user_input() {
 	while (true) {
 		c = UART::Getc(UART::UART_0_RECEIVER_TID, 0);
 		if (char_count > CMD_LEN) {
-			error_and_prompt(terminal_tid, LENGTH_ERROR, PROMPT, &char_count);
-			continue;
-		} else if (c == '\b') {
-			if (char_count > 0) {
-				cmd[char_count] = '\0';
-				char_count--;
-				Terminal::Puts(terminal_tid, "\b \b");
-			}
-		} else if (c == '\r') {
-			cmd[char_count] = '\r';
-			switch (cmd[0]) {
-			case 't': {
-				int res = handle_tr(terminal_tid, cmd, &char_count);
-				if (res == -1) {
-					continue;
-				}
-				// TODO: Send to train administrator
-				break;
-			}
-			case 'r': {
-				int res = handle_rv(terminal_tid, cmd, &char_count);
-				if (res == -1) {
-					continue;
-				}
-				// TODO: Send to train administrator
-				break;
-			}
-			case 's': {
-				int res = handle_sw(terminal_tid, cmd, &char_count);
-				if (res == -1) {
-					continue;
-				}
-				// TODO: Send to train administrator
-				break;
-			}
-			case 'q': {
-				int i = 1;
-				while (cmd[i] == ' ' && i < CMD_LEN) {
-					++i;
-				}
+			// 	error_and_prompt(terminal_tid, LENGTH_ERROR, PROMPT, &char_count);
+			// 	continue;
+			// } else if (c == '\b') {
+			// 	if (char_count > 0) {
+			// 		cmd[char_count] = '\0';
+			// 		char_count--;
+			// 		Terminal::Puts(terminal_tid, "\b \b");
+			// 	}
+			// } else if (c == '\r') {
+			// 	cmd[char_count] = '\r';
+			// 	switch (cmd[0]) {
+			// 	case 't': {
+			// 		int res = handle_tr(terminal_tid, train_server_tid, cmd, &char_count);
+			// 		if (res == -1) {
+			// 			continue;
+			// 		}
+			// 		// TODO: Send to train administrator
+			// 		break;
+			// 	}
+			// 	case 'r': {
+			// 		int res = handle_rv(terminal_tid, train_server_tid, cmd, &char_count);
+			// 		if (res == -1) {
+			// 			continue;
+			// 		}
+			// 		// TODO: Send to train administrator
+			// 		break;
+			// 	}
+			// 	case 's': {
+			// 		int res = handle_sw(terminal_tid, train_server_tid, cmd, &char_count);
+			// 		if (res == -1) {
+			// 			continue;
+			// 		}
+			// 		// TODO: Send to train administrator
+			// 		break;
+			// 	}
+			// 	case 'q': {
+			// 		int i = 1;
+			// 		while (cmd[i] == ' ' && i < CMD_LEN) {
+			// 			++i;
+			// 		}
 
-				if (cmd[i] == '\r') {
-					Terminal::Puts(terminal_tid, "\r\n");
-					Terminal::Puts(terminal_tid, QUIT);
-					Terminal::Puts(terminal_tid, "\r\n");
-					// Should have some kind of command to flush the buffer
-					break;
-				} else {
-					error_and_prompt(terminal_tid, ERROR, PROMPT, &char_count);
-					continue;
-				}
-				break;
-			}
-			default: {
-				error_and_prompt(terminal_tid, ERROR, PROMPT, &char_count);
-				continue;
-			}
-			}
+			// 		if (cmd[i] == '\r') {
+			// 			Terminal::Puts(terminal_tid, "\r\n");
+			// 			Terminal::Puts(terminal_tid, QUIT);
+			// 			Terminal::Puts(terminal_tid, "\r\n");
+			// 			// Should have some kind of command to flush the buffer
+			// 			break;
+			// 		} else {
+			// 			error_and_prompt(terminal_tid, ERROR, PROMPT, &char_count);
+			// 			continue;
+			// 		}
+			// 		break;
+			// 	}
+			// 	default: {
+			// 		error_and_prompt(terminal_tid, ERROR, PROMPT, &char_count);
+			// 		continue;
+			// 	}
+			// 	}
 
-			char_count = 0;
-			Terminal::Puts(terminal_tid, "\r\n");
-			Terminal::Puts(terminal_tid, PROMPT);
+			// 	char_count = 0;
+			// 	Terminal::Puts(terminal_tid, "\r\n");
+			// 	Terminal::Puts(terminal_tid, PROMPT);
 
-			// Reset cmd
-			for (int i = 0; i < CMD_LEN; ++i) {
-				cmd[i] = '\0';
-			}
+			// 	// Reset cmd
+			// 	for (int i = 0; i < CMD_LEN; ++i) {
+			// 		cmd[i] = '\0';
+			// 	}
 		} else {
 			cmd[char_count++] = c;
 			Terminal::Putc(terminal_tid, c);

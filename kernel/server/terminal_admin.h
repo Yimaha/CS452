@@ -29,15 +29,16 @@ const char* const SWITCH_UI[] = { SWITCH_UI_L0, SWITCH_UI_L1, SWITCH_UI_L2, SWIT
 
 const int SWITCH_UI_LEN = 10;
 const int NUM_SENSOR_BYTES = 10;
+const int MAX_PUTS_LEN = 64;
 
 void terminal_puts(const char* msg, int clock_server_tid, int delay = 1);
 void terminal_admin();
 
-enum class RequestHeader : uint32_t { NONE, PUTC, CLOCK, SENSORS, SWITCH };
+enum class RequestHeader : uint32_t { NONE, PUTC, PUTS, CLOCK, SENSORS, SWITCH };
 
 struct WorkerRequestBody {
 	uint64_t msg_len = 0;
-	char msg[16];
+	char msg[MAX_PUTS_LEN];
 };
 
 union RequestBody

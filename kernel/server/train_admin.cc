@@ -34,13 +34,6 @@ struct SwitchDelayMessage {
 void Train::train_admin() {
 	Name::RegisterAs(TRAIN_SERVER_NAME);
 
-	const int POOL_SIZE = 30;
-	etl::queue<int, POOL_SIZE> courier_pool;
-	for (int i = 0; i < POOL_SIZE; i++) {
-		courier_pool.push(Task::Create(2, &train_courier));
-	}
-	int uart_tid = Name::WhoIs(UART::UART_1_TRANSMITTER);
-
 	const int POOL_SIZE = 32;
 	etl::queue<int, POOL_SIZE> courier_pool;
 	for (int i = 0; i < POOL_SIZE; i++) {
