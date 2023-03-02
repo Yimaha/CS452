@@ -26,7 +26,7 @@ public:
 	uint64_t get_total_time();
 	void idle_start();
 	void idle_end();
-	void update_total_time(int prev_task);
+	void update_total_time();
 
 private:
 	/*

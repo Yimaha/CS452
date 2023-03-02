@@ -66,6 +66,12 @@ void Terminal::terminal_puts(const char* msg, int clock_server_tid, int delay) {
 		UART::Putc(UART::UART_0_TRANSMITTER_TID, 0, msg[i]);
 	}
 
+	// int len = 0;
+	// while (msg[len] != '\0') {
+	// 	len++;
+	// }
+
+	// UART::Puts(UART::UART_0_TRANSMITTER_TID, 0, msg, len);
 	Clock::Delay(clock_server_tid, delay);
 }
 
@@ -75,13 +81,15 @@ void Terminal::terminal_admin() {
 	int ticks = 0;
 	TerminalServerReq req;
 	char buf[16];
-	int buflen = 0;
 
 	int clock_server_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
 
 	int tid = Task::MyTid();
 	sprintf(buf, "T-A TID: %d\r\n", tid);
 	terminal_puts(buf, clock_server_tid);
+
+	// This is used to keep track of number of activated sensors
+	int prev_on = 0;
 
 	while (true) {
 		Receive::Receive(&from, reinterpret_cast<char*>(&req), sizeof(TerminalServerReq));
@@ -91,9 +99,7 @@ void Terminal::terminal_admin() {
 			break;
 		}
 		case RequestHeader::PUTS: {
-			uint64_t len = req.body.worker_msg.msg_len;
-			req.body.worker_msg.msg[len] = '\0';
-			UART::Puts(UART::UART_0_TRANSMITTER_TID, 0, req.body.worker_msg.msg, len);
+			terminal_puts(req.body.worker_msg.msg, clock_server_tid, 0);
 			break;
 		}
 		case RequestHeader::CLOCK: {
@@ -117,6 +123,7 @@ void Terminal::terminal_admin() {
 			terminal_puts(RED_CURSOR, clock_server_tid, 0);
 
 			// Print out the sensor data
+			int curr_on = 0;
 			for (int i = 0; i < NUM_SENSOR_BYTES; i++) {
 				const char l = SENSOR_LETTERS[i / 2];
 				int pos = 8 * (i % 2);
@@ -129,14 +136,19 @@ void Terminal::terminal_admin() {
 						UART::Putc(UART::UART_0_TRANSMITTER_TID, 0, tens);
 						UART::Putc(UART::UART_0_TRANSMITTER_TID, 0, ones);
 						UART::Putc(UART::UART_0_TRANSMITTER_TID, 0, ' ');
+						curr_on += 1;
 					}
 				}
 			}
 
 			// Clear out old sensor data
-			terminal_puts(SPACES, clock_server_tid, 0);
+			if (curr_on < prev_on) {
+				terminal_puts(SPACES, clock_server_tid, 0);
+			}
+
 			terminal_puts(RESET_CURSOR, clock_server_tid, 0);
-			terminal_puts(RESTORE_CURSOR, clock_server_tid, 0);
+			terminal_puts(RESTORE_CURSOR, clock_server_tid, 1);
+			prev_on = curr_on;
 
 			break;
 		}

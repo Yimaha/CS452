@@ -187,7 +187,7 @@ int Terminal::Puts(int tid, const char* str) {
 			body.msg[j] = str[i + j];
 		}
 
-		body.msg_len = j;
+		body.msg_len = j - 1;
 		TerminalServerReq req = TerminalServerReq(RequestHeader::PUTS, body);
 		Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(TerminalServerReq), nullptr, 0);
 	}
@@ -200,9 +200,8 @@ Kernel::Kernel() {
 }
 
 void Kernel::schedule_next_task() {
-	int prev_task = active_task;
 	active_task = scheduler.get_next();
-	time_keeper.update_total_time(prev_task);
+	time_keeper.update_total_time();
 	while (active_task == Task::NO_TASKS) {
 		char m[] = "no tasks available...\r\n";
 		uart_puts(0, 0, m, sizeof(m) - 1);

@@ -1,7 +1,7 @@
 #include "train_admin.h"
+
 static const char extra_switch[] = { 0x99, 0x9A, 0x9B, 0x9C };
 int get_switch_id(int id) {
-
 	if (1 <= id && id <= 18) {
 		return id;
 	} else if (153 <= id && id <= 156) {
@@ -43,7 +43,6 @@ void Train::train_admin() {
 	etl::queue<SwitchDelayMessage, POOL_SIZE> switch_queue;
 
 	int uart_tid = Name::WhoIs(UART::UART_1_TRANSMITTER);
-	int print_tid = Name::WhoIs(UART::UART_0_TRANSMITTER);
 	char command[2];
 	int from;
 	TrainAdminReq req;
@@ -127,8 +126,8 @@ void Train::train_admin() {
 			break;
 		}
 		default: {
-			char exception[30];
-			sprintf(exception, "illegal type: [%d]\r\n", req.header);
+			char exception[50];
+			sprintf(exception, "Train Admin illegal type: [%d]\r\n", req.header);
 			Task::_KernelPrint(exception);
 			while (1) {
 			}
@@ -177,8 +176,8 @@ void Train::train_courier() {
 			break;
 		}
 		default: {
-			char exception[30];
-			sprintf(exception, "illegal type: [%d]\r\n", req.header);
+			char exception[50];
+			sprintf(exception, "Train Courier illegal type: [%d]\r\n", req.header);
 			Task::_KernelPrint(exception);
 			while (1) {
 			}

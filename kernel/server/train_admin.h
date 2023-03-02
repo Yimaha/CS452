@@ -1,8 +1,8 @@
 #pragma once
 
+#include "../etl/queue.h"
 #include "../kernel.h"
 #include "../rpi.h"
-#include "../etl/queue.h"
 namespace Train
 {
 
@@ -31,4 +31,3 @@ struct TrainCourierReq {
 	RequestBody body; // depending on the header, it treats the body differently
 } __attribute__((aligned(8)));
 }
-

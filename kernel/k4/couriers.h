@@ -21,4 +21,7 @@ void user_input();
 // the recipient_tid every `repeat` ticks (default 10).
 const char CLOCK_COURIER_NAME[] = "CLOCK_COURIER";
 void terminal_clock_courier();
+
+const char SENSOR_QUERY_COURIER_NAME[] = "SENSOR_COURIER";
+void sensor_query_courier();
 }

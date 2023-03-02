@@ -67,9 +67,8 @@ void Clock::TimeKeeper::idle_end() {
 	idle_time += t - last_idle_ping;
 }
 
-void Clock::TimeKeeper::update_total_time(int prev_task) {
+void Clock::TimeKeeper::update_total_time() {
 	uint64_t t = system_time();
-	char buf[100];
 
 	total_time += t - last_ping;
 	last_ping = t;

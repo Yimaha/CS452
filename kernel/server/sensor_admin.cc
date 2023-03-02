@@ -20,7 +20,7 @@ void Sensor::sensor_admin() {
 		}
 	}
 	char sensor_state[10] = { 0b10101010 };
-	SensorCourierReq req_to_courier = { CourierRequestHeader::OBSERVER, { 100 } };
+	SensorCourierReq req_to_courier = { CourierRequestHeader::OBSERVER, { 10 } };
 	Message::Send::Send(courier, (const char*)&req_to_courier, sizeof(SensorCourierReq), nullptr, 0);
 
 	while (true) {

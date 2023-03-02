@@ -1,6 +1,8 @@
 #include "couriers.h"
+#include "../server/sensor_admin.h"
 #include "../server/terminal_admin.h"
 #include "../server/train_admin.h"
+#include "../server/train_logic.h"
 #include "../utils/printf.h"
 #include "../utils/utility.h"
 
@@ -20,6 +22,14 @@ bool check_char(int terminal_tid, const char c, const char expected, const char*
 		return true;
 	}
 	return false;
+}
+
+void set_train_speed(int train_server_tid, int train, int speed) {
+	TrainLogic::TrainLogicServerReq req;
+	req.header = TrainLogic::RequestHeader::SPEED;
+	req.body.id = train;
+	req.body.action = speed;
+	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
 }
 
 int handle_tr(int terminal_tid, int train_server_tid, const char cmd[], int* char_count) {
@@ -65,12 +75,7 @@ int handle_tr(int terminal_tid, int train_server_tid, const char cmd[], int* cha
 		}
 	}
 
-	Train::TrainAdminReq req;
-	req.header = Train::RequestHeader::SPEED;
-	req.body.id = train;
-	req.body.action = speed;
-	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
-
+	set_train_speed(train_server_tid, train, speed);
 	return 0;
 }
 
@@ -103,8 +108,8 @@ int handle_rv(int terminal_tid, int train_server_tid, const char cmd[], int* cha
 		}
 	}
 
-	Train::TrainAdminReq req;
-	req.header = Train::RequestHeader::REV;
+	TrainLogic::TrainLogicServerReq req;
+	req.header = TrainLogic::RequestHeader::REV;
 	req.body.id = train;
 	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
 
@@ -159,6 +164,12 @@ int handle_sw(int terminal_tid, int train_server_tid, const char cmd[], int* cha
 	req.body.action = status;
 	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
 
+	Terminal::TerminalServerReq treq;
+	treq.header = Terminal::RequestHeader::SWITCH;
+	treq.body.worker_msg.msg[0] = snum;
+	treq.body.worker_msg.msg[1] = status;
+	Message::Send::Send(terminal_tid, reinterpret_cast<char*>(&treq), sizeof(treq), nullptr, 0);
+
 	return 0;
 }
 
@@ -168,6 +179,7 @@ void Courier::user_input() {
 	int char_count = 0;
 	int terminal_tid = Name::WhoIs(Terminal::TERMINAL_ADMIN);
 	int train_server_tid = Name::WhoIs(Train::TRAIN_SERVER_NAME);
+	int train_logic_server_tid = Name::WhoIs(TrainLogic::TRAIN_LOGIC_SERVER_NAME);
 	int clock_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
 
 	Terminal::Puts(terminal_tid, "Press any key to enter OS mode\r\n");
@@ -191,76 +203,88 @@ void Courier::user_input() {
 	// Activate the terminal timer
 	int clock_courier_tid = Name::WhoIs(CLOCK_COURIER_NAME);
 	Message::Send::Send(clock_courier_tid, nullptr, 0, nullptr, 0);
+
+	// Activate the sensor courier
+	int sensor_courier_tid = Name::WhoIs(SENSOR_QUERY_COURIER_NAME);
+	Message::Send::Send(sensor_courier_tid, nullptr, 0, nullptr, 0);
+
 	while (true) {
 		c = UART::Getc(UART::UART_0_RECEIVER_TID, 0);
 		if (char_count > CMD_LEN) {
-			// 	error_and_prompt(terminal_tid, LENGTH_ERROR, PROMPT, &char_count);
-			// 	continue;
-			// } else if (c == '\b') {
-			// 	if (char_count > 0) {
-			// 		cmd[char_count] = '\0';
-			// 		char_count--;
-			// 		Terminal::Puts(terminal_tid, "\b \b");
-			// 	}
-			// } else if (c == '\r') {
-			// 	cmd[char_count] = '\r';
-			// 	switch (cmd[0]) {
-			// 	case 't': {
-			// 		int res = handle_tr(terminal_tid, train_server_tid, cmd, &char_count);
-			// 		if (res == -1) {
-			// 			continue;
-			// 		}
-			// 		// TODO: Send to train administrator
-			// 		break;
-			// 	}
-			// 	case 'r': {
-			// 		int res = handle_rv(terminal_tid, train_server_tid, cmd, &char_count);
-			// 		if (res == -1) {
-			// 			continue;
-			// 		}
-			// 		// TODO: Send to train administrator
-			// 		break;
-			// 	}
-			// 	case 's': {
-			// 		int res = handle_sw(terminal_tid, train_server_tid, cmd, &char_count);
-			// 		if (res == -1) {
-			// 			continue;
-			// 		}
-			// 		// TODO: Send to train administrator
-			// 		break;
-			// 	}
-			// 	case 'q': {
-			// 		int i = 1;
-			// 		while (cmd[i] == ' ' && i < CMD_LEN) {
-			// 			++i;
-			// 		}
+			error_and_prompt(terminal_tid, LENGTH_ERROR, PROMPT, &char_count);
+			continue;
+		} else if (c == '\b') {
+			if (char_count > 0) {
+				cmd[char_count] = '\0';
+				char_count--;
+				Terminal::Puts(terminal_tid, "\b \b");
+			}
+		} else if (c == '\r') {
+			cmd[char_count] = '\r';
+			switch (cmd[0]) {
+			case 't': {
+				int res = handle_tr(terminal_tid, train_logic_server_tid, cmd, &char_count);
+				if (res == -1) {
+					continue;
+				}
+				// TODO: Send to train administrator
+				break;
+			}
+			case 'r': {
+				int res = handle_rv(terminal_tid, train_logic_server_tid, cmd, &char_count);
+				if (res == -1) {
+					continue;
+				}
+				// TODO: Send to train administrator
+				break;
+			}
+			case 's': {
+				int res = handle_sw(terminal_tid, train_server_tid, cmd, &char_count);
+				if (res == -1) {
+					continue;
+				}
+				// TODO: Send to train administrator
+				break;
+			}
+			case 'q': {
+				int i = 1;
+				while (cmd[i] == ' ' && i < CMD_LEN) {
+					++i;
+				}
 
-			// 		if (cmd[i] == '\r') {
-			// 			Terminal::Puts(terminal_tid, "\r\n");
-			// 			Terminal::Puts(terminal_tid, QUIT);
-			// 			Terminal::Puts(terminal_tid, "\r\n");
-			// 			// Should have some kind of command to flush the buffer
-			// 			break;
-			// 		} else {
-			// 			error_and_prompt(terminal_tid, ERROR, PROMPT, &char_count);
-			// 			continue;
-			// 		}
-			// 		break;
-			// 	}
-			// 	default: {
-			// 		error_and_prompt(terminal_tid, ERROR, PROMPT, &char_count);
-			// 		continue;
-			// 	}
-			// 	}
+				if (cmd[i] == '\r') {
+					Terminal::Puts(terminal_tid, "\r\n");
+					Terminal::Puts(terminal_tid, QUIT);
+					Terminal::Puts(terminal_tid, "\r\n");
 
-			// 	char_count = 0;
-			// 	Terminal::Puts(terminal_tid, "\r\n");
-			// 	Terminal::Puts(terminal_tid, PROMPT);
+					for (int k = 0; k < TrainLogic::NUM_TRAINS; ++k) {
+						// Stop all trains
+						set_train_speed(train_logic_server_tid, TrainLogic::TRAIN_NUMBERS[k], 0);
+						Clock::Delay(clock_tid, 2);
+					}
 
-			// 	// Reset cmd
-			// 	for (int i = 0; i < CMD_LEN; ++i) {
-			// 		cmd[i] = '\0';
-			// 	}
+					// Should have some kind of command to flush the buffer
+					break;
+				} else {
+					error_and_prompt(terminal_tid, ERROR, PROMPT, &char_count);
+					continue;
+				}
+				break;
+			}
+			default: {
+				error_and_prompt(terminal_tid, ERROR, PROMPT, &char_count);
+				continue;
+			}
+			}
+
+			char_count = 0;
+			Terminal::Puts(terminal_tid, "\r\n");
+			Terminal::Puts(terminal_tid, PROMPT);
+
+			// Reset cmd
+			for (int i = 0; i < CMD_LEN; ++i) {
+				cmd[i] = '\0';
+			}
 		} else {
 			cmd[char_count++] = c;
 			Terminal::Putc(terminal_tid, c);
@@ -287,5 +311,31 @@ void Courier::terminal_clock_courier() {
 		internal_timer += repeat;
 		Clock::DelayUntil(clock_tid, internal_timer);
 		Message::Send::Send(terminal_tid, reinterpret_cast<char*>(&req), sizeof(Terminal::TerminalServerReq), nullptr, 0);
+	}
+}
+
+void Courier::sensor_query_courier() {
+	int sensor_admin = Name::WhoIs(Sensor::SENSOR_ADMIN_NAME);
+	int terminal_tid = Name::WhoIs(Terminal::TERMINAL_ADMIN);
+	Sensor::SensorAdminReq req;
+	req.header = Sensor::RequestHeader::GET_SENSOR_STATE;
+	char result[10];
+
+	Terminal::TerminalServerReq treq;
+	treq.header = Terminal::RequestHeader::SENSORS;
+
+	Name::RegisterAs(SENSOR_QUERY_COURIER_NAME);
+
+	int from;
+	Message::Receive::Receive(&from, nullptr, 0);
+	Message::Reply::Reply(from, nullptr, 0);
+
+	while (true) {
+		Message::Send::Send(sensor_admin, reinterpret_cast<char*>(&req), sizeof(req), result, Terminal::NUM_SENSOR_BYTES);
+		for (int i = 0; i < Terminal::NUM_SENSOR_BYTES; ++i) {
+			treq.body.worker_msg.msg[i] = result[i];
+		}
+
+		Message::Send::Send(terminal_tid, reinterpret_cast<char*>(&treq), sizeof(treq), nullptr, 0);
 	}
 }
