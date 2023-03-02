@@ -81,12 +81,7 @@ void Terminal::terminal_admin() {
 	int ticks = 0;
 	TerminalServerReq req;
 	char buf[16];
-
 	int clock_server_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
-
-	int tid = Task::MyTid();
-	sprintf(buf, "T-A TID: %d\r\n", tid);
-	terminal_puts(buf, clock_server_tid);
 
 	// This is used to keep track of number of activated sensors
 	int prev_on = 0;

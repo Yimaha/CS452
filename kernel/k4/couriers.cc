@@ -24,12 +24,26 @@ bool check_char(int terminal_tid, const char c, const char expected, const char*
 	return false;
 }
 
-void set_train_speed(int train_server_tid, int train, int speed) {
+void set_train_speed(int train_logic_server_tid, int train, int speed) {
 	TrainLogic::TrainLogicServerReq req;
 	req.header = TrainLogic::RequestHeader::SPEED;
 	req.body.id = train;
 	req.body.action = speed;
+	Message::Send::Send(train_logic_server_tid, reinterpret_cast<char*>(&req), sizeof(TrainLogic::TrainLogicServerReq), nullptr, 0);
+}
+
+void set_switch(int terminal_tid, int train_server_tid, char snum, char status) {
+	Train::TrainAdminReq req;
+	req.header = Train::RequestHeader::SWITCH;
+	req.body.id = snum;
+	req.body.action = status;
 	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
+
+	Terminal::TerminalServerReq treq;
+	treq.header = Terminal::RequestHeader::SWITCH;
+	treq.body.worker_msg.msg[0] = snum;
+	treq.body.worker_msg.msg[1] = status;
+	Message::Send::Send(terminal_tid, reinterpret_cast<char*>(&treq), sizeof(treq), nullptr, 0);
 }
 
 int handle_tr(int terminal_tid, int train_server_tid, const char cmd[], int* char_count) {
@@ -158,18 +172,7 @@ int handle_sw(int terminal_tid, int train_server_tid, const char cmd[], int* cha
 		}
 	}
 
-	Train::TrainAdminReq req;
-	req.header = Train::RequestHeader::SWITCH;
-	req.body.id = snum;
-	req.body.action = status;
-	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
-
-	Terminal::TerminalServerReq treq;
-	treq.header = Terminal::RequestHeader::SWITCH;
-	treq.body.worker_msg.msg[0] = snum;
-	treq.body.worker_msg.msg[1] = status;
-	Message::Send::Send(terminal_tid, reinterpret_cast<char*>(&treq), sizeof(treq), nullptr, 0);
-
+	set_switch(terminal_tid, train_server_tid, snum, status);
 	return 0;
 }
 
@@ -194,7 +197,18 @@ void Courier::user_input() {
 	}
 
 	// delay for a bit to let the switches print
-	Clock::Delay(clock_tid, 50);
+	Clock::Delay(clock_tid, 100);
+
+	// Set all the switches to curved
+	for (int i = 0; i <= 18; ++i) {
+		set_switch(terminal_tid, train_server_tid, i, 'c');
+		Clock::Delay(clock_tid, 20);
+	}
+
+	for (int i = 153; i <= 156; ++i) {
+		set_switch(terminal_tid, train_server_tid, i, 'c');
+		Clock::Delay(clock_tid, 20);
+	}
 
 	Terminal::Puts(terminal_tid, "Welcome to AbyssOS!\r\n");
 	Terminal::Puts(terminal_tid, PROMPT);
@@ -264,7 +278,7 @@ void Courier::user_input() {
 					}
 
 					// Should have some kind of command to flush the buffer
-					break;
+					Task::Exit();
 				} else {
 					error_and_prompt(terminal_tid, ERROR, PROMPT, &char_count);
 					continue;
