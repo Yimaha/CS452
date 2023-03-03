@@ -3,6 +3,7 @@
 #include "user/user_tasks.h"
 #include "utils/printf.h"
 
+
 int Task::Create(int priority, void (*function)()) {
 	return to_kernel(Kernel::HandlerCode::CREATE, priority, function);
 }
@@ -148,9 +149,25 @@ int UART::Puts(int tid, int uart, const char* s, uint64_t len) {
 	}
 	UART::WorkerRequestBody body;
 	body.msg_len = len;
-	for (uint64_t i = 0; i < len; i++) {
+	for (uint64_t i = 0; i < len; i ++) {
 		body.msg[i] = s[i];
 	}
+
+	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::PUTS, body);
+	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
+	return 0;
+}
+
+int UART::PutsNullTerm(int tid, int uart, const char* s, uint64_t len) {
+	// since we only have uart0, uart param is ignored
+	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID)) {
+		return -1;
+	}
+	UART::WorkerRequestBody body;
+	for (body.msg_len = 0; body.msg_len < len && (s[body.msg_len] != '\0'); body.msg_len ++) {
+		body.msg[body.msg_len] = s[body.msg_len];
+	}
+
 	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::PUTS, body);
 	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
 	return 0;
@@ -167,33 +184,6 @@ int UART::Getc(int tid, int uart) {
 	return (int)c;
 }
 
-int Terminal::Putc(int tid, char ch) {
-	TerminalServerReq req = TerminalServerReq(RequestHeader::PUTC, ch);
-	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(TerminalServerReq), nullptr, 0);
-	return 0;
-}
-
-int Terminal::Puts(int tid, const char* str) {
-	int len = 0;
-	while (str[len] != '\0') {
-		++len;
-	}
-
-	// Send things to the server in 64 byte chunks
-	for (int i = 0; i < len; i += Terminal::MAX_PUTS_LEN) {
-		int j = 0;
-		WorkerRequestBody body = { 0, { 0 } };
-		for (; j < Terminal::MAX_PUTS_LEN && i + j < len; ++j) {
-			body.msg[j] = str[i + j];
-		}
-
-		body.msg_len = j - 1;
-		TerminalServerReq req = TerminalServerReq(RequestHeader::PUTS, body);
-		Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(TerminalServerReq), nullptr, 0);
-	}
-
-	return 0;
-}
 
 Kernel::Kernel() {
 	allocate_new_task(Task::MAIDENLESS, 0, &UserTask::first_user_task);
@@ -607,3 +597,4 @@ void Kernel::handle_await_event_with_buffer(int eventId, char* buffer) {
 void Kernel::start_timer() {
 	time_keeper.start();
 }
+

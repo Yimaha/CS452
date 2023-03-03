@@ -1,11 +1,9 @@
 #include "user_tasks.h"
 #include "../k3/k3_client.h"
-#include "../k4/couriers.h"
 #include "../k4/k4_client.h"
 #include "../kernel.h"
 #include "../rpi.h"
 #include "../server/train_admin.h"
-#include "../server/train_logic.h"
 #include "../server/uart_server.h"
 #include "../utils/utility.h"
 
@@ -33,20 +31,18 @@ void UserTask::first_user_task() {
 
 		Task::Create(2, &Train::train_admin);
 		Task::Create(2, &Sensor::sensor_admin);
-		Task::Create(3, &Terminal::terminal_admin);
-		Task::Create(2, &TrainLogic::train_logic_server);
-
 		// // printf("exiting first user task\r\n");
 		// Task::Create(3, &SystemTask::k4_dummy); // temp dummy test to see if io works
 		// Task::Create(3, &SystemTask::k4_dummy_train_rev); // temp dummy test to see if io works
 		// Task::Create(3, &SystemTask::k4_dummy_train_sensor); // temp dummy test to see if io works
 		// Task::Create(3, &SystemTask::k4_dummy_train_switch); // temp dummy test to see if io works
 
-		// Create the user input couriers
-		Task::Create(3, &Courier::terminal_clock_courier);
-		Task::Create(3, &SystemTask::idle_time_task);
-		Task::Create(3, &Courier::sensor_query_courier);
-		Task::Create(3, &Courier::user_input);
+		// Create the terminal admin and user input
+		Task::Create(3, &Terminal::terminal_admin);
+		// Task::Create(3, &Courier::terminal_clock_courier);
+		// Task::Create(3, &SystemTask::idle_time_task);
+		// Task::Create(3, &Courier::sensor_query_courier);
+		// Task::Create(3, &Courier::user_input);
 
 		Task::Exit();
 	}

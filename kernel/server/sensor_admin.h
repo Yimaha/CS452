@@ -8,6 +8,7 @@ namespace Sensor
 
 constexpr char SENSOR_ADMIN_NAME[] = "SENSOR_ADMIN";
 constexpr int SENSOR_UART_CHANNEL = 1;
+const int NUM_SENSOR_BYTES = 10;
 
 void sensor_admin();
 void sensor_courier();

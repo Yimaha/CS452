@@ -1,6 +1,7 @@
 #include "uart_server.h"
 #include "../etl/queue.h"
 #include "../utils/printf.h"
+#include "../rpi.h"
 
 using namespace UART;
 
@@ -23,6 +24,7 @@ void UART::uart_0_server_transmit() {
 			while (!transmit_queue.empty()) {
 				bool put_successful = UART::UartWriteRegister(uart_channel, UART_THR, transmit_queue.front());
 				if (put_successful != UART::SUCCESSFUL) {
+					transmit_interrupt_enable = true;
 					UART::TransInterrupt(uart_channel, true);
 					break; // we filled the buffer again, very unlikely to happen though.
 				} else {
@@ -64,13 +66,13 @@ void UART::uart_0_server_transmit() {
 					}
 				} else {
 					int i = 0;
-					int put_successful = UART::UartWriteRegister(uart_channel, UART_THR, s[i]);
+					int put_successful = UART::SUCCESSFUL;
 					while (i < len && put_successful == UART::SUCCESSFUL) {
-						i += 1;
 						put_successful = UART::UartWriteRegister(uart_channel, UART_THR, s[i]);
+						i ++;
 					}
 					if (i != len) { // we couldn't push everything
-						for (; i < len; i++) {
+						for (i = i-1; i < len; i++) {
 							transmit_queue.push(s[i]);
 						}
 						// enable the interrupt

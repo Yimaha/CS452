@@ -39,7 +39,7 @@ enum class RequestHeader : uint32_t { NONE, NOTIFY_RECEIVE, NOTIFY_TRANSMISSION,
 
 struct WorkerRequestBody {
 	uint64_t msg_len = 0;
-	char msg[64];
+	char msg[512];
 };
 
 union RequestBody

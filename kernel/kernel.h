@@ -18,7 +18,6 @@
 #include "server/terminal_admin.h"
 #include "server/uart_server.h"
 #include "user/idle_task.h"
-#include "user/idle_time_task.h"
 #include "utils/slab_allocator.h"
 
 namespace Task
@@ -143,6 +142,7 @@ int UartWriteRegister(int channel, char reg, char data);
 int UartReadRegister(int channel, char reg);
 int Putc(int tid, int uart, char ch);
 int Puts(int tid, int uart, const char* s, uint64_t len);
+int PutsNullTerm(int tid, int uart, const char* s, uint64_t len = 65);
 int Getc(int tid, int uart);
 int TransInterrupt(int channel, bool enable);
 int ReceiveInterrupt(int channel, bool enable);
@@ -151,12 +151,6 @@ const int SPI_CHANNEL = 0;
 const int SUCCESSFUL = 0;
 enum Exception { INVALID_SERVER_TASK = -1, FAILED_TO_WRITE = -2 };
 
-}
-
-namespace Terminal
-{
-int Putc(int tid, char ch);
-int Puts(int tid, const char* str);
 }
 
 /**

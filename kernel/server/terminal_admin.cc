@@ -1,7 +1,9 @@
 #include "terminal_admin.h"
+#include "../etl/circular_buffer.h"
+#include "../server/train_admin.h"
 #include "../utils/buffer.h"
 #include "../utils/printf.h"
-
+#include "courier_pool.h"
 using namespace Terminal;
 using namespace Message;
 
@@ -61,114 +63,476 @@ void sw_to_cursor_pos(char sw, int* r, int* c) {
 	}
 }
 
-void Terminal::terminal_puts(const char* msg, int clock_server_tid, int delay) {
-	for (int i = 0; msg[i] != '\0'; i++) {
-		UART::Putc(UART::UART_0_TRANSMITTER_TID, 0, msg[i]);
+void error_and_prompt(const char* error_msg, int* char_count) {
+	char buffer[64];
+	sprintf(buffer, "\r\n%s", error_msg);
+	UART::PutsNullTerm(UART::UART_0_TRANSMITTER_TID, 0, buffer, 64);
+	*char_count = 0;
+}
+
+bool check_char(const char c, const char expected, const char* error_msg, int* char_count) {
+	if (c != expected) {
+		error_and_prompt(error_msg, char_count);
+		return true;
+	}
+	return false;
+}
+
+int handle_tr(int train_server_tid, const char cmd[], int* char_count) {
+	// Okay we assume good faith actors for now
+	if (check_char(cmd[1], 'r', ERROR, char_count))
+		return -1;
+	if (check_char(cmd[2], ' ', ERROR, char_count))
+		return -1;
+
+	int i = 3;
+	int out_len = 0;
+	int train = scan_int(cmd + i, 2, &out_len);
+	if (train == -1) {
+		error_and_prompt(ERROR, char_count);
+		return -1;
 	}
 
-	// int len = 0;
-	// while (msg[len] != '\0') {
-	// 	len++;
-	// }
+	i += out_len + 1;
+	if (i > CMD_LEN) {
+		error_and_prompt(LENGTH_ERROR, char_count);
+		return -1;
+	} else if (check_char(cmd[i - 1], ' ', ERROR, char_count))
+		return -1;
 
-	// UART::Puts(UART::UART_0_TRANSMITTER_TID, 0, msg, len);
-	Clock::Delay(clock_server_tid, delay);
+	int speed = scan_int(cmd + i, 2, &out_len);
+	if (speed == -1) {
+		error_and_prompt(ERROR, char_count);
+		return -1;
+	}
+
+	i += out_len;
+	if (i > CMD_LEN) {
+		error_and_prompt(LENGTH_ERROR, char_count);
+		return -1;
+	}
+
+	for (; cmd[i] != '\r'; ++i) {
+		if (i > CMD_LEN) {
+			error_and_prompt(LENGTH_ERROR, char_count);
+			return -1;
+		} else if (check_char(cmd[i], ' ', ERROR, char_count)) {
+			return -1;
+		}
+	}
+
+	Train::TrainAdminReq req;
+	req.header = Train::RequestHeader::SPEED;
+	req.body.id = train;
+	req.body.action = speed;
+	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
+
+	return 0;
 }
+
+int handle_rv(Courier::CourierPool<TerminalCourierMessage>& pool, const char cmd[], int* char_count) {
+	if (check_char(cmd[1], 'v', ERROR, char_count))
+		return -1;
+	if (check_char(cmd[2], ' ', ERROR, char_count))
+		return -1;
+
+	int out_len = 0;
+	int i = 3;
+	int train = scan_int(cmd + i, 2, &out_len);
+	if (train == -1) {
+		error_and_prompt(ERROR, char_count);
+		return -1;
+	}
+
+	i += out_len;
+	if (i > CMD_LEN) {
+		error_and_prompt(LENGTH_ERROR, char_count);
+		return -1;
+	}
+
+	for (; cmd[i] != '\r'; ++i) {
+		if (i > CMD_LEN) {
+			error_and_prompt(LENGTH_ERROR, char_count);
+			return -1;
+		} else if (check_char(cmd[i], ' ', ERROR, char_count)) {
+			return -1;
+		}
+	}
+
+	TerminalCourierMessage req = {CourierRequestHeader::REV, train};
+	pool.request(&req, sizeof(req));
+	return 0;
+}
+
+int handle_sw(int train_server_tid, const char cmd[], int* char_count) {
+	if (check_char(cmd[1], 'w', ERROR, char_count))
+		return -1;
+	if (check_char(cmd[2], ' ', ERROR, char_count))
+		return -1;
+
+	char snum = 0;
+	char status = 0;
+	int i = 3;
+
+	int out_len = 0;
+	int switch_num = scan_int(cmd + i, 3, &out_len);
+
+	if (switch_num == -1) {
+		error_and_prompt(ERROR, char_count);
+		return -1;
+	} else {
+		snum = switch_num;
+	}
+
+	i += out_len + 2;
+	if (i > CMD_LEN) {
+		error_and_prompt(LENGTH_ERROR, char_count);
+		return -1;
+	} else if (check_char(cmd[i - 2], ' ', ERROR, char_count))
+		return -1;
+
+	status = lower(cmd[i - 1]);
+	if (status != 'c' && status != 's') {
+		error_and_prompt(ERROR, char_count);
+		return -1;
+	}
+
+	for (; cmd[i] != '\r'; ++i) {
+		if (i > CMD_LEN) {
+			error_and_prompt(LENGTH_ERROR, char_count);
+			return -1;
+		} else if (check_char(cmd[i], ' ', ERROR, char_count)) {
+			return -1;
+		}
+	}
+
+	Train::TrainAdminReq req;
+	req.header = Train::RequestHeader::SWITCH;
+	req.body.id = snum;
+	req.body.action = status;
+	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
+
+	return 0;
+}
+
+void str_cpy(const char* source, char* target, int* index, int len, bool check_null_char = false) {
+	for (int i = 0; i < len && (!check_null_char || source[i] != '\0'); i++) {
+		target[*index] = source[i];
+		(*index) += 1;
+	}
+}
+
+
+void set_switch(int train_server_tid, char snum, char status) {
+	Train::TrainAdminReq req;
+	req.header = Train::RequestHeader::SWITCH;
+	req.body.id = snum;
+	req.body.action = status;
+	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
+}
+
+
+
 
 void Terminal::terminal_admin() {
 	Name::RegisterAs(TERMINAL_ADMIN);
+	int uart_0_server_tid = Name::WhoIs(UART::UART_0_TRANSMITTER);
+	int train_server_tid = Name::WhoIs(Train::TRAIN_SERVER_NAME);
 	int from;
-	int ticks = 0;
 	TerminalServerReq req;
-	char buf[16];
-	int clock_server_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
+
+	Courier::CourierPool<TerminalCourierMessage> courier_pool = Courier::CourierPool<TerminalCourierMessage>(&terminal_courier, 3);
+
+	UART::Puts(uart_0_server_tid, 0, START_PROMPT, sizeof(START_PROMPT) - 1);
+
+	Task::Create(3, &terminal_clock_courier);
+	Task::Create(3, &sensor_query_courier);
+	Task::Create(3, &idle_time_courier);
+	Task::Create(3, &user_input_courier);
+
+	bool isRunning = false;
+
+	char printing_buffer[1024]; // 1024 is good for now
+	int printing_index = 0;
+	char buf[100];
+	char cmd[CMD_LEN] = { 0 };
+
+	bool isSensorModified = false;
+	char sensor_state[10];
+	etl::circular_buffer<int, 10> recent_sensor;
+
+	uint64_t idle_time, total_time;
+	bool isIdleTimeModified = false;
+	int char_count = 0;
+	int ticks = 0;
+
+
+
 
 	// This is used to keep track of number of activated sensors
-	int prev_on = 0;
+
+	auto trigger_print = [&]() {
+		if (isRunning) {
+			printing_index = 0;
+			str_cpy(SAVE_CURSOR, printing_buffer, &printing_index, sizeof(SAVE_CURSOR) - 1);
+			str_cpy(TOP_LEFT, printing_buffer, &printing_index, sizeof(TOP_LEFT) - 1);
+			log_time(buf, ticks);
+			str_cpy(buf, printing_buffer, &printing_index, 8);
+			if (isIdleTimeModified) {
+				isIdleTimeModified = false;
+				uint64_t leading = idle_time * 100 / total_time;
+				uint64_t trailing = (idle_time * 100000) / total_time % 1000;
+
+				sprintf(buf, "\033[1;80HPercent: %llu.%03llu", leading, trailing);
+				str_cpy(buf, printing_buffer, &printing_index, 100, true);
+			}
+			if (isSensorModified) {
+				isSensorModified = false;
+				str_cpy(SENSOR_CURSOR, printing_buffer, &printing_index, sizeof(SENSOR_CURSOR) - 1);
+				// str_cpy(RED_CURSOR, printing_buffer, &printing_index, sizeof(RED_CURSOR) - 1);
+				for (int i = 0; i < Sensor::NUM_SENSOR_BYTES; i++) {
+					const char l = SENSOR_LETTERS[i / 2];
+					int pos = 8 * (i % 2);
+					for (int j = 1; j <= 8; j++) {
+						if (sensor_state[i] & (1 << (8 - j))) {
+							char ones = '0' + ((j + pos) % 10);
+							char write[4] = { l, ((j + pos > 9) ? '1' : '0'), ones, ' ' };
+							str_cpy(write, printing_buffer, &printing_index, 4);
+						}
+					}
+				}
+				str_cpy(RESET_CURSOR, printing_buffer, &printing_index, sizeof(RESET_CURSOR) - 1);
+				str_cpy(SPACES, printing_buffer, &printing_index, sizeof(SPACES) - 1);
+			}
+
+			str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
+			if (printing_index >= 512) {
+				Task::_KernelPrint("too long of printing \r\n");
+				while (1) {
+				}
+			}
+			UART::Puts(uart_0_server_tid, 0, printing_buffer, printing_index);
+		}
+	};
 
 	while (true) {
 		Receive::Receive(&from, reinterpret_cast<char*>(&req), sizeof(TerminalServerReq));
 		switch (req.header) {
-		case RequestHeader::PUTC: {
-			UART::Putc(UART::UART_0_TRANSMITTER_TID, 0, req.body.regular_msg);
-			break;
-		}
-		case RequestHeader::PUTS: {
-			terminal_puts(req.body.worker_msg.msg, clock_server_tid, 0);
-			break;
-		}
 		case RequestHeader::CLOCK: {
 			// 100ms clock update
+			Reply::Reply(from, nullptr, 0);
 			ticks += 1;
-			terminal_puts(SAVE_CURSOR, clock_server_tid, 0);
-			terminal_puts(TOP_LEFT, clock_server_tid, 0);
-			log_time(buf, ticks);
-			terminal_puts(buf, clock_server_tid, 0);
-			terminal_puts(RESTORE_CURSOR, clock_server_tid);
-
+			trigger_print();
 			break;
 		}
 		case RequestHeader::SENSORS: {
 			// Should be 10 bytes of sensor data.
 			// Print out all the sensors, in a fancy UI way.
-			const char* sensor_data = req.body.worker_msg.msg;
-
-			terminal_puts(SAVE_CURSOR, clock_server_tid, 0);
-			terminal_puts(SENSOR_CURSOR, clock_server_tid, 0);
-			terminal_puts(RED_CURSOR, clock_server_tid, 0);
-
-			// Print out the sensor data
-			int curr_on = 0;
-			for (int i = 0; i < NUM_SENSOR_BYTES; i++) {
-				const char l = SENSOR_LETTERS[i / 2];
-				int pos = 8 * (i % 2);
-				for (int j = 1; j <= 8; j++) {
-					if (sensor_data[i] & (1 << (8 - j))) {
-						char tens = (j + pos > 9) ? '1' : '0';
-						char ones = '0' + (j + pos) % 10;
-
-						UART::Putc(UART::UART_0_TRANSMITTER_TID, 0, l);
-						UART::Putc(UART::UART_0_TRANSMITTER_TID, 0, tens);
-						UART::Putc(UART::UART_0_TRANSMITTER_TID, 0, ones);
-						UART::Putc(UART::UART_0_TRANSMITTER_TID, 0, ' ');
-						curr_on += 1;
-					}
-				}
+			Reply::Reply(from, nullptr, 0);
+			for (int i = 0; i < 10; i++) {
+				sensor_state[i] = req.body.worker_msg.msg[i];
 			}
-
-			// Clear out old sensor data
-			if (curr_on < prev_on) {
-				terminal_puts(SPACES, clock_server_tid, 0);
-			}
-
-			terminal_puts(RESET_CURSOR, clock_server_tid, 0);
-			terminal_puts(RESTORE_CURSOR, clock_server_tid, 1);
-			prev_on = curr_on;
-
+			isSensorModified = true;
 			break;
 		}
-		case RequestHeader::SWITCH: {
-			// Update the switch diplay.
+		case RequestHeader::IDLE: {
+			Reply::Reply(from, nullptr, 0);
+			Clock::IdleStats(&idle_time, &total_time);
+			isIdleTimeModified = true;
+			break;
+		}
+		case RequestHeader::START: {
+			Reply::Reply(from, nullptr, 0);
+			UART::Puts(uart_0_server_tid, 0, CLEAR_SCREEN, sizeof(CLEAR_SCREEN) - 1);
+			UART::Puts(uart_0_server_tid, 0, TOP_LEFT, sizeof(TOP_LEFT) - 1);
+			UART::Puts(uart_0_server_tid, 0, SENSOR_DATA, sizeof(SENSOR_DATA) - 1);
+			for (int i = 0; i < Terminal::SWITCH_UI_LEN; ++i) {
+				UART::PutsNullTerm(uart_0_server_tid, 0, Terminal::SWITCH_UI[i]);
+			}
+			UART::Puts(uart_0_server_tid, 0, WELCOME_MSG, sizeof(WELCOME_MSG) - 1);
+			UART::Puts(uart_0_server_tid, 0, PROMPT, sizeof(PROMPT) - 1);
+			// disabled for now
+			// for some reason, when this is enabled, not only does switch not fire, there is also
+			// for (int i = 1; i <= 18; ++i) {
+			// 	set_switch(train_server_tid, i, 'c');
+			// }
 
-			int snum = req.body.worker_msg.msg[0];
-			char status = req.body.worker_msg.msg[1];
+			// for (int i = 153; i <= 156; ++i) {
+			// 	set_switch(train_server_tid, i, 'c');
+			// }
+			isRunning = true;
+			break;
+		}
+		case RequestHeader::REVERSE_COMPLETE: {
+			courier_pool.receive(from);
+			break;
+		}
+		case RequestHeader::PUTC: {
+			Reply::Reply(from, nullptr, 0);
+			char c = req.body.regular_msg;
+			if (char_count > CMD_LEN) {
+				error_and_prompt(LENGTH_ERROR, &char_count);
+			} else if (c == '\b') {
+				if (char_count > 0) {
+					cmd[char_count] = '\0';
+					char_count--;
+					UART::Puts(uart_0_server_tid, 0, "\b \b", 3);
+				}
+			} else if (c == '\r') {
+				cmd[char_count] = '\r';
+				switch (cmd[0]) {
+				case 't': {
+					handle_tr(train_server_tid, cmd, &char_count);
+					break;
+				}
+				case 'r': {
+					handle_rv(courier_pool, cmd, &char_count);
+					break;
+				}
+				case 's': {
+					handle_sw(train_server_tid, cmd, &char_count);
+					break;
+				}
+				case 'q': {
+					int i = 1;
+					while (cmd[i] == ' ' && i < CMD_LEN) {
+						++i;
+					}
 
-			int row, col;
-			char buf[10] = { 0 };
-			terminal_puts(SAVE_CURSOR, clock_server_tid, 0);
-			sw_to_cursor_pos(snum, &row, &col);
-			size_t len = 0;
-			move_cursor(row, col, buf, &len);
-			terminal_puts(buf, clock_server_tid, 0);
-			UART::Putc(UART::UART_0_TRANSMITTER_TID, 0, status);
-			terminal_puts(RESTORE_CURSOR, clock_server_tid);
+					if (cmd[i] == '\r') {
+						UART::Puts(uart_0_server_tid, 0, QUIT, sizeof(QUIT) - 1);
+
+						for (int k = 0; k < Train::NUM_TRAINS; ++k) {
+							// Stop all trains
+							// set_train_speed(train_logic_server_tid, Train::TRAIN_NUMBERS[k], 0);
+						}
+
+						// Should have some kind of command to flush the buffer
+						// lol I am litearry crashing the server right now, which trigger a reboot
+						kernel_assert(1 == 2);
+					} else {
+						error_and_prompt(ERROR, &char_count);
+					}
+					break;
+				}
+				default: {
+					error_and_prompt(ERROR, &char_count);
+					break;
+				}
+				}
+
+				char_count = 0;
+				UART::Puts(uart_0_server_tid, 0, PROMPT, sizeof(PROMPT) - 1);
+
+				// Reset cmd
+				for (int i = 0; i < CMD_LEN; ++i) {
+					cmd[i] = '\0';
+				}
+			} else {
+				cmd[char_count++] = c;
+				UART::Putc(uart_0_server_tid, 0, c);
+			}
 			break;
 		}
 		default: {
 			break;
 		}
 		}
+	}
+}
 
-		Reply::Reply(from, nullptr, 0);
+void Terminal::terminal_courier() {
+
+	int terminal_tid = Name::WhoIs(Terminal::TERMINAL_ADMIN);
+	int train_tid = Name::WhoIs(Train::TRAIN_SERVER_NAME);
+	
+	Terminal::TerminalCourierMessage req;
+	Terminal::TerminalServerReq req_to_admin;
+	Train::TrainAdminReq req_to_train;
+	int from;
+	while (1) {
+		Message::Receive::Receive(&from, (char*)&req, sizeof(TerminalCourierMessage));
+		Message::Reply::Reply(from, nullptr, 0); // unblock caller right away
+		switch (req.header) {
+		case CourierRequestHeader::REV: {
+			// it wait for about 4 seconds then send in the command to reverse and speed up
+			req_to_train.header = Train::RequestHeader::REV;
+			req_to_train.body.id = req.body;
+			Message::Send::Send(train_tid, reinterpret_cast<char*>(&req_to_train), sizeof(req_to_train), nullptr, 0);
+			req_to_admin = { RequestHeader::REVERSE_COMPLETE, '0' };
+			Message::Send::Send(terminal_tid, (const char*)&req_to_admin, sizeof(req_to_admin), nullptr, 0);
+			break;
+		}
+		default: {
+			char exception[50];
+			sprintf(exception, "Train Courier illegal type: [%d]\r\n", req.header);
+			Task::_KernelPrint(exception);
+			while (1) {
+			}
+		}
+		}
+	}
+
+}
+
+void Terminal::terminal_clock_courier() {
+	Name::RegisterAs(TERMINAL_CLOCK_COURIER_NAME);
+
+	int repeat = CLOCK_UPDATE_FREQUENCY;
+	int clock_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
+	int terminal_tid = Name::WhoIs(Terminal::TERMINAL_ADMIN);
+	int internal_timer = Clock::Time(clock_tid);
+	Terminal::TerminalServerReq req = Terminal::TerminalServerReq(Terminal::RequestHeader::CLOCK, internal_timer);
+
+	while (true) {
+		Message::Send::Send(terminal_tid, reinterpret_cast<char*>(&req), sizeof(Terminal::TerminalServerReq), nullptr, 0);
+		internal_timer += repeat;
+		Clock::DelayUntil(clock_tid, internal_timer);
+	}
+}
+
+void Terminal::sensor_query_courier() {
+	Name::RegisterAs(TERMINAL_SENSOR_COURIER_NAME);
+
+	int sensor_admin = Name::WhoIs(Sensor::SENSOR_ADMIN_NAME);
+	int terminal_tid = Name::WhoIs(Terminal::TERMINAL_ADMIN);
+	Sensor::SensorAdminReq req;
+	req.header = Sensor::RequestHeader::GET_SENSOR_STATE;
+
+	Terminal::TerminalServerReq treq;
+	treq.header = Terminal::RequestHeader::SENSORS;
+	while (true) {
+		Message::Send::Send(sensor_admin, reinterpret_cast<char*>(&req), sizeof(Sensor::SensorAdminReq), treq.body.worker_msg.msg, Sensor::NUM_SENSOR_BYTES);
+		Message::Send::Send(terminal_tid, reinterpret_cast<char*>(&treq), sizeof(Terminal::TerminalServerReq), nullptr, 0);
+	}
+}
+
+void Terminal::idle_time_courier() {
+	// technically idle_task will never need to yield to kernel
+	// since there is no context swtich, only interrupt after this point
+	int clock_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
+	int terminal_tid = Name::WhoIs(Terminal::TERMINAL_ADMIN);
+
+	Terminal::TerminalServerReq treq;
+	treq.header = Terminal::RequestHeader::IDLE;
+
+	while (true) {
+		Message::Send::Send(terminal_tid, reinterpret_cast<char*>(&treq), sizeof(Terminal::TerminalServerReq), nullptr, 0);
+		Clock::Delay(clock_tid, 200);
+	}
+}
+
+void Terminal::user_input_courier() {
+	Terminal::TerminalServerReq treq;
+	treq.header = Terminal::RequestHeader::START;
+
+	int terminal_tid = Name::WhoIs(Terminal::TERMINAL_ADMIN);
+
+	UART::Getc(UART::UART_0_RECEIVER_TID, 0);
+	Message::Send::Send(terminal_tid, reinterpret_cast<char*>(&treq), sizeof(Terminal::TerminalServerReq), nullptr, 0);
+	treq.header = Terminal::RequestHeader::PUTC;
+	while (true) {
+		treq.body.regular_msg = UART::Getc(UART::UART_0_RECEIVER_TID, 0);
+		Message::Send::Send(terminal_tid, reinterpret_cast<char*>(&treq), sizeof(Terminal::TerminalServerReq), nullptr, 0);
 	}
 }
