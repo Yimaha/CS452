@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../kernel.h"
-#include "../utils/utility.h"
 #include "../server/sensor_admin.h"
+#include "../utils/utility.h"
 
 namespace Terminal
 {
@@ -13,7 +13,6 @@ constexpr char TERMINAL_SWITCH_COURIER_NAME[] = "TERMINAL_CLOCK";
 constexpr char TERMINAL_SENSOR_COURIER_NAME[] = "TERMINAL_SENSOR";
 constexpr char TERMINAL_PRINTER_NAME[] = "TERMINAL_PRINT";
 constexpr char IDLE_TIME_TASK_NAME[] = "IDLE_TIME_TASK";
-
 
 constexpr char CLEAR_SCREEN[] = "\033[2J";
 constexpr char TOP_LEFT[] = "\033[H";
@@ -28,6 +27,7 @@ constexpr char SENSOR_DATA[] = "\r\n\r\n\r\nSENSOR DATA:\r\n\r\n\r\n";
 constexpr char WELCOME_MSG[] = "Welcome to AbyssOS!";
 constexpr char SWITCH_UI_L0[] = "SWITCHES:\r\n";
 constexpr char PROMPT[] = "\r\nABYSS> ";
+constexpr char PROMPT_NNL[] = "ABYSS> ";
 const char ERROR[] = "ERROR: INVALID COMMAND\r\n";
 const char LENGTH_ERROR[] = "ERROR: COMMAND TOO LONG\r\n";
 const char QUIT[] = "\r\nQUITTING...\r\n\r\n";
@@ -48,8 +48,10 @@ const int MAX_PUTS_LEN = 64;
 
 const int CLOCK_UPDATE_FREQUENCY = 10;
 constexpr int CMD_LEN = 64;
-
-
+constexpr int CMD_HISTORY_LEN = 128;
+const int TA_DEFAULT_ARROW_STATE = 0;
+const int TA_FOUND_ESCAPE = 1;
+const int TA_FOUND_BRACKET = 2;
 
 void terminal_admin();
 void terminal_courier();
@@ -87,13 +89,9 @@ struct TerminalServerReq {
 		body.worker_msg = worker_msg;
 	}
 
-
-
 } __attribute__((aligned(8)));
 
-
 enum class CourierRequestHeader : uint32_t { NONE, REV };
-
 
 struct TerminalCourierMessage {
 	CourierRequestHeader header = CourierRequestHeader::NONE;

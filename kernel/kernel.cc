@@ -3,7 +3,6 @@
 #include "user/user_tasks.h"
 #include "utils/printf.h"
 
-
 int Task::Create(int priority, void (*function)()) {
 	return to_kernel(Kernel::HandlerCode::CREATE, priority, function);
 }
@@ -24,6 +23,10 @@ void Task::Yield() {
 
 void Task::_KernelPrint(const char* msg) {
 	to_kernel(Kernel::HandlerCode::PRINT, msg);
+}
+
+void Task::_KernelCrash(const char* msg) {
+	to_kernel(Kernel::HandlerCode::CRASH, msg);
 }
 
 int Message::Send::Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
@@ -149,7 +152,7 @@ int UART::Puts(int tid, int uart, const char* s, uint64_t len) {
 	}
 	UART::WorkerRequestBody body;
 	body.msg_len = len;
-	for (uint64_t i = 0; i < len; i ++) {
+	for (uint64_t i = 0; i < len; i++) {
 		body.msg[i] = s[i];
 	}
 
@@ -164,7 +167,7 @@ int UART::PutsNullTerm(int tid, int uart, const char* s, uint64_t len) {
 		return -1;
 	}
 	UART::WorkerRequestBody body;
-	for (body.msg_len = 0; body.msg_len < len && (s[body.msg_len] != '\0'); body.msg_len ++) {
+	for (body.msg_len = 0; body.msg_len < len && (s[body.msg_len] != '\0'); body.msg_len++) {
 		body.msg[body.msg_len] = s[body.msg_len];
 	}
 
@@ -183,7 +186,6 @@ int UART::Getc(int tid, int uart) {
 	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), &c, 1);
 	return (int)c;
 }
-
 
 Kernel::Kernel() {
 	allocate_new_task(Task::MAIDENLESS, 0, &UserTask::first_user_task);
@@ -216,9 +218,6 @@ Kernel::~Kernel() { }
 
 void Kernel::handle() {
 	KernelEntryCode kecode = static_cast<KernelEntryCode>(active_request->data);
-#ifdef OUR_DEBUG
-	printf("KEC: %llu\r\n", active_request->data);
-#endif
 	switch (kecode) {
 	case KernelEntryCode::SYSCALL:
 		handle_syscall();
@@ -252,6 +251,11 @@ void Kernel::handle() {
 
 void Kernel::handle_syscall() {
 	HandlerCode request = (HandlerCode)active_request->x0; // x0 is always the request type
+
+#ifdef OUR_DEBUG
+	KernelEntryInfo keinfo = KernelEntryInfo(active_task, request, active_request->x1, active_request->x2);
+	backtrace_stack.push(keinfo);
+#endif
 
 	switch (request) {
 	case HandlerCode::SEND:
@@ -360,10 +364,25 @@ void Kernel::handle_syscall() {
 		tasks[active_task]->to_ready(0x0, &scheduler);
 		break;
 	}
+	case HandlerCode::CRASH: {
+		const char* msg = reinterpret_cast<const char*>(active_request->x1);
+		printf(msg);
+		for (auto& keinfo : backtrace_stack) {
+			printf("Task [%d], HandlerCode %d, Arg1 %d, Arg2 %d, ICode %d\r\n", keinfo.tid, keinfo.handler_code, keinfo.arg1, keinfo.arg2, keinfo.icode);
+		}
+
+		while (true) {
+		}
+		break;
+	}
 	default:
-		printf("Unknown syscall: %d from %d\r\n", request, active_task);
+		printf("\r\nUnknown syscall: %d from %d\r\n", request, active_task);
 		uint64_t error_code = (read_esr() >> 26) & 0x3f;
 		printf("ESR: %llx\r\n", error_code);
+		for (auto& keinfo : backtrace_stack) {
+			printf("Task [%d], HandlerCode %d, Arg1 %d, Arg2 %d, ICode %d\r\n", keinfo.tid, keinfo.handler_code, keinfo.arg1, keinfo.arg2, keinfo.icode);
+		}
+
 		while (true) {
 		}
 	}
@@ -375,6 +394,12 @@ void Kernel::interrupt_control(int channel) {
 }
 
 void Kernel::handle_interrupt(InterruptCode icode) {
+
+#ifdef OUR_DEBUG
+	KernelEntryInfo keinfo = KernelEntryInfo(active_task, HandlerCode::NONE, 0, 0, icode);
+	backtrace_stack.push(keinfo);
+#endif
+
 	switch (icode) {
 	case InterruptCode::TIMER: {
 		time_keeper.tick();
@@ -597,4 +622,3 @@ void Kernel::handle_await_event_with_buffer(int eventId, char* buffer) {
 void Kernel::start_timer() {
 	time_keeper.start();
 }
-

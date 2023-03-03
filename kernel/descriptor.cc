@@ -52,7 +52,7 @@ char* TaskDescriptor::get_event_buffer() {
 
 void TaskDescriptor::to_ready(int system_response, Task::Scheduler* scheduler) {
 #ifdef OUR_DEBUG
-	if (state == ACTIVE || state == SEND_BLOCK || state == RECEIVE_BLOCK || state == REPLY_BLOCK || state == EVENT_BLOCK) // ignoring event block for k2
+	if (state == ACTIVE || state == SEND_BLOCK || state == RECEIVE_BLOCK || state == REPLY_BLOCK || state == EVENT_BLOCK || state == INTERRUPTED) // ignoring event block for k2
 	{
 #endif
 		state = READY;
@@ -62,6 +62,7 @@ void TaskDescriptor::to_ready(int system_response, Task::Scheduler* scheduler) {
 #ifdef OUR_DEBUG
 	} else {
 		print("unblock is called on task that is not blocked!\r\n", 48);
+		printf("task id: %d, state: %d\r\n", task_id, state);
 		crash();
 	}
 #endif

@@ -7,6 +7,7 @@
 
 #include "context_switch.h"
 #include "descriptor.h"
+#include "etl/circular_buffer.h"
 #include "interrupt_handler.h"
 #include "k1/user_tasks_k1.h"
 #include "k2/user_tasks_k2.h"
@@ -29,6 +30,13 @@ constexpr int UART_TRANSMIT_FULL = -4;
 constexpr uint64_t USER_TASK_START_ADDRESS = 0x10000000;
 constexpr uint64_t USER_TASK_LIMIT = 200;
 
+const int LAUNCH_PRIORITY = 0;
+const int CRITICAL_PRIORITY = 1;
+const int HIGH_PRIORITY = 2;
+const int MEDIUM_PRIORITY = 3;
+const int TERMINAL_PRIORITY = 3;
+const int IDLE_PRIORITY = 4;
+
 int MyTid();
 int MyParentTid();
 void Exit();
@@ -37,6 +45,7 @@ int Create(int priority, void (*function)());
 
 // Debug utility functions because user prints are unreliable
 void _KernelPrint(const char* msg);
+void _KernelCrash(const char* msg);
 }
 
 /**
@@ -181,11 +190,12 @@ public:
 		READ_ALL = 19,
 		TRANSMIT_INTERRUPT = 20,
 		RECEIVE_INTERRUPT = 21,
-		IDLE_STATS = 22
+		IDLE_STATS = 22,
+		CRASH = 23,
 	};
 
 	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
-	enum InterruptCode { TIMER = Clock::TIMER_INTERRUPT_ID, UART = UART::UART_INTERRUPT_ID, CLEAR = 1023 };
+	enum InterruptCode { NA = 0, TIMER = Clock::TIMER_INTERRUPT_ID, UART = UART::UART_INTERRUPT_ID, CLEAR = 1023 };
 
 	Kernel();
 	~Kernel();
@@ -210,6 +220,28 @@ private:
 		= SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()>((char*)Task::USER_TASK_START_ADDRESS, Task::USER_TASK_LIMIT);
 
 	Clock::TimeKeeper time_keeper = Clock::TimeKeeper();
+
+	/*
+	 * Struct that represents the information contained in a kernel entry
+	 * Used to keep a backtrace stack
+	 */
+	struct KernelEntryInfo {
+		int tid;
+		HandlerCode handler_code;
+		uint64_t arg1;
+		uint64_t arg2;
+
+		InterruptCode icode;
+		KernelEntryInfo(int tid, HandlerCode handler_code, int arg1, int arg2, InterruptCode icode = InterruptCode::NA)
+			: tid(tid)
+			, handler_code(handler_code)
+			, arg1(arg1)
+			, arg2(arg2)
+			, icode(icode) { }
+	};
+
+	// Backtrace stack
+	etl::circular_buffer<KernelEntryInfo, 64> backtrace_stack = etl::circular_buffer<KernelEntryInfo, 64>();
 
 	// clock notifier "list", a pointer to the notifier
 	int clock_notifier_tid = Task::CLOCK_QUEUE_EMPTY; // always 1 agent for time

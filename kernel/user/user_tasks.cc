@@ -10,35 +10,35 @@
 void UserTask::first_user_task() {
 	while (true) {
 		// Create the name server
-		Task::Create(2, &Name::name_server);
+		Task::Create(Task::HIGH_PRIORITY, &Name::name_server);
 
 		// Register in the name server
 		Name::RegisterAs(UserTask::FIRST_USER_TASK_NAME);
 
 		// Create the clock server
-		Task::Create(1, &Clock::clock_server);
+		Task::Create(Task::CRITICAL_PRIORITY, &Clock::clock_server);
 
 		// Create the clock notifier
-		Task::Create(1, &Clock::clock_notifier);
+		Task::Create(Task::CRITICAL_PRIORITY, &Clock::clock_notifier);
 
-		Task::Create(7, &SystemTask::idle_task);
+		Task::Create(Task::IDLE_PRIORITY, &SystemTask::idle_task);
 
 		// at the moment, only support uart0
-		Task::Create(1, &UART::uart_0_server_transmit);
-		Task::Create(1, &UART::uart_0_server_receive);
-		Task::Create(1, &UART::uart_1_server_transmit);
-		Task::Create(1, &UART::uart_1_server_receive);
+		Task::Create(Task::CRITICAL_PRIORITY, &UART::uart_0_server_transmit);
+		Task::Create(Task::CRITICAL_PRIORITY, &UART::uart_0_server_receive);
+		Task::Create(Task::CRITICAL_PRIORITY, &UART::uart_1_server_transmit);
+		Task::Create(Task::CRITICAL_PRIORITY, &UART::uart_1_server_receive);
 
-		Task::Create(2, &Train::train_admin);
-		Task::Create(2, &Sensor::sensor_admin);
-		// // printf("exiting first user task\r\n");
+		Task::Create(Task::HIGH_PRIORITY, &Train::train_admin);
+		Task::Create(Task::HIGH_PRIORITY, &Sensor::sensor_admin);
+
 		// Task::Create(3, &SystemTask::k4_dummy); // temp dummy test to see if io works
 		// Task::Create(3, &SystemTask::k4_dummy_train_rev); // temp dummy test to see if io works
 		// Task::Create(3, &SystemTask::k4_dummy_train_sensor); // temp dummy test to see if io works
 		// Task::Create(3, &SystemTask::k4_dummy_train_switch); // temp dummy test to see if io works
 
 		// Create the terminal admin and user input
-		Task::Create(3, &Terminal::terminal_admin);
+		Task::Create(Task::TERMINAL_PRIORITY, &Terminal::terminal_admin);
 		// Task::Create(3, &Courier::terminal_clock_courier);
 		// Task::Create(3, &SystemTask::idle_time_task);
 		// Task::Create(3, &Courier::sensor_query_courier);

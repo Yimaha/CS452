@@ -15,9 +15,7 @@ void Sensor::sensor_admin() {
 	int from;
 	SensorAdminReq req;
 	if (UART::Putc(uart_trans_tid, 1, 0xc0) == -1) {
-		Task::_KernelPrint("faild to enable sensor\r\n");
-		while (1) {
-		}
+		Task::_KernelCrash("Failed to enable sensor\r\n");
 	}
 	char sensor_state[10] = { 0b10101010 };
 	SensorCourierReq req_to_courier = { CourierRequestHeader::OBSERVER, { 10 } };
@@ -48,9 +46,7 @@ void Sensor::sensor_admin() {
 		default: {
 			char exception[30];
 			sprintf(exception, "Sensor Admin: illegal type: [%d]\r\n", req.header);
-			Task::_KernelPrint(exception);
-			while (1) {
-			}
+			Task::_KernelCrash(exception);
 		}
 		}
 	}
@@ -83,9 +79,7 @@ void Sensor::sensor_courier() {
 		default: {
 			char exception[30];
 			sprintf(exception, "Sensor Courier: illegal type: [%d]\r\n", req.header);
-			Task::_KernelPrint(exception);
-			while (1) {
-			}
+			Task::_KernelCrash(exception);
 		}
 		}
 	}

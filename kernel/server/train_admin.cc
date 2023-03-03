@@ -90,7 +90,6 @@ struct SwitchDelayMessage {
 	bool straight;
 };
 
-
 void Train::train_admin() {
 	Name::RegisterAs(TRAIN_SERVER_NAME);
 	const uint64_t POOL_SIZE = 16;
@@ -169,9 +168,7 @@ void Train::train_admin() {
 			courier_pool.receive(from);
 
 			if (switch_queue.empty()) {
-				Task::_KernelPrint("switch queue is empty");
-				while (1) {
-				}
+				Task::_KernelCrash("switch queue is empty");
 			}
 
 			SwitchDelayMessage info = switch_queue.front();
@@ -223,9 +220,7 @@ void Train::train_admin() {
 		default: {
 			char exception[50];
 			sprintf(exception, "Train Admin illegal type: [%d]\r\n", req.header);
-			Task::_KernelPrint(exception);
-			while (1) {
-			}
+			Task::_KernelCrash(exception);
 		}
 		}
 	}
@@ -260,9 +255,7 @@ void Train::train_courier() {
 		default: {
 			char exception[50];
 			sprintf(exception, "Train Courier illegal type: [%d]\r\n", req.header);
-			Task::_KernelPrint(exception);
-			while (1) {
-			}
+			Task::_KernelCrash(exception);
 		}
 		}
 	}
