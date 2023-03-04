@@ -13,7 +13,7 @@ const uint64_t POOL_SIZE = 16;
 template <typename T>
 class CourierPool {
 public:
-	CourierPool(void (*function)(), int priority)
+	CourierPool(void (*function)(), Priority priority)
 		: f { function } {
 		for (uint64_t i = 0; i < POOL_SIZE; i++) {
 			courier_queue.push(Task::Create(priority, function));

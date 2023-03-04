@@ -11,7 +11,7 @@ void Sensor::sensor_admin() {
 	etl::queue<int, SENSOR_ADMIN_NUM_SUBSCRIBERS> subscribers;
 	int uart_trans_tid = Name::WhoIs(UART::UART_1_TRANSMITTER);
 
-	int courier = Task::Create(Task::HIGH_PRIORITY, &sensor_courier);
+	int courier = Task::Create(Priority::HIGH_PRIORITY, &sensor_courier);
 	int from;
 	SensorAdminReq req;
 	if (UART::Putc(uart_trans_tid, 1, 0xc0) == -1) {
@@ -44,9 +44,7 @@ void Sensor::sensor_admin() {
 			break;
 		}
 		default: {
-			char exception[50];
-			sprintf(exception, "Sensor Admin: illegal type: [%d]\r\n", req.header);
-			Task::_KernelCrash(exception);
+			Task::_KernelCrash("Sensor Admin: illegal type: [%d]\r\n", req.header);
 		}
 		}
 	}
@@ -77,9 +75,7 @@ void Sensor::sensor_courier() {
 			break;
 		}
 		default: {
-			char exception[50];
-			sprintf(exception, "Sensor Courier: illegal type: [%d]\r\n", req.header);
-			Task::_KernelCrash(exception);
+			Task::_KernelCrash("Sensor Courier: illegal type: [%d]\r\n", req.header);
 		}
 		} // switch
 	}

@@ -1,5 +1,6 @@
 
 #include "descriptor.h"
+#include "kernel.h"
 #include "utils/printf.h"
 
 using namespace Descriptor;
@@ -7,11 +8,11 @@ using namespace Descriptor;
 /**
  * initialization,
  */
-TaskDescriptor::TaskDescriptor(int id, int parent_id, int priority, void (*pc)())
+TaskDescriptor::TaskDescriptor(int id, int parent_id, Priority priority, void (*pc)())
 	: task_id { id }
 	, parent_id { parent_id }
-	, state { TaskState::READY }
 	, priority { priority }
+	, state { TaskState::READY }
 	, system_call_result { 0x0 } // used to reply from kernel function
 	, initialized { false }
 	, interrupted { false }
@@ -20,14 +21,14 @@ TaskDescriptor::TaskDescriptor(int id, int parent_id, int priority, void (*pc)()
 }
 
 void TaskDescriptor::queue_message(int from, char* msg, int msglen) {
-	inbox.push(Message { from, msg, msglen });
+	inbox.push(MessageStruct { from, msg, msglen });
 }
 
 bool TaskDescriptor::have_message() {
 	return !inbox.empty();
 }
 
-int TaskDescriptor::fill_message(Message msg, int* from, char* msg_container, int msglen) {
+int TaskDescriptor::fill_message(MessageStruct msg, int* from, char* msg_container, int msglen) {
 	memcpy(msg_container, msg.loc, min(msglen, msg.len));
 	*from = msg.from;
 	return msg.len;
@@ -40,8 +41,8 @@ int TaskDescriptor::fill_response(int from, char* msg, int msglen) {
 	return min_len;
 }
 
-Message TaskDescriptor::pop_inbox() {
-	Message msg = inbox.front();
+MessageStruct TaskDescriptor::pop_inbox() {
+	MessageStruct msg = inbox.front();
 	inbox.pop();
 	return msg;
 }
@@ -62,8 +63,7 @@ void TaskDescriptor::to_ready(int system_response, Task::Scheduler* scheduler) {
 #ifdef OUR_DEBUG
 	} else {
 		print("unblock is called on task that is not blocked!\r\n", 48);
-		printf("task id: %d, state: %d\r\n", task_id, state);
-		crash();
+		Task::_KernelCrash("task id: %d, state: %d\r\n", task_id, state);
 	}
 #endif
 }
@@ -160,7 +160,7 @@ void Descriptor::TaskDescriptor::show_info() {
 	print("\r\n", 2);
 	char m4[] = "priority: ";
 	uart_puts(0, 0, m4, sizeof(m4) - 1);
-	print_int(priority);
+	print_int(static_cast<int>(priority));
 	print("\r\n", 2);
 	char m5[] = "initialized:";
 	uart_puts(0, 0, m5, sizeof(m5) - 1);

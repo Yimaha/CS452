@@ -93,7 +93,7 @@ struct SwitchDelayMessage {
 void Train::train_admin() {
 	Name::RegisterAs(TRAIN_SERVER_NAME);
 	const uint64_t POOL_SIZE = 16;
-	Courier::CourierPool<TrainCourierReq> courier_pool = Courier::CourierPool<TrainCourierReq>(&train_courier, 2);
+	Courier::CourierPool<TrainCourierReq> courier_pool = Courier::CourierPool<TrainCourierReq>(&train_courier, Priority::HIGH_PRIORITY);
 	int uart_tid = Name::WhoIs(UART::UART_1_TRANSMITTER);
 	char command[2];
 	int from;
@@ -168,7 +168,7 @@ void Train::train_admin() {
 			courier_pool.receive(from);
 
 			if (switch_queue.empty()) {
-				Task::_KernelCrash("switch queue is empty");
+				Task::_KernelCrash("Train Admin: Switch queue is empty");
 			}
 
 			SwitchDelayMessage info = switch_queue.front();
@@ -218,9 +218,7 @@ void Train::train_admin() {
 			break;
 		}
 		default: {
-			char exception[50];
-			sprintf(exception, "Train Admin illegal type: [%d]\r\n", req.header);
-			Task::_KernelCrash(exception);
+			Task::_KernelCrash("Train Admin illegal type: [%d]\r\n", req.header);
 		}
 		}
 	}
@@ -252,11 +250,8 @@ void Train::train_courier() {
 			Message::Send::Send(train_admin_tid, (const char*)&req_to_admin, sizeof(TrainAdminReq), nullptr, 0);
 			break;
 		}
-		default: {
-			char exception[50];
-			sprintf(exception, "Train Courier illegal type: [%d]\r\n", req.header);
-			Task::_KernelCrash(exception);
-		}
+		default:
+			Task::_KernelCrash("Train Courier illegal type: [%d]\r\n", req.header);
 		}
 	}
 }

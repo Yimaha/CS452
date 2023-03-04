@@ -10,27 +10,27 @@
 void UserTask::first_user_task() {
 	while (true) {
 		// Create the name server
-		Task::Create(Task::HIGH_PRIORITY, &Name::name_server);
+		Task::Create(Priority::HIGH_PRIORITY, &Name::name_server);
 
 		// Register in the name server
 		Name::RegisterAs(UserTask::FIRST_USER_TASK_NAME);
 
 		// Create the clock server
-		Task::Create(Task::CRITICAL_PRIORITY, &Clock::clock_server);
+		Task::Create(Priority::CRITICAL_PRIORITY, &Clock::clock_server);
 
 		// Create the clock notifier
-		Task::Create(Task::CRITICAL_PRIORITY, &Clock::clock_notifier);
+		Task::Create(Priority::CRITICAL_PRIORITY, &Clock::clock_notifier);
 
-		Task::Create(Task::IDLE_PRIORITY, &SystemTask::idle_task);
+		Task::Create(Priority::IDLE_PRIORITY, &SystemTask::idle_task);
 
 		// at the moment, only support uart0
-		Task::Create(Task::CRITICAL_PRIORITY, &UART::uart_0_server_transmit);
-		Task::Create(Task::CRITICAL_PRIORITY, &UART::uart_0_server_receive);
-		Task::Create(Task::CRITICAL_PRIORITY, &UART::uart_1_server_transmit);
-		Task::Create(Task::CRITICAL_PRIORITY, &UART::uart_1_server_receive);
+		Task::Create(Priority::CRITICAL_PRIORITY, &UART::uart_0_server_transmit);
+		Task::Create(Priority::CRITICAL_PRIORITY, &UART::uart_0_server_receive);
+		Task::Create(Priority::CRITICAL_PRIORITY, &UART::uart_1_server_transmit);
+		Task::Create(Priority::CRITICAL_PRIORITY, &UART::uart_1_server_receive);
 
-		Task::Create(Task::HIGH_PRIORITY, &Train::train_admin);
-		Task::Create(Task::HIGH_PRIORITY, &Sensor::sensor_admin);
+		Task::Create(Priority::HIGH_PRIORITY, &Train::train_admin);
+		Task::Create(Priority::HIGH_PRIORITY, &Sensor::sensor_admin);
 
 		// Task::Create(3, &SystemTask::k4_dummy); // temp dummy test to see if io works
 		// Task::Create(3, &SystemTask::k4_dummy_train_rev); // temp dummy test to see if io works
@@ -38,7 +38,7 @@ void UserTask::first_user_task() {
 		// Task::Create(3, &SystemTask::k4_dummy_train_switch); // temp dummy test to see if io works
 
 		// Create the terminal admin and user input
-		Task::Create(Task::TERMINAL_PRIORITY, &Terminal::terminal_admin);
+		Task::Create(Priority::TERMINAL_PRIORITY, &Terminal::terminal_admin);
 		// Task::Create(3, &Courier::terminal_clock_courier);
 		// Task::Create(3, &SystemTask::idle_time_task);
 		// Task::Create(3, &Courier::sensor_query_courier);

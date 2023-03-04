@@ -16,6 +16,6 @@ int Scheduler::get_next() {
 	return NO_TASKS; // no tasks to run
 }
 
-void Scheduler::add_task(int priority, int task_id) {
-	ready_queue[priority].push(task_id);
+void Scheduler::add_task(Priority priority, int task_id) {
+	ready_queue[static_cast<int>(priority)].push(task_id);
 }

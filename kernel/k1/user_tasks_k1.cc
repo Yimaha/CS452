@@ -1,6 +1,6 @@
 #include "user_tasks_k1.h"
 
-void helper_0(int priority) {
+void helper_0(Priority priority) {
 	// create a task and print the creation result
 	int task_id = Task::Create(priority, &UserTask::Sub_Task);
 	char msg[] = "Created: task ";
@@ -22,10 +22,10 @@ extern "C" void UserTask::Task_0() {
 	while (1) {
 		char msg[] = "entered into user task 0\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
-		helper_0(2);
-		helper_0(2);
-		helper_0(0);
-		helper_0(0);
+		helper_0(Priority::HIGH_PRIORITY);
+		helper_0(Priority::HIGH_PRIORITY);
+		helper_0(Priority::LAUNCH_PRIORITY);
+		helper_0(Priority::LAUNCH_PRIORITY);
 
 		char msg5[] = "exiting task 0\r\n";
 		uart_puts(0, 0, msg5, sizeof(msg5) - 1);

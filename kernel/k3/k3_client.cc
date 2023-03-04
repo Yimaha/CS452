@@ -11,7 +11,7 @@ void SystemTask::k3_client_task() {
 	for (int i = 1; i <= repeat; ++i) {
 		Clock::Delay(clock_tid, delay);
 		sprintf(buf, "Task: %d | Delay: %d | Counter: %d\r\n", my_tid, delay, i);
-		Task::_KernelPrint(buf);
+		// Task::_KernelPrint(buf);
 	}
 
 	Task::Exit();

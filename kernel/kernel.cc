@@ -3,7 +3,7 @@
 #include "user/user_tasks.h"
 #include "utils/printf.h"
 
-int Task::Create(int priority, void (*function)()) {
+int Task::Create(Priority priority, void (*function)()) {
 	return to_kernel(Kernel::HandlerCode::CREATE, priority, function);
 }
 int Task::MyTid() {
@@ -21,12 +21,8 @@ void Task::Yield() {
 	to_kernel(Kernel::HandlerCode::YIELD);
 }
 
-void Task::_KernelPrint(const char* msg) {
-	to_kernel(Kernel::HandlerCode::PRINT, msg);
-}
-
-void Task::_KernelCrash(const char* msg) {
-	to_kernel(Kernel::HandlerCode::CRASH, msg);
+Priority Task::MyPriority() {
+	return static_cast<Priority>(to_kernel(Kernel::HandlerCode::MY_PRIORITY));
 }
 
 int Message::Send::Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
@@ -188,7 +184,7 @@ int UART::Getc(int tid, int uart) {
 }
 
 Kernel::Kernel() {
-	allocate_new_task(Task::MAIDENLESS, 0, &UserTask::first_user_task);
+	allocate_new_task(Task::MAIDENLESS, Priority::LAUNCH_PRIORITY, &UserTask::first_user_task);
 }
 
 void Kernel::schedule_next_task() {
@@ -268,7 +264,7 @@ void Kernel::handle_syscall() {
 		handle_reply();
 		break;
 	case HandlerCode::CREATE: {
-		int priority = active_request->x1;
+		Priority priority = static_cast<Priority>(active_request->x1);
 		void (*user_task)() = (void (*)())active_request->x2;
 		tasks[active_task]->to_ready(p_id_counter, &scheduler);
 		// NOTE: allocate_new_task should be called at the end after everything is good
@@ -284,14 +280,11 @@ void Kernel::handle_syscall() {
 	case HandlerCode::YIELD:
 		tasks[active_task]->to_ready(0x0, &scheduler);
 		break;
-	case HandlerCode::PRINT: {
-		const char* msg = reinterpret_cast<const char*>(active_request->x1);
-		printf(msg);
-		tasks[active_task]->to_ready(0x0, &scheduler);
-		break;
-	}
 	case HandlerCode::EXIT:
 		tasks[active_task]->kill();
+		break;
+	case HandlerCode::MY_PRIORITY:
+		tasks[active_task]->to_ready(static_cast<int>(tasks[active_task]->priority), &scheduler);
 		break;
 	case HandlerCode::AWAIT_EVENT: {
 		int eventId = active_request->x1;
@@ -503,7 +496,7 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 	tasks[active_task]->to_ready(0x0, &scheduler);
 }
 
-void Kernel::allocate_new_task(int parent_id, int priority, void (*pc)()) {
+void Kernel::allocate_new_task(int parent_id, Priority priority, void (*pc)()) {
 	Descriptor::TaskDescriptor* task_ptr = task_allocator.get(p_id_counter, parent_id, priority, pc);
 	if (task_ptr != nullptr) {
 		tasks[p_id_counter] = task_ptr;
@@ -543,7 +536,7 @@ void Kernel::handle_receive() {
 	char* msg = (char*)active_request->x2;
 	int msglen = active_request->x3;
 	if (tasks[active_task]->have_message()) {
-		Descriptor::Message incoming_msg = tasks[active_task]->pop_inbox();
+		Descriptor::MessageStruct incoming_msg = tasks[active_task]->pop_inbox();
 		tasks[incoming_msg.from]->to_reply_block();
 		tasks[active_task]->fill_message(incoming_msg, from, msg, msglen);
 		tasks[active_task]->to_ready(incoming_msg.len, &scheduler);

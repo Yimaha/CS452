@@ -30,22 +30,19 @@ constexpr int UART_TRANSMIT_FULL = -4;
 constexpr uint64_t USER_TASK_START_ADDRESS = 0x10000000;
 constexpr uint64_t USER_TASK_LIMIT = 200;
 
-const int LAUNCH_PRIORITY = 0;
-const int CRITICAL_PRIORITY = 1;
-const int HIGH_PRIORITY = 2;
-const int MEDIUM_PRIORITY = 3;
-const int TERMINAL_PRIORITY = 3;
-const int IDLE_PRIORITY = 4;
-
 int MyTid();
 int MyParentTid();
 void Exit();
 void Yield();
-int Create(int priority, void (*function)());
+int Create(Priority priority, void (*function)());
+Priority MyPriority();
 
-// Debug utility functions because user prints are unreliable
-void _KernelPrint(const char* msg);
-void _KernelCrash(const char* msg);
+const int MAX_CRASH_MSG_LEN = 256;
+
+// Crash function, with format string argument
+template <typename... Args>
+void _KernelCrash(const char* msg, Args... args);
+
 }
 
 /**
@@ -184,14 +181,14 @@ public:
 		DELAY_UNTIL = 13,
 		AWAIT_EVENT = 14,
 		AWAIT_EVENT_WITH_BUFFER = 15,
-		PRINT = 16,
+		CRASH = 16,
 		WRITE_REGISTER = 17,
 		READ_REGISTER = 18,
 		READ_ALL = 19,
 		TRANSMIT_INTERRUPT = 20,
 		RECEIVE_INTERRUPT = 21,
 		IDLE_STATS = 22,
-		CRASH = 23,
+		MY_PRIORITY = 23,
 	};
 
 	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
@@ -215,9 +212,9 @@ private:
 
 	Descriptor::TaskDescriptor* tasks[Task::USER_TASK_LIMIT] = { nullptr }; // points to the starting location of taskDescriptors, default all nullptr
 
-	// define the type, and follow by the contrustor variable you want to pass to i
-	SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()> task_allocator
-		= SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()>((char*)Task::USER_TASK_START_ADDRESS, Task::USER_TASK_LIMIT);
+	// define the type, and follow by the constructor variable you want to pass to i
+	SlabAllocator<Descriptor::TaskDescriptor, int, int, Priority, void (*)()> task_allocator
+		= SlabAllocator<Descriptor::TaskDescriptor, int, int, Priority, void (*)()>((char*)Task::USER_TASK_START_ADDRESS, Task::USER_TASK_LIMIT);
 
 	Clock::TimeKeeper time_keeper = Clock::TimeKeeper();
 
@@ -260,7 +257,7 @@ private:
 	bool enable_receive_interrupt[2] = { false, false };
 	bool enable_CTS[2] = { false, true };
 
-	void allocate_new_task(int parent_id, int priority, void (*pc)()); // create, and push a new task onto the actual scheduler
+	void allocate_new_task(int parent_id, Priority priority, void (*pc)()); // create, and push a new task onto the actual scheduler
 	void handle_send();
 	void handle_receive();
 	void handle_reply();
@@ -268,3 +265,14 @@ private:
 	void handle_await_event_with_buffer(int eventId, char* buffer);
 	void interrupt_control(int channel);
 };
+
+// Has to be defined after the Kernel class because it depends on Handler codes
+namespace Task
+{
+template <typename... Args>
+void _KernelCrash(const char* msg, Args... args) {
+	char buf[MAX_CRASH_MSG_LEN];
+	snprintf(buf, MAX_CRASH_MSG_LEN, msg, args...);
+	to_kernel(Kernel::HandlerCode::CRASH, buf);
+}
+}

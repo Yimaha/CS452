@@ -214,14 +214,14 @@ void Terminal::terminal_admin() {
 	int from;
 	TerminalServerReq req;
 
-	Courier::CourierPool<TerminalCourierMessage> courier_pool = Courier::CourierPool<TerminalCourierMessage>(&terminal_courier, 3);
+	Courier::CourierPool<TerminalCourierMessage> courier_pool = Courier::CourierPool<TerminalCourierMessage>(&terminal_courier, Priority::TERMINAL_PRIORITY);
 
 	UART::Puts(uart_0_server_tid, 0, START_PROMPT, sizeof(START_PROMPT) - 1);
 
-	Task::Create(3, &terminal_clock_courier);
-	Task::Create(3, &sensor_query_courier);
-	Task::Create(3, &idle_time_courier);
-	Task::Create(3, &user_input_courier);
+	Task::Create(Priority::TERMINAL_PRIORITY, &terminal_clock_courier);
+	Task::Create(Priority::TERMINAL_PRIORITY, &sensor_query_courier);
+	Task::Create(Priority::TERMINAL_PRIORITY, &idle_time_courier);
+	Task::Create(Priority::TERMINAL_PRIORITY, &user_input_courier);
 
 	bool isRunning = false;
 
@@ -280,7 +280,7 @@ void Terminal::terminal_admin() {
 
 			str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
 			if (printing_index >= 512) {
-				Task::_KernelCrash("Too much printing\r\n");
+				Task::_KernelCrash("Too much printing, %d\r\n", printing_index);
 			}
 			UART::Puts(uart_0_server_tid, 0, printing_buffer, printing_index);
 		}
@@ -393,8 +393,8 @@ void Terminal::terminal_admin() {
 					break;
 				}
 				default: {
-					UART::Puts(uart_0_server_tid, 0, "\033[", 2);
-					UART::Putc(uart_0_server_tid, 0, c);
+					char buf[3] = { '\033', '[', c };
+					UART::Puts(uart_0_server_tid, 0, buf, 3);
 				}
 				}
 
@@ -499,9 +499,7 @@ void Terminal::terminal_courier() {
 			break;
 		}
 		default: {
-			char exception[50];
-			sprintf(exception, "Train Courier illegal type: [%d]\r\n", req.header);
-			Task::_KernelCrash(exception);
+			Task::_KernelCrash("Train Courier illegal type: [%d]\r\n", req.header);
 		}
 		}
 	}
