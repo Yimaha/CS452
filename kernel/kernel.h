@@ -200,6 +200,9 @@ public:
 	void handle_interrupt(InterruptCode icode);
 	void start_timer();
 
+	template <typename... Args>
+	void kcrash(const char* msg, Args... args);
+
 private:
 	// static is needed to define value at compile time
 	static const uint64_t BACK_TRACE_SIZE = 512;
@@ -275,4 +278,16 @@ void _KernelCrash(const char* msg, Args... args) {
 	snprintf(buf, MAX_CRASH_MSG_LEN, msg, args...);
 	to_kernel(Kernel::HandlerCode::CRASH, buf);
 }
+}
+
+// Has to be defined after the Kernel class because it depends on the Kernel class
+template <typename... Args>
+void Kernel::kcrash(const char* msg, Args... args) {
+	printf(msg, args...);
+	for (auto& keinfo : backtrace_stack) {
+		printf("Task [%d], HandlerCode %d, Arg1 %d, Arg2 %d, ICode %d\r\n", keinfo.tid, keinfo.handler_code, keinfo.arg1, keinfo.arg2, keinfo.icode);
+	}
+
+	while (true) {
+	}
 }

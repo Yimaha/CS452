@@ -485,7 +485,7 @@ void Terminal::terminal_courier() {
 	Terminal::TerminalServerReq req_to_admin;
 	Train::TrainAdminReq req_to_train;
 	int from;
-	while (1) {
+	while (true) {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(TerminalCourierMessage));
 		Message::Reply::Reply(from, nullptr, 0); // unblock caller right away
 		switch (req.header) {

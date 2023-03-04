@@ -8,7 +8,7 @@ void Name::name_server() {
 	// Create the unordered map with a custom TKeyEqual
 	etl::unordered_map<RequestBody, int, MAX_NAME_SERVER_SIZE> name_server = etl::unordered_map<RequestBody, int, MAX_NAME_SERVER_SIZE>();
 
-	while (1) {
+	while (true) {
 		// Receive
 		int from;
 		NameServerReq req;

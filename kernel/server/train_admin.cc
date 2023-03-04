@@ -232,7 +232,7 @@ void Train::train_courier() {
 	TrainAdminReq req_to_admin;
 
 	// worker only has few types
-	while (1) {
+	while (true) {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(TrainCourierReq));
 		Message::Reply::Reply(from, nullptr, 0); // unblock caller right away
 		switch (req.header) {

@@ -238,9 +238,7 @@ void Kernel::handle() {
 		break;
 	}
 	default:
-		printf("Unknown kernel entry code: %d\r\n", kecode);
-		while (true) {
-		}
+		kcrash("Unknown kernel entry code: %d\r\n", kecode);
 	}
 }
 
@@ -358,25 +356,14 @@ void Kernel::handle_syscall() {
 	}
 	case HandlerCode::CRASH: {
 		const char* msg = reinterpret_cast<const char*>(active_request->x1);
-		printf(msg);
-		for (auto& keinfo : backtrace_stack) {
-			printf("Task [%d], HandlerCode %d, Arg1 %d, Arg2 %d, ICode %d\r\n", keinfo.tid, keinfo.handler_code, keinfo.arg1, keinfo.arg2, keinfo.icode);
-		}
-
-		while (true) {
-		}
+		kcrash(msg);
 		break;
 	}
 	default:
 		printf("\r\nUnknown syscall: %d from %d\r\n", request, active_task);
 		uint64_t error_code = (read_esr() >> 26) & 0x3f;
-		printf("ESR: %llx\r\n", error_code);
-		for (auto& keinfo : backtrace_stack) {
-			printf("Task [%d], HandlerCode %d, Arg1 %d, Arg2 %d, ICode %d\r\n", keinfo.tid, keinfo.handler_code, keinfo.arg1, keinfo.arg2, keinfo.icode);
-		}
-
-		while (true) {
-		}
+		kcrash("ESR: %llx\r\n", error_code);
+		break;
 	}
 }
 
@@ -399,9 +386,7 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 		if (clock_notifier_tid != Task::MAIDENLESS) {
 			tasks[clock_notifier_tid]->to_ready(0x0, &scheduler);
 		} else {
-			printf("Clock Too Slow \r\n");
-			while (true) {
-			}
+			kcrash("Clock Too Slow \r\n");
 		}
 		break;
 	}
@@ -441,9 +426,7 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 			} else if (exception_code == UART::InterruptType::UART_CLEAR) {
 				break;
 			} else {
-				printf("Uart 0 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d\r\n", exception_code, uart_0_receive_tid, uart_0_transmit_tid);
-				while (true) {
-				}
+				kcrash("Uart 0 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d\r\n", exception_code, uart_0_receive_tid, uart_0_transmit_tid);
 			}
 			exception_code = (int)(uart_get(0, 0, UART_IIR) & 0x3F);
 		} while (exception_code != UART::InterruptType::UART_CLEAR);
@@ -477,9 +460,7 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 			} else if (exception_code == UART::InterruptType::UART_CLEAR) {
 				break;
 			} else {
-				printf("Uart 1 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d msr_tid %d\r\n", exception_code, uart_1_receive_tid, uart_1_transmit_tid, uart_1_msr_tid);
-				while (true) {
-				}
+				kcrash("Uart 1 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d msr_tid %d\r\n", exception_code, uart_1_receive_tid, uart_1_transmit_tid, uart_1_msr_tid);
 			}
 			exception_code = (int)(uart_get(0, 1, UART_IIR) & 0x3F);
 		} while (exception_code != UART::InterruptType::UART_CLEAR);
@@ -487,9 +468,7 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 		break;
 	}
 	default:
-		printf("Unknown interrupt: %d\r\n", icode);
-		while (true) {
-		}
+		kcrash("Unknown interrupt code: %d\r\n", icode);
 	}
 }
 

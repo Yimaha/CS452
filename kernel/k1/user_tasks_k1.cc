@@ -19,7 +19,7 @@ void helper_sub(int id, int p_id) {
 }
 
 extern "C" void UserTask::Task_0() {
-	while (1) {
+	while (true) {
 		char msg[] = "entered into user task 0\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		helper_0(Priority::HIGH_PRIORITY);

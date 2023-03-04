@@ -49,7 +49,7 @@ void UserTask::first_user_task() {
 }
 
 void UserTask::Task_test_0() {
-	while (1) {
+	while (true) {
 		char msg[] = "user task 0\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
@@ -60,7 +60,7 @@ void UserTask::Task_test_0() {
 }
 
 void UserTask::Task_test_1() {
-	while (1) {
+	while (true) {
 		char msg[] = "user task 1\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
@@ -70,7 +70,7 @@ void UserTask::Task_test_1() {
 }
 
 void UserTask::Task_test_2() {
-	while (1) {
+	while (true) {
 		char msg[] = "user task 2\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
@@ -80,7 +80,7 @@ void UserTask::Task_test_2() {
 }
 
 void UserTask::Task_test_3() {
-	while (1) {
+	while (true) {
 		char msg[] = "user task 3\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
@@ -91,7 +91,7 @@ void UserTask::Task_test_3() {
 }
 
 void UserTask::Task_test_4() {
-	while (1) {
+	while (true) {
 		char msg[] = "user task 4\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
