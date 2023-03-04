@@ -12,10 +12,8 @@ TaskDescriptor::TaskDescriptor(int id, int parent_id, Priority priority, void (*
 	: task_id { id }
 	, parent_id { parent_id }
 	, priority { priority }
-	, state { TaskState::READY }
+	, state { TaskState::NOT_INITIALIZED }
 	, system_call_result { 0x0 } // used to reply from kernel function
-	, initialized { false }
-	, interrupted { false }
 	, pc { pc } {
 	sp = (char*)&kernel_stack[USER_STACK_SIZE]; // aligned to 8 bytes, exactly 4kb is used for user stack
 }
@@ -103,8 +101,9 @@ void TaskDescriptor::to_event_block_with_buffer(char* buffer) {
 	event_buffer = buffer;
 	state = TaskDescriptor::TaskState::EVENT_BLOCK;
 }
-void TaskDescriptor::set_interrupted(bool val) {
-	interrupted = val;
+void TaskDescriptor::to_interrupted(Task::Scheduler* scheduler) {
+	state = TaskDescriptor::TaskState::INTERRUPTED;
+	scheduler->add_task(priority, task_id);
 }
 
 /**
@@ -140,7 +139,11 @@ bool TaskDescriptor::is_event_block() {
 }
 
 bool TaskDescriptor::is_interrupted() {
-	return interrupted;
+	return state == TaskState::INTERRUPTED;
+}
+
+bool TaskDescriptor::is_not_initialized() {
+	return state == TaskState::NOT_INITIALIZED;
 }
 
 /**
@@ -161,10 +164,6 @@ void Descriptor::TaskDescriptor::show_info() {
 	char m4[] = "priority: ";
 	uart_puts(0, 0, m4, sizeof(m4) - 1);
 	print_int(static_cast<int>(priority));
-	print("\r\n", 2);
-	char m5[] = "initialized:";
-	uart_puts(0, 0, m5, sizeof(m5) - 1);
-	print_int((uint64_t)initialized);
 	print("\r\n", 2);
 	char m6[] = "pc: ";
 	uart_puts(0, 0, m6, sizeof(m6) - 1);

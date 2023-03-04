@@ -24,11 +24,8 @@
 namespace Task
 {
 constexpr int MAIDENLESS = -1;
-constexpr int CLOCK_QUEUE_EMPTY = -2;
-constexpr int UART_RECEIVE_EMPTY = -3;
-constexpr int UART_TRANSMIT_FULL = -4;
 constexpr uint64_t USER_TASK_START_ADDRESS = 0x10000000;
-constexpr uint64_t USER_TASK_LIMIT = 200;
+constexpr uint64_t USER_TASK_LIMIT = 256; // We exactly how much task we are going to create, thus, we can afford to a large quantity of User Task
 
 int MyTid();
 int MyParentTid();
@@ -204,6 +201,9 @@ public:
 	void start_timer();
 
 private:
+	// static is needed to define value at compile time
+	static const uint64_t BACK_TRACE_SIZE = 512;
+
 	int p_id_counter = 0;					  // keeps track of new task creation id
 	int active_task = 0;					  // keeps track of the active_task id
 	InterruptFrame* active_request = nullptr; // a storage that saves the active user request
@@ -238,20 +238,20 @@ private:
 	};
 
 	// Backtrace stack
-	etl::circular_buffer<KernelEntryInfo, 64> backtrace_stack = etl::circular_buffer<KernelEntryInfo, 64>();
-
+	etl::circular_buffer<KernelEntryInfo, BACK_TRACE_SIZE> backtrace_stack = etl::circular_buffer<KernelEntryInfo, BACK_TRACE_SIZE>();
+	// list of interrupt related parking log
+	// note that fail to handle interrupt means death, and we only have 1 parking spot for each type
 	// clock notifier "list", a pointer to the notifier
-	int clock_notifier_tid = Task::CLOCK_QUEUE_EMPTY; // always 1 agent for time
-	// problem, what if 1 agent is not enough? a.k.a interrupt came through but agent is not yet freed
-	// solution, maybe a pool of identical agents, all responsible for uart0 (typing can potentally come really fast)
-	int uart_0_receive_tid = Task::UART_RECEIVE_EMPTY; // always 1 agent for receiving
-	int uart_0_transmit_tid = Task::UART_TRANSMIT_FULL;
+	int clock_notifier_tid = Task::MAIDENLESS; // always 1 agent for time
 
-	int uart_1_receive_tid = Task::UART_RECEIVE_EMPTY;		   // always 1 agent for receiving
-	int uart_1_receive_timeout_tid = Task::UART_RECEIVE_EMPTY; // always 1 agent for receiving
+	int uart_0_receive_tid = Task::MAIDENLESS;	// always 1 agent for receiving
+	int uart_0_transmit_tid = Task::MAIDENLESS; // always 1 agent for transmitting
 
-	int uart_1_transmit_tid = Task::UART_TRANSMIT_FULL;
-	int uart_1_msr_tid = Task::UART_TRANSMIT_FULL;
+	int uart_1_receive_tid = Task::MAIDENLESS;		   // always 1 agent for receiving
+	int uart_1_receive_timeout_tid = Task::MAIDENLESS; // always 1 agent for transmitting
+
+	int uart_1_transmit_tid = Task::MAIDENLESS;
+	int uart_1_msr_tid = Task::MAIDENLESS;
 
 	bool enable_transmit_interrupt[2] = { false, false };
 	bool enable_receive_interrupt[2] = { false, false };
