@@ -5,7 +5,7 @@
 #include "../utils/utility.h"
 
 void UserTask::low_priority_task() {
-	while (1) {
+	while (true) {
 		char msg[] = "low priority task that just keeps spinning\r\n";
 		uart_puts(0, 0, msg, sizeof(msg) - 1);
 		for (int i = 0; i < 3000000; ++i)
@@ -18,7 +18,7 @@ void UserTask::Sender1N() {
 	const char name[] = "Sender1N";
 	int tid = Name::RegisterAs(name);
 
-	while (1) {
+	while (true) {
 		char m1[] = "in sender 1, ready to send\r\n";
 		uart_puts(0, 0, m1, sizeof(m1) - 1);
 		char m2[] = "my tid is: ";
@@ -49,7 +49,7 @@ void UserTask::Sender2N() {
 	const char name[] = "Sender2N";
 	int tid = Name::RegisterAs(name);
 
-	while (1) {
+	while (true) {
 		char m1[] = "in sender 2, ready to send\r\n";
 		uart_puts(0, 0, m1, sizeof(m1) - 1);
 		char m2[] = "my tid is: ";
@@ -80,7 +80,7 @@ void UserTask::ReceiverN() {
 	const char name[] = "ReceiverN";
 	int tid = Name::RegisterAs(name);
 
-	while (1) {
+	while (true) {
 		char m0[] = "in receiver, ready to receive\r\n";
 		uart_puts(0, 0, m0, sizeof(m0) - 1);
 		char m1[] = "my tid is: ";

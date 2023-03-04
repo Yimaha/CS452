@@ -3,8 +3,7 @@
 #include "user/user_tasks.h"
 #include "utils/printf.h"
 
-
-int Task::Create(int priority, void (*function)()) {
+int Task::Create(Priority priority, void (*function)()) {
 	return to_kernel(Kernel::HandlerCode::CREATE, priority, function);
 }
 int Task::MyTid() {
@@ -22,8 +21,8 @@ void Task::Yield() {
 	to_kernel(Kernel::HandlerCode::YIELD);
 }
 
-void Task::_KernelPrint(const char* msg) {
-	to_kernel(Kernel::HandlerCode::PRINT, msg);
+Priority Task::MyPriority() {
+	return static_cast<Priority>(to_kernel(Kernel::HandlerCode::MY_PRIORITY));
 }
 
 int Message::Send::Send(int tid, const char* msg, int msglen, char* reply, int rplen) {
@@ -149,7 +148,7 @@ int UART::Puts(int tid, int uart, const char* s, uint64_t len) {
 	}
 	UART::WorkerRequestBody body;
 	body.msg_len = len;
-	for (uint64_t i = 0; i < len; i ++) {
+	for (uint64_t i = 0; i < len; i++) {
 		body.msg[i] = s[i];
 	}
 
@@ -164,7 +163,7 @@ int UART::PutsNullTerm(int tid, int uart, const char* s, uint64_t len) {
 		return -1;
 	}
 	UART::WorkerRequestBody body;
-	for (body.msg_len = 0; body.msg_len < len && (s[body.msg_len] != '\0'); body.msg_len ++) {
+	for (body.msg_len = 0; body.msg_len < len && (s[body.msg_len] != '\0'); body.msg_len++) {
 		body.msg[body.msg_len] = s[body.msg_len];
 	}
 
@@ -184,9 +183,8 @@ int UART::Getc(int tid, int uart) {
 	return (int)c;
 }
 
-
 Kernel::Kernel() {
-	allocate_new_task(Task::MAIDENLESS, 0, &UserTask::first_user_task);
+	allocate_new_task(Task::MAIDENLESS, Priority::LAUNCH_PRIORITY, &UserTask::first_user_task);
 }
 
 void Kernel::schedule_next_task() {
@@ -216,9 +214,6 @@ Kernel::~Kernel() { }
 
 void Kernel::handle() {
 	KernelEntryCode kecode = static_cast<KernelEntryCode>(active_request->data);
-#ifdef OUR_DEBUG
-	printf("KEC: %llu\r\n", active_request->data);
-#endif
 	switch (kecode) {
 	case KernelEntryCode::SYSCALL:
 		handle_syscall();
@@ -229,7 +224,7 @@ void Kernel::handle() {
 		 * You can have multiple interrupt, or maybe as you process this interrupt, a new interrupt come up
 		 * to avoid excess context switching, we loop through all interrupt until it is completely cleared
 		 */
-		tasks[active_task]->set_interrupted(true);
+		tasks[active_task]->to_interrupted(&scheduler);
 		uint32_t interrupt_id = Interrupt::get_interrupt_id();
 		// Use mask to obtain the last 10 bits, see GICC_IAR spec
 		InterruptCode icode = static_cast<InterruptCode>(interrupt_id & 0x3ff);
@@ -240,18 +235,20 @@ void Kernel::handle() {
 			// Use mask to obtain the last 10 bits, see GICC_IAR spec
 			icode = static_cast<InterruptCode>(interrupt_id & 0x3ff);
 		} while (icode != InterruptCode::CLEAR);
-
 		break;
 	}
 	default:
-		printf("Unknown kernel entry code: %d\r\n", kecode);
-		while (true) {
-		}
+		kcrash("Unknown kernel entry code: %d\r\n", kecode);
 	}
 }
 
 void Kernel::handle_syscall() {
 	HandlerCode request = (HandlerCode)active_request->x0; // x0 is always the request type
+
+#ifdef OUR_DEBUG
+	KernelEntryInfo keinfo = KernelEntryInfo(active_task, request, active_request->x1, active_request->x2);
+	backtrace_stack.push(keinfo);
+#endif
 
 	switch (request) {
 	case HandlerCode::SEND:
@@ -264,7 +261,7 @@ void Kernel::handle_syscall() {
 		handle_reply();
 		break;
 	case HandlerCode::CREATE: {
-		int priority = active_request->x1;
+		Priority priority = static_cast<Priority>(active_request->x1);
 		void (*user_task)() = (void (*)())active_request->x2;
 		tasks[active_task]->to_ready(p_id_counter, &scheduler);
 		// NOTE: allocate_new_task should be called at the end after everything is good
@@ -280,14 +277,11 @@ void Kernel::handle_syscall() {
 	case HandlerCode::YIELD:
 		tasks[active_task]->to_ready(0x0, &scheduler);
 		break;
-	case HandlerCode::PRINT: {
-		const char* msg = reinterpret_cast<const char*>(active_request->x1);
-		printf(msg);
-		tasks[active_task]->to_ready(0x0, &scheduler);
-		break;
-	}
 	case HandlerCode::EXIT:
 		tasks[active_task]->kill();
+		break;
+	case HandlerCode::MY_PRIORITY:
+		tasks[active_task]->to_ready(static_cast<int>(tasks[active_task]->priority), &scheduler);
 		break;
 	case HandlerCode::AWAIT_EVENT: {
 		int eventId = active_request->x1;
@@ -360,12 +354,16 @@ void Kernel::handle_syscall() {
 		tasks[active_task]->to_ready(0x0, &scheduler);
 		break;
 	}
+	case HandlerCode::CRASH: {
+		const char* msg = reinterpret_cast<const char*>(active_request->x1);
+		kcrash(msg);
+		break;
+	}
 	default:
-		printf("Unknown syscall: %d from %d\r\n", request, active_task);
+		printf("\r\nUnknown syscall: %d from %d\r\n", request, active_task);
 		uint64_t error_code = (read_esr() >> 26) & 0x3f;
-		printf("ESR: %llx\r\n", error_code);
-		while (true) {
-		}
+		kcrash("ESR: %llx\r\n", error_code);
+		break;
 	}
 }
 
@@ -375,16 +373,20 @@ void Kernel::interrupt_control(int channel) {
 }
 
 void Kernel::handle_interrupt(InterruptCode icode) {
+
+#ifdef OUR_DEBUG
+	KernelEntryInfo keinfo = KernelEntryInfo(active_task, HandlerCode::NONE, 0, 0, icode);
+	backtrace_stack.push(keinfo);
+#endif
+
 	switch (icode) {
 	case InterruptCode::TIMER: {
 		time_keeper.tick();
 
-		if (clock_notifier_tid != Task::CLOCK_QUEUE_EMPTY) {
+		if (clock_notifier_tid != Task::MAIDENLESS) {
 			tasks[clock_notifier_tid]->to_ready(0x0, &scheduler);
 		} else {
-			printf("Clock Too Slow \r\n");
-			while (true) {
-			}
+			kcrash("Clock Too Slow \r\n");
 		}
 		break;
 	}
@@ -410,60 +412,55 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 		do {
 			// this is a really shitty way to handle this, I think it would probably be better if we something similar to a dedicated class object
 			// but we will fix it soon once experiementa go through.
-			if (exception_code == UART::InterruptType::UART_RX_TIMEOUT && uart_0_receive_tid != Task::UART_RECEIVE_EMPTY) {
+			if (exception_code == UART::InterruptType::UART_RX_TIMEOUT && uart_0_receive_tid != Task::MAIDENLESS) {
 				int input_len = uart_get_all(0, 0, tasks[uart_0_receive_tid]->get_event_buffer());
 				tasks[uart_0_receive_tid]->to_ready(input_len, &scheduler);
-				uart_0_receive_tid = Task::UART_RECEIVE_EMPTY;
+				uart_0_receive_tid = Task::MAIDENLESS;
 				enable_receive_interrupt[0] = false;
 				interrupt_control(0);
-			} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT && uart_0_transmit_tid != Task::UART_TRANSMIT_FULL) {
+			} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT && uart_0_transmit_tid != Task::MAIDENLESS) {
 				tasks[uart_0_transmit_tid]->to_ready(0x0, &scheduler);
-				uart_0_transmit_tid = Task::UART_TRANSMIT_FULL;
+				uart_0_transmit_tid = Task::MAIDENLESS;
 				enable_transmit_interrupt[0] = false;
 				interrupt_control(0);
 			} else if (exception_code == UART::InterruptType::UART_CLEAR) {
 				break;
 			} else {
-				printf("Uart 0 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d\r\n", exception_code, uart_0_receive_tid, uart_0_transmit_tid);
-				while (true) {
-				}
+				kcrash("Uart 0 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d\r\n", exception_code, uart_0_receive_tid, uart_0_transmit_tid);
 			}
 			exception_code = (int)(uart_get(0, 0, UART_IIR) & 0x3F);
 		} while (exception_code != UART::InterruptType::UART_CLEAR);
 
 		exception_code = (int)(uart_get(0, 1, UART_IIR) & 0x3F);
 		do {
-			// printf("Uart 1: exception code: %d receive_tid: %d transmit_tid %d msr_tid %d \r\n", exception_code, uart_1_receive_tid, uart_1_transmit_tid, uart_1_msr_tid);
 
 			// this is a really shitty way to handle this, I think it would probably be better if we something similar to a dedicated class object
 			// but we will fix it soon once experiementa go through.
-			if (exception_code == UART::InterruptType::UART_RX_TIMEOUT && uart_1_receive_timeout_tid != Task::UART_RECEIVE_EMPTY) {
+			if (exception_code == UART::InterruptType::UART_RX_TIMEOUT && uart_1_receive_timeout_tid != Task::MAIDENLESS) {
 				tasks[uart_1_receive_timeout_tid]->to_ready(0x0, &scheduler);
-				uart_1_receive_timeout_tid = Task::UART_RECEIVE_EMPTY;
+				uart_1_receive_timeout_tid = Task::MAIDENLESS;
 				enable_receive_interrupt[1] = false;
 				interrupt_control(1);
-			} else if (exception_code == UART::InterruptType::UART_RX_INTERRUPT && uart_1_receive_tid != Task::UART_RECEIVE_EMPTY) {
+			} else if (exception_code == UART::InterruptType::UART_RX_INTERRUPT && uart_1_receive_tid != Task::MAIDENLESS) {
 				tasks[uart_1_receive_tid]->to_ready(0x0, &scheduler);
-				uart_1_receive_tid = Task::UART_RECEIVE_EMPTY;
+				uart_1_receive_tid = Task::MAIDENLESS;
 				enable_receive_interrupt[1] = false;
 				interrupt_control(1);
-			} else if (exception_code == UART::InterruptType::UART_MODEM_INTERRUPT && uart_1_msr_tid != Task::UART_TRANSMIT_FULL) {
+			} else if (exception_code == UART::InterruptType::UART_MODEM_INTERRUPT && uart_1_msr_tid != Task::MAIDENLESS) {
 				char state = uart_get(0, 1, UART_MSR);
 				if ((state & 0x1) == 0x1) {
 					tasks[uart_1_msr_tid]->to_ready(0x0, &scheduler);
-					uart_1_msr_tid = Task::UART_TRANSMIT_FULL;
+					uart_1_msr_tid = Task::MAIDENLESS;
 				}
-			} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT && uart_1_transmit_tid != Task::UART_TRANSMIT_FULL) {
+			} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT && uart_1_transmit_tid != Task::MAIDENLESS) {
 				tasks[uart_1_transmit_tid]->to_ready(0x0, &scheduler);
-				uart_1_transmit_tid = Task::UART_TRANSMIT_FULL;
+				uart_1_transmit_tid = Task::MAIDENLESS;
 				enable_transmit_interrupt[1] = false;
 				interrupt_control(1);
 			} else if (exception_code == UART::InterruptType::UART_CLEAR) {
 				break;
 			} else {
-				printf("Uart 1 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d msr_tid %d\r\n", exception_code, uart_1_receive_tid, uart_1_transmit_tid, uart_1_msr_tid);
-				while (true) {
-				}
+				kcrash("Uart 1 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d msr_tid %d\r\n", exception_code, uart_1_receive_tid, uart_1_transmit_tid, uart_1_msr_tid);
 			}
 			exception_code = (int)(uart_get(0, 1, UART_IIR) & 0x3F);
 		} while (exception_code != UART::InterruptType::UART_CLEAR);
@@ -471,20 +468,18 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 		break;
 	}
 	default:
-		printf("Unknown interrupt: %d\r\n", icode);
-		while (true) {
-		}
+		kcrash("Unknown interrupt code: %d\r\n", icode);
 	}
-	tasks[active_task]->to_ready(0x0, &scheduler);
 }
 
-void Kernel::allocate_new_task(int parent_id, int priority, void (*pc)()) {
+void Kernel::allocate_new_task(int parent_id, Priority priority, void (*pc)()) {
 	Descriptor::TaskDescriptor* task_ptr = task_allocator.get(p_id_counter, parent_id, priority, pc);
 	if (task_ptr != nullptr) {
 		tasks[p_id_counter] = task_ptr;
 		scheduler.add_task(priority, p_id_counter);
 		p_id_counter += 1;
 	} else {
+		// this need to cause crash
 		char m1[] = "out of task space\r\n";
 		uart_puts(0, 0, m1, sizeof(m1) - 1);
 	}
@@ -518,7 +513,7 @@ void Kernel::handle_receive() {
 	char* msg = (char*)active_request->x2;
 	int msglen = active_request->x3;
 	if (tasks[active_task]->have_message()) {
-		Descriptor::Message incoming_msg = tasks[active_task]->pop_inbox();
+		Descriptor::MessageStruct incoming_msg = tasks[active_task]->pop_inbox();
 		tasks[incoming_msg.from]->to_reply_block();
 		tasks[active_task]->fill_message(incoming_msg, from, msg, msglen);
 		tasks[active_task]->to_ready(incoming_msg.len, &scheduler);
@@ -597,4 +592,3 @@ void Kernel::handle_await_event_with_buffer(int eventId, char* buffer) {
 void Kernel::start_timer() {
 	time_keeper.start();
 }
-

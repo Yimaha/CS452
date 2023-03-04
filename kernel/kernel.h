@@ -7,6 +7,7 @@
 
 #include "context_switch.h"
 #include "descriptor.h"
+#include "etl/circular_buffer.h"
 #include "interrupt_handler.h"
 #include "k1/user_tasks_k1.h"
 #include "k2/user_tasks_k2.h"
@@ -23,20 +24,22 @@
 namespace Task
 {
 constexpr int MAIDENLESS = -1;
-constexpr int CLOCK_QUEUE_EMPTY = -2;
-constexpr int UART_RECEIVE_EMPTY = -3;
-constexpr int UART_TRANSMIT_FULL = -4;
 constexpr uint64_t USER_TASK_START_ADDRESS = 0x10000000;
-constexpr uint64_t USER_TASK_LIMIT = 200;
+constexpr uint64_t USER_TASK_LIMIT = 256; // We exactly how much task we are going to create, thus, we can afford to a large quantity of User Task
 
 int MyTid();
 int MyParentTid();
 void Exit();
 void Yield();
-int Create(int priority, void (*function)());
+int Create(Priority priority, void (*function)());
+Priority MyPriority();
 
-// Debug utility functions because user prints are unreliable
-void _KernelPrint(const char* msg);
+const int MAX_CRASH_MSG_LEN = 256;
+
+// Crash function, with format string argument
+template <typename... Args>
+void _KernelCrash(const char* msg, Args... args);
+
 }
 
 /**
@@ -175,17 +178,18 @@ public:
 		DELAY_UNTIL = 13,
 		AWAIT_EVENT = 14,
 		AWAIT_EVENT_WITH_BUFFER = 15,
-		PRINT = 16,
+		CRASH = 16,
 		WRITE_REGISTER = 17,
 		READ_REGISTER = 18,
 		READ_ALL = 19,
 		TRANSMIT_INTERRUPT = 20,
 		RECEIVE_INTERRUPT = 21,
-		IDLE_STATS = 22
+		IDLE_STATS = 22,
+		MY_PRIORITY = 23,
 	};
 
 	enum KernelEntryCode { SYSCALL = 0, INTERRUPT = 1 };
-	enum InterruptCode { TIMER = Clock::TIMER_INTERRUPT_ID, UART = UART::UART_INTERRUPT_ID, CLEAR = 1023 };
+	enum InterruptCode { NA = 0, TIMER = Clock::TIMER_INTERRUPT_ID, UART = UART::UART_INTERRUPT_ID, CLEAR = 1023 };
 
 	Kernel();
 	~Kernel();
@@ -196,7 +200,13 @@ public:
 	void handle_interrupt(InterruptCode icode);
 	void start_timer();
 
+	template <typename... Args>
+	void kcrash(const char* msg, Args... args);
+
 private:
+	// static is needed to define value at compile time
+	static const uint64_t BACK_TRACE_SIZE = 512;
+
 	int p_id_counter = 0;					  // keeps track of new task creation id
 	int active_task = 0;					  // keeps track of the active_task id
 	InterruptFrame* active_request = nullptr; // a storage that saves the active user request
@@ -205,30 +215,52 @@ private:
 
 	Descriptor::TaskDescriptor* tasks[Task::USER_TASK_LIMIT] = { nullptr }; // points to the starting location of taskDescriptors, default all nullptr
 
-	// define the type, and follow by the contrustor variable you want to pass to i
-	SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()> task_allocator
-		= SlabAllocator<Descriptor::TaskDescriptor, int, int, int, void (*)()>((char*)Task::USER_TASK_START_ADDRESS, Task::USER_TASK_LIMIT);
+	// define the type, and follow by the constructor variable you want to pass to i
+	SlabAllocator<Descriptor::TaskDescriptor, int, int, Priority, void (*)()> task_allocator
+		= SlabAllocator<Descriptor::TaskDescriptor, int, int, Priority, void (*)()>((char*)Task::USER_TASK_START_ADDRESS, Task::USER_TASK_LIMIT);
 
 	Clock::TimeKeeper time_keeper = Clock::TimeKeeper();
 
+	/*
+	 * Struct that represents the information contained in a kernel entry
+	 * Used to keep a backtrace stack
+	 */
+	struct KernelEntryInfo {
+		int tid;
+		HandlerCode handler_code;
+		uint64_t arg1;
+		uint64_t arg2;
+
+		InterruptCode icode;
+		KernelEntryInfo(int tid, HandlerCode handler_code, int arg1, int arg2, InterruptCode icode = InterruptCode::NA)
+			: tid(tid)
+			, handler_code(handler_code)
+			, arg1(arg1)
+			, arg2(arg2)
+			, icode(icode) { }
+	};
+
+	// Backtrace stack
+	etl::circular_buffer<KernelEntryInfo, BACK_TRACE_SIZE> backtrace_stack = etl::circular_buffer<KernelEntryInfo, BACK_TRACE_SIZE>();
+	// list of interrupt related parking log
+	// note that fail to handle interrupt means death, and we only have 1 parking spot for each type
 	// clock notifier "list", a pointer to the notifier
-	int clock_notifier_tid = Task::CLOCK_QUEUE_EMPTY; // always 1 agent for time
-	// problem, what if 1 agent is not enough? a.k.a interrupt came through but agent is not yet freed
-	// solution, maybe a pool of identical agents, all responsible for uart0 (typing can potentally come really fast)
-	int uart_0_receive_tid = Task::UART_RECEIVE_EMPTY; // always 1 agent for receiving
-	int uart_0_transmit_tid = Task::UART_TRANSMIT_FULL;
+	int clock_notifier_tid = Task::MAIDENLESS; // always 1 agent for time
 
-	int uart_1_receive_tid = Task::UART_RECEIVE_EMPTY;		   // always 1 agent for receiving
-	int uart_1_receive_timeout_tid = Task::UART_RECEIVE_EMPTY; // always 1 agent for receiving
+	int uart_0_receive_tid = Task::MAIDENLESS;	// always 1 agent for receiving
+	int uart_0_transmit_tid = Task::MAIDENLESS; // always 1 agent for transmitting
 
-	int uart_1_transmit_tid = Task::UART_TRANSMIT_FULL;
-	int uart_1_msr_tid = Task::UART_TRANSMIT_FULL;
+	int uart_1_receive_tid = Task::MAIDENLESS;		   // always 1 agent for receiving
+	int uart_1_receive_timeout_tid = Task::MAIDENLESS; // always 1 agent for transmitting
+
+	int uart_1_transmit_tid = Task::MAIDENLESS;
+	int uart_1_msr_tid = Task::MAIDENLESS;
 
 	bool enable_transmit_interrupt[2] = { false, false };
 	bool enable_receive_interrupt[2] = { false, false };
 	bool enable_CTS[2] = { false, true };
 
-	void allocate_new_task(int parent_id, int priority, void (*pc)()); // create, and push a new task onto the actual scheduler
+	void allocate_new_task(int parent_id, Priority priority, void (*pc)()); // create, and push a new task onto the actual scheduler
 	void handle_send();
 	void handle_receive();
 	void handle_reply();
@@ -236,3 +268,26 @@ private:
 	void handle_await_event_with_buffer(int eventId, char* buffer);
 	void interrupt_control(int channel);
 };
+
+// Has to be defined after the Kernel class because it depends on Handler codes
+namespace Task
+{
+template <typename... Args>
+void _KernelCrash(const char* msg, Args... args) {
+	char buf[MAX_CRASH_MSG_LEN];
+	snprintf(buf, MAX_CRASH_MSG_LEN, msg, args...);
+	to_kernel(Kernel::HandlerCode::CRASH, buf);
+}
+}
+
+// Has to be defined after the Kernel class because it depends on the Kernel class
+template <typename... Args>
+void Kernel::kcrash(const char* msg, Args... args) {
+	printf(msg, args...);
+	for (auto& keinfo : backtrace_stack) {
+		printf("Task [%d], HandlerCode %d, Arg1 %d, Arg2 %d, ICode %d\r\n", keinfo.tid, keinfo.handler_code, keinfo.arg1, keinfo.arg2, keinfo.icode);
+	}
+
+	while (true) {
+	}
+}

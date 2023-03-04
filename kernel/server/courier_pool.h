@@ -13,7 +13,7 @@ const uint64_t POOL_SIZE = 16;
 template <typename T>
 class CourierPool {
 public:
-	CourierPool(void (*function)(), int priority)
+	CourierPool(void (*function)(), Priority priority)
 		: f { function } {
 		for (uint64_t i = 0; i < POOL_SIZE; i++) {
 			courier_queue.push(Task::Create(priority, function));
@@ -30,7 +30,9 @@ private:
 
 template <typename T>
 void CourierPool<T>::request(T* req, int len) {
-	kernel_assert(!courier_queue.empty());
+	if (courier_queue.empty()) {
+		Task::_KernelCrash("\r\nout of courier for type: %s\r\n");
+	}
 	Message::Send::Send(courier_queue.front(), (const char*)req, len, nullptr, 0);
 	courier_queue.pop();
 }

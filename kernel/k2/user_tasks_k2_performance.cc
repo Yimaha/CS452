@@ -70,23 +70,23 @@ void receive_helper() {
 }
 
 extern "C" void UserTask::AutoStart() {
-	Task::Create(1, &UserTask::Sender);
-	Task::Create(2, &UserTask::Receiver);
+	Task::Create(Priority::CRITICAL_PRIORITY, &UserTask::Sender);
+	Task::Create(Priority::HIGH_PRIORITY, &UserTask::Receiver);
 	int final_len = Message::Send::Send(1, nullptr, 0, nullptr, 0);
-	Task::Create(1, &UserTask::Sender1);
-	Task::Create(2, &UserTask::Receiver1);
+	Task::Create(Priority::CRITICAL_PRIORITY, &UserTask::Sender1);
+	Task::Create(Priority::HIGH_PRIORITY, &UserTask::Receiver1);
 	final_len = Message::Send::Send(1, nullptr, 0, nullptr, 0);
-	Task::Create(1, &UserTask::Sender2);
-	Task::Create(2, &UserTask::Receiver2);
+	Task::Create(Priority::CRITICAL_PRIORITY, &UserTask::Sender2);
+	Task::Create(Priority::HIGH_PRIORITY, &UserTask::Receiver2);
 	final_len = Message::Send::Send(1, nullptr, 0, nullptr, 0);
-	Task::Create(2, &UserTask::Sender3);
-	Task::Create(1, &UserTask::Receiver3);
+	Task::Create(Priority::HIGH_PRIORITY, &UserTask::Sender3);
+	Task::Create(Priority::CRITICAL_PRIORITY, &UserTask::Receiver3);
 	final_len = Message::Send::Send(1, nullptr, 0, nullptr, 0);
-	Task::Create(2, &UserTask::Sender4);
-	Task::Create(1, &UserTask::Receiver4);
+	Task::Create(Priority::HIGH_PRIORITY, &UserTask::Sender4);
+	Task::Create(Priority::CRITICAL_PRIORITY, &UserTask::Receiver4);
 	final_len = Message::Send::Send(1, nullptr, 0, nullptr, 0);
-	Task::Create(2, &UserTask::Sender5);
-	Task::Create(1, &UserTask::Receiver5);
+	Task::Create(Priority::HIGH_PRIORITY, &UserTask::Sender5);
+	Task::Create(Priority::CRITICAL_PRIORITY, &UserTask::Receiver5);
 	print("garbage dump: ", 14);
 	print_int(final_len);
 	print("\r\n", 2);

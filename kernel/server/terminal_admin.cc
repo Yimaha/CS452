@@ -9,7 +9,12 @@ using namespace Message;
 
 const char SENSOR_LETTERS[] = "ABCDE";
 const char MOVE_CURSOR[] = "\033[r;cH";
-constexpr char SPACES[] = "                                ";
+constexpr char SPACES[] = "                                                               ";
+
+struct Command {
+	char cmd[CMD_LEN];
+	int len;
+};
 
 void log_time(char buf[], const uint32_t ticks) {
 	char to = '0' + ticks % 10;
@@ -63,60 +68,50 @@ void sw_to_cursor_pos(char sw, int* r, int* c) {
 	}
 }
 
-void error_and_prompt(const char* error_msg, int* char_count) {
+void error_out(const char* error_msg) {
 	char buffer[64];
 	sprintf(buffer, "\r\n%s", error_msg);
 	UART::PutsNullTerm(UART::UART_0_TRANSMITTER_TID, 0, buffer, 64);
+}
+
+void error_and_reset(const char* error_msg, int* char_count) {
+	error_out(error_msg);
 	*char_count = 0;
 }
 
-bool check_char(const char c, const char expected, const char* error_msg, int* char_count) {
+bool check_char(const char c, const char expected, const char* error_msg) {
 	if (c != expected) {
-		error_and_prompt(error_msg, char_count);
+		error_out(error_msg);
 		return true;
 	}
 	return false;
 }
 
-int handle_tr(int train_server_tid, const char cmd[], int* char_count) {
-	// Okay we assume good faith actors for now
-	if (check_char(cmd[1], 'r', ERROR, char_count))
-		return -1;
-	if (check_char(cmd[2], ' ', ERROR, char_count))
+int handle_tr(int train_server_tid, const char cmd[]) {
+	if (check_char(cmd[1], 'r', ERROR) || check_char(cmd[2], ' ', ERROR))
 		return -1;
 
 	int i = 3;
 	int out_len = 0;
 	int train = scan_int(cmd + i, 2, &out_len);
 	if (train == -1) {
-		error_and_prompt(ERROR, char_count);
+		error_out(ERROR);
 		return -1;
 	}
 
 	i += out_len + 1;
-	if (i > CMD_LEN) {
-		error_and_prompt(LENGTH_ERROR, char_count);
-		return -1;
-	} else if (check_char(cmd[i - 1], ' ', ERROR, char_count))
+	if (check_char(cmd[i - 1], ' ', ERROR))
 		return -1;
 
 	int speed = scan_int(cmd + i, 2, &out_len);
 	if (speed == -1) {
-		error_and_prompt(ERROR, char_count);
+		error_out(ERROR);
 		return -1;
 	}
 
 	i += out_len;
-	if (i > CMD_LEN) {
-		error_and_prompt(LENGTH_ERROR, char_count);
-		return -1;
-	}
-
 	for (; cmd[i] != '\r'; ++i) {
-		if (i > CMD_LEN) {
-			error_and_prompt(LENGTH_ERROR, char_count);
-			return -1;
-		} else if (check_char(cmd[i], ' ', ERROR, char_count)) {
+		if (check_char(cmd[i], ' ', ERROR)) {
 			return -1;
 		}
 	}
@@ -130,44 +125,32 @@ int handle_tr(int train_server_tid, const char cmd[], int* char_count) {
 	return 0;
 }
 
-int handle_rv(Courier::CourierPool<TerminalCourierMessage>& pool, const char cmd[], int* char_count) {
-	if (check_char(cmd[1], 'v', ERROR, char_count))
-		return -1;
-	if (check_char(cmd[2], ' ', ERROR, char_count))
+int handle_rv(Courier::CourierPool<TerminalCourierMessage>& pool, const char cmd[]) {
+	if (check_char(cmd[1], 'v', ERROR) || check_char(cmd[2], ' ', ERROR))
 		return -1;
 
 	int out_len = 0;
 	int i = 3;
 	int train = scan_int(cmd + i, 2, &out_len);
 	if (train == -1) {
-		error_and_prompt(ERROR, char_count);
+		error_out(ERROR);
 		return -1;
 	}
 
 	i += out_len;
-	if (i > CMD_LEN) {
-		error_and_prompt(LENGTH_ERROR, char_count);
-		return -1;
-	}
-
 	for (; cmd[i] != '\r'; ++i) {
-		if (i > CMD_LEN) {
-			error_and_prompt(LENGTH_ERROR, char_count);
-			return -1;
-		} else if (check_char(cmd[i], ' ', ERROR, char_count)) {
+		if (check_char(cmd[i], ' ', ERROR)) {
 			return -1;
 		}
 	}
 
-	TerminalCourierMessage req = {CourierRequestHeader::REV, train};
+	TerminalCourierMessage req = { CourierRequestHeader::REV, train };
 	pool.request(&req, sizeof(req));
 	return 0;
 }
 
-int handle_sw(int train_server_tid, const char cmd[], int* char_count) {
-	if (check_char(cmd[1], 'w', ERROR, char_count))
-		return -1;
-	if (check_char(cmd[2], ' ', ERROR, char_count))
+int handle_sw(int train_server_tid, const char cmd[]) {
+	if (check_char(cmd[1], 'w', ERROR) || check_char(cmd[2], ' ', ERROR))
 		return -1;
 
 	char snum = 0;
@@ -178,30 +161,24 @@ int handle_sw(int train_server_tid, const char cmd[], int* char_count) {
 	int switch_num = scan_int(cmd + i, 3, &out_len);
 
 	if (switch_num == -1) {
-		error_and_prompt(ERROR, char_count);
+		error_out(ERROR);
 		return -1;
 	} else {
 		snum = switch_num;
 	}
 
 	i += out_len + 2;
-	if (i > CMD_LEN) {
-		error_and_prompt(LENGTH_ERROR, char_count);
-		return -1;
-	} else if (check_char(cmd[i - 2], ' ', ERROR, char_count))
+	if (check_char(cmd[i - 2], ' ', ERROR))
 		return -1;
 
 	status = lower(cmd[i - 1]);
 	if (status != 'c' && status != 's') {
-		error_and_prompt(ERROR, char_count);
+		error_out(ERROR);
 		return -1;
 	}
 
 	for (; cmd[i] != '\r'; ++i) {
-		if (i > CMD_LEN) {
-			error_and_prompt(LENGTH_ERROR, char_count);
-			return -1;
-		} else if (check_char(cmd[i], ' ', ERROR, char_count)) {
+		if (check_char(cmd[i], ' ', ERROR)) {
 			return -1;
 		}
 	}
@@ -222,7 +199,6 @@ void str_cpy(const char* source, char* target, int* index, int len, bool check_n
 	}
 }
 
-
 void set_switch(int train_server_tid, char snum, char status) {
 	Train::TrainAdminReq req;
 	req.header = Train::RequestHeader::SWITCH;
@@ -231,9 +207,6 @@ void set_switch(int train_server_tid, char snum, char status) {
 	Message::Send::Send(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
 }
 
-
-
-
 void Terminal::terminal_admin() {
 	Name::RegisterAs(TERMINAL_ADMIN);
 	int uart_0_server_tid = Name::WhoIs(UART::UART_0_TRANSMITTER);
@@ -241,21 +214,24 @@ void Terminal::terminal_admin() {
 	int from;
 	TerminalServerReq req;
 
-	Courier::CourierPool<TerminalCourierMessage> courier_pool = Courier::CourierPool<TerminalCourierMessage>(&terminal_courier, 3);
+	Courier::CourierPool<TerminalCourierMessage> courier_pool = Courier::CourierPool<TerminalCourierMessage>(&terminal_courier, Priority::TERMINAL_PRIORITY);
 
 	UART::Puts(uart_0_server_tid, 0, START_PROMPT, sizeof(START_PROMPT) - 1);
 
-	Task::Create(3, &terminal_clock_courier);
-	Task::Create(3, &sensor_query_courier);
-	Task::Create(3, &idle_time_courier);
-	Task::Create(3, &user_input_courier);
+	Task::Create(Priority::TERMINAL_PRIORITY, &terminal_clock_courier);
+	Task::Create(Priority::TERMINAL_PRIORITY, &sensor_query_courier);
+	Task::Create(Priority::TERMINAL_PRIORITY, &idle_time_courier);
+	Task::Create(Priority::TERMINAL_PRIORITY, &user_input_courier);
 
 	bool isRunning = false;
 
 	char printing_buffer[1024]; // 1024 is good for now
 	int printing_index = 0;
 	char buf[100];
-	char cmd[CMD_LEN] = { 0 };
+	etl::circular_buffer<Command, CMD_HISTORY_LEN> cmd_history = etl::circular_buffer<Command, CMD_HISTORY_LEN>();
+	cmd_history.push(Command { { 0 }, 0 });
+	size_t cmd_history_index = 0;
+	TAState escape_status = TAState::TA_DEFAULT_ARROW_STATE;
 
 	bool isSensorModified = false;
 	char sensor_state[10];
@@ -265,9 +241,6 @@ void Terminal::terminal_admin() {
 	bool isIdleTimeModified = false;
 	int char_count = 0;
 	int ticks = 0;
-
-
-
 
 	// This is used to keep track of number of activated sensors
 
@@ -307,9 +280,7 @@ void Terminal::terminal_admin() {
 
 			str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
 			if (printing_index >= 512) {
-				Task::_KernelPrint("too long of printing \r\n");
-				while (1) {
-				}
+				Task::_KernelCrash("Too much printing, %d\r\n", printing_index);
 			}
 			UART::Puts(uart_0_server_tid, 0, printing_buffer, printing_index);
 		}
@@ -371,65 +342,125 @@ void Terminal::terminal_admin() {
 			Reply::Reply(from, nullptr, 0);
 			char c = req.body.regular_msg;
 			if (char_count > CMD_LEN) {
-				error_and_prompt(LENGTH_ERROR, &char_count);
+				error_and_reset(LENGTH_ERROR, &char_count);
+				UART::Puts(uart_0_server_tid, 0, PROMPT, sizeof(PROMPT) - 1);
+			} else if (escape_status == TAState::TA_FOUND_ESCAPE) {
+				escape_status = (c == '[') ? TAState::TA_FOUND_BRACKET : TAState::TA_DEFAULT_ARROW_STATE;
+			} else if (escape_status == TAState::TA_FOUND_BRACKET) {
+				switch (c) {
+				case 'A': { // up arrow
+					if (cmd_history_index > 0) {
+						cmd_history_index--;
+						UART::Putc(uart_0_server_tid, 0, '\r');
+						if (char_count > 0) {
+							UART::Puts(uart_0_server_tid, 0, SPACES, char_count + sizeof(PROMPT_NNL) - 1);
+							UART::Putc(uart_0_server_tid, 0, '\r');
+						}
+
+						UART::Puts(uart_0_server_tid, 0, PROMPT_NNL, sizeof(PROMPT_NNL) - 1);
+						UART::Puts(uart_0_server_tid, 0, cmd_history[cmd_history_index].cmd, cmd_history[cmd_history_index].len);
+
+						char_count = cmd_history[cmd_history_index].len;
+					}
+					break;
+				}
+				case 'B': { // down arrow
+					if (cmd_history_index < cmd_history.size() - 1) {
+						cmd_history_index++;
+						UART::Putc(uart_0_server_tid, 0, '\r');
+						if (char_count > 0) {
+							UART::Puts(uart_0_server_tid, 0, SPACES, char_count + sizeof(PROMPT_NNL) - 1);
+							UART::Putc(uart_0_server_tid, 0, '\r');
+						}
+
+						UART::Puts(uart_0_server_tid, 0, PROMPT_NNL, sizeof(PROMPT_NNL) - 1);
+						UART::Puts(uart_0_server_tid, 0, cmd_history[cmd_history_index].cmd, cmd_history[cmd_history_index].len);
+
+						char_count = cmd_history[cmd_history_index].len;
+					}
+					break;
+				}
+				case 'C': { // right arrow
+					if (cmd_history[cmd_history_index].cmd[char_count] != '\0') {
+						char_count++;
+					}
+					break;
+				}
+				case 'D': { // left arrow
+					if (char_count > 0) {
+						char_count--;
+					}
+					break;
+				}
+				default: {
+					char buf[3] = { '\033', '[', c };
+					UART::Puts(uart_0_server_tid, 0, buf, 3);
+				}
+				}
+
+				escape_status = TAState::TA_DEFAULT_ARROW_STATE;
 			} else if (c == '\b') {
 				if (char_count > 0) {
-					cmd[char_count] = '\0';
+					cmd_history[cmd_history_index].cmd[char_count] = '\0';
 					char_count--;
 					UART::Puts(uart_0_server_tid, 0, "\b \b", 3);
 				}
 			} else if (c == '\r') {
-				cmd[char_count] = '\r';
-				switch (cmd[0]) {
+				cmd_history[cmd_history_index].cmd[char_count] = '\r';
+				switch (cmd_history[cmd_history_index].cmd[0]) {
 				case 't': {
-					handle_tr(train_server_tid, cmd, &char_count);
+					handle_tr(train_server_tid, cmd_history[cmd_history_index].cmd);
 					break;
 				}
 				case 'r': {
-					handle_rv(courier_pool, cmd, &char_count);
+					handle_rv(courier_pool, cmd_history[cmd_history_index].cmd);
 					break;
 				}
 				case 's': {
-					handle_sw(train_server_tid, cmd, &char_count);
+					handle_sw(train_server_tid, cmd_history[cmd_history_index].cmd);
 					break;
 				}
 				case 'q': {
 					int i = 1;
-					while (cmd[i] == ' ' && i < CMD_LEN) {
+					while (cmd_history[cmd_history_index].cmd[i] == ' ' && i < CMD_LEN) {
 						++i;
 					}
 
-					if (cmd[i] == '\r') {
+					if (cmd_history[cmd_history_index].cmd[i] == '\r') {
 						UART::Puts(uart_0_server_tid, 0, QUIT, sizeof(QUIT) - 1);
 
 						for (int k = 0; k < Train::NUM_TRAINS; ++k) {
 							// Stop all trains
 							// set_train_speed(train_logic_server_tid, Train::TRAIN_NUMBERS[k], 0);
 						}
-
-						// Should have some kind of command to flush the buffer
-						// lol I am litearry crashing the server right now, which trigger a reboot
-						kernel_assert(1 == 2);
+						restart();
 					} else {
-						error_and_prompt(ERROR, &char_count);
+						error_out(ERROR);
 					}
 					break;
 				}
 				default: {
-					error_and_prompt(ERROR, &char_count);
+					error_out(ERROR);
 					break;
 				}
 				}
 
+				cmd_history[cmd_history_index].len = char_count;
 				char_count = 0;
-				UART::Puts(uart_0_server_tid, 0, PROMPT, sizeof(PROMPT) - 1);
-
-				// Reset cmd
-				for (int i = 0; i < CMD_LEN; ++i) {
-					cmd[i] = '\0';
+				if (cmd_history_index < cmd_history.max_size() - 1) {
+					cmd_history.push(Command { { 0 }, 0 });
+					cmd_history_index++;
+				} else {
+					cmd_history.pop();
+					cmd_history.push(Command { { 0 }, 0 });
 				}
+
+				UART::Puts(uart_0_server_tid, 0, PROMPT, sizeof(PROMPT) - 1);
+			} else if (c == '\033') {
+				// Escape sequence. Try to read an arrow key.
+				escape_status = TAState::TA_FOUND_ESCAPE;
 			} else {
-				cmd[char_count++] = c;
+				cmd_history[cmd_history_index].cmd[char_count++] = c;
 				UART::Putc(uart_0_server_tid, 0, c);
 			}
 			break;
@@ -445,12 +476,12 @@ void Terminal::terminal_courier() {
 
 	int terminal_tid = Name::WhoIs(Terminal::TERMINAL_ADMIN);
 	int train_tid = Name::WhoIs(Train::TRAIN_SERVER_NAME);
-	
+
 	Terminal::TerminalCourierMessage req;
 	Terminal::TerminalServerReq req_to_admin;
 	Train::TrainAdminReq req_to_train;
 	int from;
-	while (1) {
+	while (true) {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(TerminalCourierMessage));
 		Message::Reply::Reply(from, nullptr, 0); // unblock caller right away
 		switch (req.header) {
@@ -464,15 +495,10 @@ void Terminal::terminal_courier() {
 			break;
 		}
 		default: {
-			char exception[50];
-			sprintf(exception, "Train Courier illegal type: [%d]\r\n", req.header);
-			Task::_KernelPrint(exception);
-			while (1) {
-			}
+			Task::_KernelCrash("Train Courier illegal type: [%d]\r\n", req.header);
 		}
 		}
 	}
-
 }
 
 void Terminal::terminal_clock_courier() {

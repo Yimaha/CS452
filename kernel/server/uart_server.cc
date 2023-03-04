@@ -1,7 +1,7 @@
 #include "uart_server.h"
 #include "../etl/queue.h"
-#include "../utils/printf.h"
 #include "../rpi.h"
+#include "../utils/printf.h"
 
 using namespace UART;
 
@@ -9,7 +9,7 @@ void UART::uart_0_server_transmit() {
 	const int uart_channel = 0;
 	Name::RegisterAs(UART_0_TRANSMITTER);
 	// create it's worker
-	Task::Create(1, &uart_0_transmission_notifier);
+	Task::Create(Priority::CRITICAL_PRIORITY, &uart_0_transmission_notifier);
 	etl::queue<char, CHAR_QUEUE_SIZE> transmit_queue;
 	int from;
 	UARTServerReq req;
@@ -69,10 +69,10 @@ void UART::uart_0_server_transmit() {
 					int put_successful = UART::SUCCESSFUL;
 					while (i < len && put_successful == UART::SUCCESSFUL) {
 						put_successful = UART::UartWriteRegister(uart_channel, UART_THR, s[i]);
-						i ++;
+						i++;
 					}
 					if (i != len) { // we couldn't push everything
-						for (i = i-1; i < len; i++) {
+						for (i = i - 1; i < len; i++) {
 							transmit_queue.push(s[i]);
 						}
 						// enable the interrupt
@@ -84,11 +84,7 @@ void UART::uart_0_server_transmit() {
 			break;
 		}
 		default: {
-			char exception[30];
-			sprintf(exception, "UART0 trans: illegal type: [%d]\r\n", req.header);
-			Task::_KernelPrint(exception);
-			while (1) {
-			}
+			Task::_KernelCrash("UART0 trans: illegal type: [%d]\r\n", req.header);
 		}
 		}
 	}
@@ -99,7 +95,7 @@ void UART::uart_0_server_receive() {
 	Name::RegisterAs(UART_0_RECEIVER);
 
 	// create it's worker
-	Task::Create(1, &uart_0_receive_notifier);
+	Task::Create(Priority::CRITICAL_PRIORITY, &uart_0_receive_notifier);
 
 	etl::queue<char, CHAR_QUEUE_SIZE> receive_queue;
 	etl::queue<int, TASK_QUEUE_SIZE> await_c;
@@ -148,11 +144,7 @@ void UART::uart_0_server_receive() {
 			break;
 		}
 		default: {
-			char exception[30];
-			sprintf(exception, "UART0 receive: illegal type: [%d]\r\n", req.header);
-			Task::_KernelPrint(exception);
-			while (1) {
-			}
+			Task::_KernelCrash("UART0 receive: illegal type: [%d]\r\n", req.header);
 		}
 		}
 	}
@@ -191,8 +183,8 @@ void UART::uart_1_server_transmit() {
 	const int uart_channel = 1;
 	Name::RegisterAs(UART_1_TRANSMITTER);
 	// create it's worker
-	Task::Create(1, &uart_1_transmission_notifier);
-	Task::Create(1, &uart_1_CTS_notifier);
+	Task::Create(Priority::CRITICAL_PRIORITY, &uart_1_transmission_notifier);
+	Task::Create(Priority::CRITICAL_PRIORITY, &uart_1_CTS_notifier);
 
 	etl::queue<char, CHAR_QUEUE_SIZE> transmit_queue;
 	int from;
@@ -274,11 +266,7 @@ void UART::uart_1_server_transmit() {
 			break;
 		}
 		default: {
-			char exception[30];
-			sprintf(exception, "UART1 trans: illegal type: [%d]\r\n", req.header);
-			Task::_KernelPrint(exception);
-			while (1) {
-			}
+			Task::_KernelCrash("UART1 trans: illegal type: [%d]\r\n", req.header);
 		}
 		}
 	}
@@ -289,8 +277,8 @@ void UART::uart_1_server_receive() {
 	Name::RegisterAs(UART_1_RECEIVER);
 
 	// create it's worker
-	Task::Create(1, &uart_1_receive_notifier);
-	Task::Create(1, &uart_1_receive_timeout_notifier);
+	Task::Create(Priority::CRITICAL_PRIORITY, &uart_1_receive_notifier);
+	Task::Create(Priority::CRITICAL_PRIORITY, &uart_1_receive_timeout_notifier);
 
 	etl::queue<char, CHAR_QUEUE_SIZE> receive_queue;
 	etl::queue<int, TASK_QUEUE_SIZE> await_c;
@@ -302,7 +290,6 @@ void UART::uart_1_server_receive() {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(UARTServerReq));
 		switch (req.header) {
 		case RequestHeader::NOTIFY_RECEIVE: {
-			Task::_KernelPrint("a\r\n");
 			Message::Reply::Reply(from, nullptr, 0); // unblock receiver right away right away
 			// body is irrlevant, we simply try to read until we
 			int c = UartReadRegister(uart_channel, UART_RHR);
@@ -343,11 +330,7 @@ void UART::uart_1_server_receive() {
 			break;
 		}
 		default: {
-			char exception[30];
-			sprintf(exception, "UART1 receive: illegal type: [%d]\r\n", req.header);
-			Task::_KernelPrint(exception);
-			while (1) {
-			}
+			Task::_KernelCrash("UART1 receive: illegal type: [%d]\r\n", req.header);
 		}
 		}
 	}
