@@ -457,7 +457,6 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 
 		exception_code = (int)(uart_get(0, 1, UART_IIR) & 0x3F);
 		do {
-			// printf("Uart 1: exception code: %d receive_tid: %d transmit_tid %d msr_tid %d \r\n", exception_code, uart_1_receive_tid, uart_1_transmit_tid, uart_1_msr_tid);
 
 			// this is a really shitty way to handle this, I think it would probably be better if we something similar to a dedicated class object
 			// but we will fix it soon once experiementa go through.
