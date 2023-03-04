@@ -28,7 +28,7 @@ struct Message {
 
 class TaskDescriptor {
 public:
-	enum TaskState { ERROR = 0, ACTIVE = 1, READY = 2, ZOMBIE = 3, SEND_BLOCK = 4, RECEIVE_BLOCK = 5, REPLY_BLOCK = 6, EVENT_BLOCK = 7, INTERRUPTED = 8 };
+	enum TaskState { ERROR = 0, ACTIVE = 1, READY = 2, ZOMBIE = 3, SEND_BLOCK = 4, RECEIVE_BLOCK = 5, REPLY_BLOCK = 6, EVENT_BLOCK = 7, INTERRUPTED = 8, NOT_INITIALIZED = 9 };
 	TaskDescriptor(int id, int parent_id, int priority, void (*pc)());
 	// message related api
 	void queue_message(int from, char* msg, int message_length); // queue_up a message
@@ -40,6 +40,7 @@ public:
 	// state modifying api
 	InterruptFrame* to_active();
 	void to_ready(int system_response, Task::Scheduler* scheduler);
+	void to_interrupted(Task::Scheduler* scheduler);
 	bool kill();
 	void to_send_block(char* reply, int replylen);
 	void to_receive_block(int* from, char* msg, int msglen);
@@ -48,7 +49,6 @@ public:
 	// k3 will have to_event_block
 	void to_event_block();
 	void to_event_block_with_buffer(char* buffer);
-	void set_interrupted(bool val);
 
 	// state checking api
 	bool is_active();
@@ -59,6 +59,7 @@ public:
 	bool is_reply_block();
 	bool is_event_block();
 	bool is_interrupted();
+	bool is_not_initialized();
 
 	const int task_id;
 	const int parent_id; // id = -1 means no parent
@@ -71,8 +72,6 @@ private:
 	TaskState state;
 	int priority;
 	int system_call_result;
-	bool initialized;
-	bool interrupted;
 
 	void (*pc)();						   // program counter, but typically only used as a reference value to see where the start of the program is
 	MessageReceiver response;			   // used to store response if task decided to call send, or receive
@@ -84,16 +83,17 @@ private:
 };
 
 inline InterruptFrame* TaskDescriptor::to_active() {
-	state = TaskDescriptor::TaskState::ACTIVE;
-	if (!initialized) {
-		initialized = true;
+
+	if (is_not_initialized()) {
 		// startup task, has no parameter or handling
+		state = TaskDescriptor::TaskState::ACTIVE;
 		sp = (char*)first_el0_entry(sp, pc);
 	} else if (is_interrupted()) {
 		// interrupted task, has to restore the context
-		set_interrupted(false);
+		state = TaskDescriptor::TaskState::ACTIVE;
 		sp = (char*)to_user_interrupted(sp, spsr, pc);
 	} else {
+		state = TaskDescriptor::TaskState::ACTIVE;
 		sp = (char*)to_user(system_call_result, sp, spsr);
 	}
 
