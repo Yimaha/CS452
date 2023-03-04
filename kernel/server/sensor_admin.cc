@@ -8,16 +8,16 @@ void Sensor::sensor_admin() {
 	// for (int i = 0; i < POOL_SIZE; i++) {
 	// 	courier_pool.push(Task::Create(2, &sensor_courier));
 	// }
-	etl::queue<int, 32> subscribers;
+	etl::queue<int, SENSOR_ADMIN_NUM_SUBSCRIBERS> subscribers;
 	int uart_trans_tid = Name::WhoIs(UART::UART_1_TRANSMITTER);
 
-	int courier = Task::Create(2, &sensor_courier);
+	int courier = Task::Create(Task::HIGH_PRIORITY, &sensor_courier);
 	int from;
 	SensorAdminReq req;
 	if (UART::Putc(uart_trans_tid, 1, 0xc0) == -1) {
 		Task::_KernelCrash("Failed to enable sensor\r\n");
 	}
-	char sensor_state[10] = { 0b10101010 };
+	char sensor_state[NUM_SENSOR_BYTES] = { 0b10101010 };
 	SensorCourierReq req_to_courier = { CourierRequestHeader::OBSERVER, { 10 } };
 	Message::Send::Send(courier, (const char*)&req_to_courier, sizeof(SensorCourierReq), nullptr, 0);
 
@@ -28,11 +28,11 @@ void Sensor::sensor_admin() {
 			Message::Reply::Reply(from, nullptr, 0); // after copying
 			Message::Send::Send(from, (const char*)&req_to_courier, sizeof(SensorCourierReq), nullptr, 0);
 
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < NUM_SENSOR_BYTES; i++) {
 				sensor_state[i] = req.body.sensor_state[i];
 			}
 			while (!subscribers.empty()) {
-				Message::Reply::Reply(subscribers.front(), sensor_state, 10);
+				Message::Reply::Reply(subscribers.front(), sensor_state, NUM_SENSOR_BYTES);
 				subscribers.pop();
 			}
 
@@ -44,7 +44,7 @@ void Sensor::sensor_admin() {
 			break;
 		}
 		default: {
-			char exception[30];
+			char exception[50];
 			sprintf(exception, "Sensor Admin: illegal type: [%d]\r\n", req.header);
 			Task::_KernelCrash(exception);
 		}
@@ -62,14 +62,14 @@ void Sensor::sensor_courier() {
 	SensorCourierReq req;
 	SensorAdminReq req_to_admin;
 
-	while (1) {
+	while (true) {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(SensorCourierReq));
 		Message::Reply::Reply(from, nullptr, 0); // unblock caller right away
 		switch (req.header) {
 		case CourierRequestHeader::OBSERVER: {
 			UART::Putc(uart_trans_tid, 1, (char)133);
 			Clock::Delay(clock_tid, req.body.delay);
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < NUM_SENSOR_BYTES; i++) {
 				req_to_admin.body.sensor_state[i] = UART::Getc(uart_rec_tid, 1);
 			}
 			req_to_admin.header = RequestHeader::SENSOR_UPDATE;
@@ -77,10 +77,10 @@ void Sensor::sensor_courier() {
 			break;
 		}
 		default: {
-			char exception[30];
+			char exception[50];
 			sprintf(exception, "Sensor Courier: illegal type: [%d]\r\n", req.header);
 			Task::_KernelCrash(exception);
 		}
-		}
+		} // switch
 	}
 }
