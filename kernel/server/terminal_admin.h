@@ -49,10 +49,7 @@ const int MAX_PUTS_LEN = 64;
 const int CLOCK_UPDATE_FREQUENCY = 10;
 constexpr int CMD_LEN = 64;
 constexpr int CMD_HISTORY_LEN = 128;
-const int TA_DEFAULT_ARROW_STATE = 0;
-const int TA_FOUND_ESCAPE = 1;
-const int TA_FOUND_BRACKET = 2;
-
+enum class TAState : uint32_t {TA_DEFAULT_ARROW_STATE, TA_FOUND_ESCAPE, TA_FOUND_BRACKET};
 void terminal_admin();
 void terminal_courier();
 void terminal_clock_courier();

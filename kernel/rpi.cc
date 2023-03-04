@@ -294,7 +294,7 @@ extern "C" void print_hex_arg(uint64_t arg) {
 }
 
 // Crash the system
-extern "C" void crash(void) {
+extern "C" void restart(void) {
 	asm volatile("b reboot");
 }
 

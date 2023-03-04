@@ -53,7 +53,9 @@ bool Train::TrainStatus::revStart() {
 // return -1 if need reverse again
 // return speed if no need
 bool Train::TrainStatus::revClear() {
-	kernel_assert(state == State::REVERSING);
+	if (state != State::REVERSING) {
+		Task::_KernelCrash("rev clear called when train is not reversing\r\n");
+	}
 	state = State::FREE;
 
 	if (direction != desire_direction) {

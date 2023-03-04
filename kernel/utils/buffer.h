@@ -99,7 +99,7 @@ T RingBuffer<T>::pop_front() {
 #ifdef OUR_DEBUG
 	if (is_empty()) {
 		print("trying to pop from an empty buffer \r\n", 37);
-		crash();
+		restart();
 	}
 #endif
 	T data = buffer[head];
@@ -113,7 +113,7 @@ T RingBuffer<T>::pop_back() {
 #ifdef OUR_DEBUG
 	if (is_empty()) {
 		print("trying to pop from an empty buffer \r\n", 37);
-		crash();
+		restart();
 	}
 #endif
 	tail = (tail - 1 + MAX_BUFFER_SIZE) % MAX_BUFFER_SIZE;

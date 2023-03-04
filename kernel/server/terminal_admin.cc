@@ -231,7 +231,7 @@ void Terminal::terminal_admin() {
 	etl::circular_buffer<Command, CMD_HISTORY_LEN> cmd_history = etl::circular_buffer<Command, CMD_HISTORY_LEN>();
 	cmd_history.push(Command { { 0 }, 0 });
 	size_t cmd_history_index = 0;
-	int escape_status = 0;
+	TAState escape_status = TAState::TA_DEFAULT_ARROW_STATE;
 
 	bool isSensorModified = false;
 	char sensor_state[10];
@@ -344,9 +344,9 @@ void Terminal::terminal_admin() {
 			if (char_count > CMD_LEN) {
 				error_and_reset(LENGTH_ERROR, &char_count);
 				UART::Puts(uart_0_server_tid, 0, PROMPT, sizeof(PROMPT) - 1);
-			} else if (escape_status == TA_FOUND_ESCAPE) {
-				escape_status = (c == '[') ? TA_FOUND_BRACKET : TA_DEFAULT_ARROW_STATE;
-			} else if (escape_status == TA_FOUND_BRACKET) {
+			} else if (escape_status == TAState::TA_FOUND_ESCAPE) {
+				escape_status = (c == '[') ? TAState::TA_FOUND_BRACKET : TAState::TA_DEFAULT_ARROW_STATE;
+			} else if (escape_status == TAState::TA_FOUND_BRACKET) {
 				switch (c) {
 				case 'A': { // up arrow
 					if (cmd_history_index > 0) {
@@ -398,7 +398,7 @@ void Terminal::terminal_admin() {
 				}
 				}
 
-				escape_status = 0;
+				escape_status = TAState::TA_DEFAULT_ARROW_STATE;
 			} else if (c == '\b') {
 				if (char_count > 0) {
 					cmd_history[cmd_history_index].cmd[char_count] = '\0';
@@ -433,11 +433,7 @@ void Terminal::terminal_admin() {
 							// Stop all trains
 							// set_train_speed(train_logic_server_tid, Train::TRAIN_NUMBERS[k], 0);
 						}
-
-						// Should have some kind of command to flush the buffer
-						// lol I am litearry crashing the server right now, which trigger a reboot
-						// oh wtf, oh I guess that makes sense, still bruh
-						kernel_assert(1 == 2);
+						restart();
 					} else {
 						error_out(ERROR);
 					}
@@ -462,7 +458,7 @@ void Terminal::terminal_admin() {
 				UART::Puts(uart_0_server_tid, 0, PROMPT, sizeof(PROMPT) - 1);
 			} else if (c == '\033') {
 				// Escape sequence. Try to read an arrow key.
-				escape_status = TA_FOUND_ESCAPE;
+				escape_status = TAState::TA_FOUND_ESCAPE;
 			} else {
 				cmd_history[cmd_history_index].cmd[char_count++] = c;
 				UART::Putc(uart_0_server_tid, 0, c);

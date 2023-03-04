@@ -30,7 +30,9 @@ private:
 
 template <typename T>
 void CourierPool<T>::request(T* req, int len) {
-	kernel_assert(!courier_queue.empty());
+	if (courier_queue.empty()) {
+		Task::_KernelCrash("\r\nout of courier for type: %s\r\n");
+	}
 	Message::Send::Send(courier_queue.front(), (const char*)req, len, nullptr, 0);
 	courier_queue.pop();
 }
