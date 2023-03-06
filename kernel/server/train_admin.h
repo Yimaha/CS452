@@ -47,7 +47,7 @@ const int TRAIN_NUMBERS[NUM_TRAINS] = { 1, 2, 24, 58, 74, 78 };
 void train_admin();
 void train_courier();
 
-enum class RequestHeader : uint32_t { SPEED, REV, SWITCH, COURIER_COMPLETE, SWITCH_DELAY_COMPLETE, DELAY_REV_COMPLETE }; // note that notify is an exclusive, clock notifier message.
+enum class RequestHeader : uint32_t { SPEED, REV, SWITCH, COURIER_COMPLETE, SWITCH_DELAY_COMPLETE, DELAY_REV_COMPLETE, SWITCH_OBSERVE }; // note that notify is an exclusive, clock notifier message.
 
 struct RequestBody {
 	char id;

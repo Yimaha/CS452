@@ -3,8 +3,8 @@
 
 namespace UserTask
 {
-const char FIRST_USER_TASK_NAME[] = "FIRST_USER_TASK";
-void first_user_task();
+const char LAUNCH_TASK_NAME[] = "FIRST_USER_TASK";
+void launch();
 
 // this is a set of dummy user processes I made
 // feel free to use this as template for creating tasks in future assignments

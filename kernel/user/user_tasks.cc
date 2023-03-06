@@ -7,13 +7,13 @@
 #include "../server/uart_server.h"
 #include "../utils/utility.h"
 
-void UserTask::first_user_task() {
+void UserTask::launch() {
 	while (true) {
 		// Create the name server
 		Task::Create(Priority::HIGH_PRIORITY, &Name::name_server);
 
 		// Register in the name server
-		Name::RegisterAs(UserTask::FIRST_USER_TASK_NAME);
+		Name::RegisterAs(UserTask::LAUNCH_TASK_NAME);
 
 		// Create the clock server
 		Task::Create(Priority::CRITICAL_PRIORITY, &Clock::clock_server);
@@ -37,12 +37,7 @@ void UserTask::first_user_task() {
 		// Task::Create(3, &SystemTask::k4_dummy_train_sensor); // temp dummy test to see if io works
 		// Task::Create(3, &SystemTask::k4_dummy_train_switch); // temp dummy test to see if io works
 
-		// Create the terminal admin and user input
 		Task::Create(Priority::TERMINAL_PRIORITY, &Terminal::terminal_admin);
-		// Task::Create(3, &Courier::terminal_clock_courier);
-		// Task::Create(3, &SystemTask::idle_time_task);
-		// Task::Create(3, &Courier::sensor_query_courier);
-		// Task::Create(3, &Courier::user_input);
 
 		Task::Exit();
 	}

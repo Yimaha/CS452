@@ -64,14 +64,14 @@ void sw_to_cursor_pos(char sw, int* r, int* c) {
 		*c = 5 + 6 * ((sw - 1) % 6);
 	} else {
 		*r = 15;
-		*c = 8 + 9 * (sw - 153);
+		*c = 8 + 9 * (sw - 19);
 	}
 }
 
 void error_out(const char* error_msg) {
 	char buffer[64];
 	sprintf(buffer, "\r\n%s", error_msg);
-	UART::PutsNullTerm(UART::UART_0_TRANSMITTER_TID, 0, buffer, 64);
+	UART::PutsNullTerm(UART::UART_0_TRANSMITTER_TID, 0, buffer, UART::UART_MESSAGE_LIMIT);
 }
 
 void error_and_reset(const char* error_msg, int* char_count) {
@@ -222,10 +222,11 @@ void Terminal::terminal_admin() {
 	Task::Create(Priority::TERMINAL_PRIORITY, &sensor_query_courier);
 	Task::Create(Priority::TERMINAL_PRIORITY, &idle_time_courier);
 	Task::Create(Priority::TERMINAL_PRIORITY, &user_input_courier);
+	Task::Create(Priority::TERMINAL_PRIORITY, &switch_state_courier);
 
 	bool isRunning = false;
 
-	char printing_buffer[1024]; // 1024 is good for now
+	char printing_buffer[UART::UART_MESSAGE_LIMIT]; // 512 is good for now
 	int printing_index = 0;
 	char buf[100];
 	etl::circular_buffer<Command, CMD_HISTORY_LEN> cmd_history = etl::circular_buffer<Command, CMD_HISTORY_LEN>();
@@ -242,13 +243,15 @@ void Terminal::terminal_admin() {
 	int char_count = 0;
 	int ticks = 0;
 
+	bool isSwitchStateModified = false;
+	char switch_state[Train::NUM_SWITCHES];
+
 	// This is used to keep track of number of activated sensors
 
 	auto trigger_print = [&]() {
 		if (isRunning) {
 			printing_index = 0;
 			str_cpy(SAVE_CURSOR, printing_buffer, &printing_index, sizeof(SAVE_CURSOR) - 1);
-			str_cpy(TOP_LEFT, printing_buffer, &printing_index, sizeof(TOP_LEFT) - 1);
 			log_time(buf, ticks);
 			str_cpy(buf, printing_buffer, &printing_index, 8);
 			if (isIdleTimeModified) {
@@ -278,8 +281,19 @@ void Terminal::terminal_admin() {
 				str_cpy(SPACES, printing_buffer, &printing_index, sizeof(SPACES) - 1);
 			}
 
+			if (isSwitchStateModified) {
+				isSwitchStateModified = false;
+				int r;
+				int c;
+				for (uint64_t i = 0; i < sizeof(switch_state); i++) {
+					sw_to_cursor_pos(i + 1, &r, &c);
+					sprintf(buf, "\033[%d;%dH%c", r, c, switch_state[i]);
+					str_cpy(buf, printing_buffer, &printing_index, 100, true);
+				}
+			}
+
 			str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
-			if (printing_index >= 512) {
+			if (printing_index >= UART::UART_MESSAGE_LIMIT) {
 				Task::_KernelCrash("Too much printing, %d\r\n", printing_index);
 			}
 			UART::Puts(uart_0_server_tid, 0, printing_buffer, printing_index);
@@ -314,28 +328,30 @@ void Terminal::terminal_admin() {
 		}
 		case RequestHeader::START: {
 			Reply::Reply(from, nullptr, 0);
-			UART::Puts(uart_0_server_tid, 0, CLEAR_SCREEN, sizeof(CLEAR_SCREEN) - 1);
-			UART::Puts(uart_0_server_tid, 0, TOP_LEFT, sizeof(TOP_LEFT) - 1);
-			UART::Puts(uart_0_server_tid, 0, SENSOR_DATA, sizeof(SENSOR_DATA) - 1);
+			printing_index = 0;
+			str_cpy(CLEAR_SCREEN, printing_buffer, &printing_index, sizeof(CLEAR_SCREEN) - 1);
+			str_cpy(TOP_LEFT, printing_buffer, &printing_index, sizeof(TOP_LEFT) - 1);
+			str_cpy(SENSOR_DATA, printing_buffer, &printing_index, sizeof(SENSOR_DATA) - 1);
 			for (int i = 0; i < Terminal::SWITCH_UI_LEN; ++i) {
-				UART::PutsNullTerm(uart_0_server_tid, 0, Terminal::SWITCH_UI[i]);
+				str_cpy(Terminal::SWITCH_UI[i], printing_buffer, &printing_index, UART::UART_MESSAGE_LIMIT, true);
 			}
-			UART::Puts(uart_0_server_tid, 0, WELCOME_MSG, sizeof(WELCOME_MSG) - 1);
-			UART::Puts(uart_0_server_tid, 0, PROMPT, sizeof(PROMPT) - 1);
-			// disabled for now
-			// for some reason, when this is enabled, not only does switch not fire, there is also
-			// for (int i = 1; i <= 18; ++i) {
-			// 	set_switch(train_server_tid, i, 'c');
-			// }
+			str_cpy(WELCOME_MSG, printing_buffer, &printing_index, sizeof(WELCOME_MSG) - 1);
+			str_cpy(PROMPT, printing_buffer, &printing_index, sizeof(PROMPT) - 1);
 
-			// for (int i = 153; i <= 156; ++i) {
-			// 	set_switch(train_server_tid, i, 'c');
-			// }
+			UART::Puts(uart_0_server_tid, 0, printing_buffer, printing_index);
 			isRunning = true;
 			break;
 		}
 		case RequestHeader::REVERSE_COMPLETE: {
 			courier_pool.receive(from);
+			break;
+		}
+		case RequestHeader::SWITCH: {
+			Reply::Reply(from, nullptr, 0);
+			for (uint64_t i = 0; i < sizeof(switch_state); i++) {
+				switch_state[i] = req.body.worker_msg.msg[i];
+			}
+			isSwitchStateModified = true;
 			break;
 		}
 		case RequestHeader::PUTC: {
@@ -393,8 +409,8 @@ void Terminal::terminal_admin() {
 					break;
 				}
 				default: {
-					char buf[3] = { '\033', '[', c };
-					UART::Puts(uart_0_server_tid, 0, buf, 3);
+					char buf_3[3] = { '\033', '[', c };
+					UART::Puts(uart_0_server_tid, 0, buf_3, 3);
 				}
 				}
 
@@ -466,7 +482,7 @@ void Terminal::terminal_admin() {
 			break;
 		}
 		default: {
-			break;
+			Task::_KernelCrash("Illegal command passed to terminal admin: [%d]\r\n", req.header);
 		}
 		}
 	}
@@ -560,5 +576,23 @@ void Terminal::user_input_courier() {
 	while (true) {
 		treq.body.regular_msg = UART::Getc(UART::UART_0_RECEIVER_TID, 0);
 		Message::Send::Send(terminal_tid, reinterpret_cast<char*>(&treq), sizeof(Terminal::TerminalServerReq), nullptr, 0);
+	}
+}
+
+void Terminal::switch_state_courier() {
+	Terminal::TerminalServerReq req_to_terminal;
+	Train::TrainAdminReq req_to_train;
+	int train_admin = Name::WhoIs(Train::TRAIN_SERVER_NAME);
+	int terminal_admin = Name::WhoIs(Terminal::TERMINAL_ADMIN);
+	int clock_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
+
+	req_to_train.header = Train::RequestHeader::SWITCH_OBSERVE;
+	req_to_terminal.header = Terminal::RequestHeader::SWITCH;
+	req_to_terminal.body.worker_msg.msg_len = Train::NUM_SWITCHES;
+	int update_frequency = 100; // update once a seceond
+	while (true) {
+		Message::Send::Send(train_admin, reinterpret_cast<char*>(&req_to_train), sizeof(Train::TrainAdminReq), req_to_terminal.body.worker_msg.msg, req_to_terminal.body.worker_msg.msg_len);
+		Message::Send::Send(terminal_admin, reinterpret_cast<char*>(&req_to_terminal), sizeof(Terminal::TerminalServerReq), nullptr, 0);
+		Clock::Delay(clock_tid, update_frequency);
 	}
 }
