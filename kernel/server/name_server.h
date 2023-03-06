@@ -8,6 +8,8 @@
 namespace Name
 {
 constexpr int MAX_NAME_SERVER_SIZE = 256;
+constexpr uint64_t MAX_NAME_LENGTH = 16; // max length of a name
+constexpr uint64_t NAME_REQ_LENGTH = MAX_NAME_LENGTH + 8;
 
 /*
  * The name server is a simple server that maps names to tids.
@@ -16,22 +18,15 @@ constexpr int MAX_NAME_SERVER_SIZE = 256;
  * The name server itself simply waits for requests from tasks
  * and then responds to them.
  */
-extern "C" void name_server();
+void name_server();
 
-enum class Iden : uint64_t { REGISTER_AS, WHO_IS };
+enum class RequestHeader : uint64_t { REGISTER_AS, WHO_IS };
 enum Exception { INVALID_NS_TASK_ID = -1, NAME_NOT_REGISTERED = -2, INVALID_IDEN = -3 };
-struct NameContainer {
+struct RequestBody {
 	char arr[MAX_NAME_LENGTH];
 
-	friend bool operator==(const NameContainer& a, const NameContainer& b) {
-		// const uint64_t first = *((uint64_t*)(a.arr - 1)) & 0x00FFFFFFFFFFFFFF;
-		// const uint64_t second = *((uint64_t*)(a.arr + sizeof(uint64_t) - 1));
-		// const uint64_t ofirst = *((uint64_t*)(b.arr - 1)) & 0x00FFFFFFFFFFFFFF;
-		// const uint64_t osecond = *((uint64_t*)(b.arr + sizeof(uint64_t) - 1));
-
-		// return first == ofirst && second == osecond;
-
-		for (int i = 0; i < MAX_NAME_LENGTH; i++) {
+	friend bool operator==(const RequestBody& a, const RequestBody& b) {
+		for (uint64_t i = 0; i < MAX_NAME_LENGTH; i++) {
 			if (a.arr[i] != b.arr[i]) {
 				return false;
 			} else if (a.arr[i] == '\0' || b.arr[i] == '\0') {
@@ -42,13 +37,13 @@ struct NameContainer {
 		return true;
 	}
 
-	friend bool operator!=(const NameContainer& a, const NameContainer& b) {
+	friend bool operator!=(const RequestBody& a, const RequestBody& b) {
 		return !(a == b);
 	}
 };
 
 struct NameServerReq {
-	Iden iden;
-	NameContainer name;
+	RequestHeader header;
+	RequestBody name;
 } __attribute__((packed, aligned(8)));
 }

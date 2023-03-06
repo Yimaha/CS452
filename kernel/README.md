@@ -1,6 +1,6 @@
-# K1
+# Assignment Submissions
 
-A lot of this README was borrowed from the sample code README. If you are looking for proper build/run instructions for K1, please see the top-level README.
+A lot of this README was borrowed from the sample code README. If you are looking for proper build/run instructions for our assignment submissions, please see the top-level README.
 
 ## ***** IMPORTANT *****
 
