@@ -32,6 +32,12 @@ opt: CFLAGS += -O3
 opt: kernel8.img
 
 
+simu: CFLAGS += -DSIMULATED_UART_1
+simu: kernel8.img
+
+timeout: CFLAGS += -DTIME_OUT
+timeout: kernel8.img
+
 clean:
 	rm -f $(OBJECTS) $(DEPENDS) kernel8.elf kernel8.img buffer.o buffer.d
 

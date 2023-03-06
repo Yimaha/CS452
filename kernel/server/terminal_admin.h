@@ -17,7 +17,7 @@ constexpr char IDLE_TIME_TASK_NAME[] = "IDLE_TIME_TASK";
 constexpr char CLEAR_SCREEN[] = "\033[2J";
 constexpr char TOP_LEFT[] = "\033[H";
 constexpr char RESET_CURSOR[] = "\033[0m";
-constexpr char SAVE_CURSOR[] = "\033[s";
+constexpr char SAVE_CURSOR[] = "\033[s\033[H";
 constexpr char RESTORE_CURSOR[] = "\033[u";
 constexpr char SENSOR_CURSOR[] = "\033[5;1H\033[31m";
 constexpr char RED_CURSOR[] = "\033[31m";
@@ -56,6 +56,7 @@ void terminal_clock_courier();
 void sensor_query_courier();
 void idle_time_courier();
 void user_input_courier();
+void switch_state_courier();
 
 enum class RequestHeader : uint32_t { NONE, CLOCK, SENSORS, SWITCH, IDLE, START, PUTC, REVERSE_COMPLETE };
 

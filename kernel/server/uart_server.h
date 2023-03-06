@@ -19,9 +19,10 @@ constexpr int UART_0_TRANSMITTER_TID = 5;
 constexpr int UART_0_RECEIVER_TID = 6;
 constexpr int UART_1_TRANSMITTER_TID = 7;
 constexpr int UART_1_RECEIVER_TID = 8;
-constexpr int CHAR_QUEUE_SIZE = 512;
+constexpr int CHAR_QUEUE_SIZE = 1024;
 constexpr int TASK_QUEUE_SIZE = 64;
 constexpr int UART_FIFO_MAX_SIZE = 64;
+constexpr int UART_MESSAGE_LIMIT = 512;
 
 // broken down version of uart_server
 void uart_0_server_transmit();
@@ -39,7 +40,7 @@ enum class RequestHeader : uint32_t { NONE, NOTIFY_RECEIVE, NOTIFY_TRANSMISSION,
 
 struct WorkerRequestBody {
 	uint64_t msg_len = 0;
-	char msg[512];
+	char msg[UART_MESSAGE_LIMIT];
 };
 
 union RequestBody

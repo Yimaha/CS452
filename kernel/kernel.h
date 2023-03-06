@@ -145,14 +145,14 @@ int UartWriteRegister(int channel, char reg, char data);
 int UartReadRegister(int channel, char reg);
 int Putc(int tid, int uart, char ch);
 int Puts(int tid, int uart, const char* s, uint64_t len);
-int PutsNullTerm(int tid, int uart, const char* s, uint64_t len = 65);
+int PutsNullTerm(int tid, int uart, const char* s, uint64_t len);
 int Getc(int tid, int uart);
 int TransInterrupt(int channel, bool enable);
 int ReceiveInterrupt(int channel, bool enable);
 int UartReadAll(int channel, char* buffer);
 const int SPI_CHANNEL = 0;
 const int SUCCESSFUL = 0;
-enum Exception { INVALID_SERVER_TASK = -1, FAILED_TO_WRITE = -2 };
+enum Exception { INVALID_SERVER_TASK = -1, FAILED_TO_WRITE = -2, FAILED_TO_READ = -3 };
 
 }
 
@@ -206,6 +206,9 @@ public:
 private:
 	// static is needed to define value at compile time
 	static const uint64_t BACK_TRACE_SIZE = 512;
+	static const int TERMINAL_UART_CHANNEL = 0;
+	static const int TRAIN_UART_CHANNEL = 1;
+	static const int DEFAULT_SPI_CHANNEL = 0;
 
 	int p_id_counter = 0;					  // keeps track of new task creation id
 	int active_task = 0;					  // keeps track of the active_task id
@@ -261,11 +264,18 @@ private:
 	bool enable_CTS[2] = { false, true };
 
 	void allocate_new_task(int parent_id, Priority priority, void (*pc)()); // create, and push a new task onto the actual scheduler
+	void handle_create();
 	void handle_send();
 	void handle_receive();
 	void handle_reply();
 	void handle_await_event(int eventId);
 	void handle_await_event_with_buffer(int eventId, char* buffer);
+	void handle_write_register();
+	void handle_read_register();
+	void handle_read_all();
+	void handle_transmit_interrupt();
+	void handle_receive_interrupt();
+	void handle_idle_stats();
 	void interrupt_control(int channel);
 };
 

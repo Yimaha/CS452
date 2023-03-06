@@ -6,9 +6,9 @@ using namespace Train;
 static const char extra_switch[] = { 0x99, 0x9A, 0x9B, 0x9C };
 int get_switch_id(int id) {
 	if (1 <= id && id <= 18) {
-		return id;
+		return id - 1;
 	} else if (153 <= id && id <= 156) {
-		return id - 153 + 19;
+		return id - 153 + 18;
 	} else {
 		return 0;
 	}
@@ -94,7 +94,7 @@ struct SwitchDelayMessage {
 
 void Train::train_admin() {
 	Name::RegisterAs(TRAIN_SERVER_NAME);
-	const uint64_t POOL_SIZE = 16;
+	const uint64_t POOL_SIZE = 64;
 	Courier::CourierPool<TrainCourierReq> courier_pool = Courier::CourierPool<TrainCourierReq>(&train_courier, Priority::HIGH_PRIORITY);
 	int uart_tid = Name::WhoIs(UART::UART_1_TRANSMITTER);
 	char command[2];
@@ -103,6 +103,20 @@ void Train::train_admin() {
 	TrainStatus trains[NUM_TRAINS];
 	char switch_state[NUM_SWITCHES] = { 'c' };
 	etl::queue<SwitchDelayMessage, POOL_SIZE> switch_queue;
+	etl::queue<int, POOL_SIZE> switch_subscriber;
+
+	for (int i = 1; i <= 18; i++) {
+		switch_queue.push({ -1, i, false });
+	}
+
+	for (int i = 153; i <= 156; i++) {
+		switch_queue.push({ -1, i, false });
+	}
+
+	get_curved_byte(command, 1);
+	UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
+	TrainCourierReq req_to_courier = { CourierRequestHeader::SWITCH_DELAY, { 0x0, 0x0 } };
+	courier_pool.request(&req_to_courier, sizeof(TrainCourierReq));
 
 	// once we pushed all jobs, initialize a job that just setup all the switches
 
@@ -136,16 +150,17 @@ void Train::train_admin() {
 		}
 		case RequestHeader::REV: {
 			char train_id = req.body.id;
-			command[0] = 0;
-			command[1] = train_id;
-			UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
 			int train_index = train_num_to_index(train_id);
 			bool revStart = trains[train_index].revStart();
-			trains[train_index].rev_subscribers.push(from);
+
 			if (revStart) {
+				command[0] = 0;
+				command[1] = train_id;
+				UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
 				TrainCourierReq req_to_courier = { CourierRequestHeader::REV_DELAY, { train_id, req.body.action } };
 				courier_pool.request(&req_to_courier, sizeof(req_to_courier));
 			}
+			trains[train_index].rev_subscribers.push(from);
 			break;
 		}
 		case RequestHeader::SWITCH: {
@@ -159,6 +174,7 @@ void Train::train_admin() {
 
 			if (switch_queue.empty()) {
 				UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
+				switch_state[get_switch_id(track_id)] = req.body.action;
 				TrainCourierReq req_to_courier = { CourierRequestHeader::SWITCH_DELAY, { 0x0, 0x0 } };
 				courier_pool.request(&req_to_courier, sizeof(TrainCourierReq));
 			}
@@ -178,18 +194,25 @@ void Train::train_admin() {
 				Message::Reply::Reply(info.from, nullptr, 0);
 			}
 			switch_queue.pop();
-
+			// if there is another swtich request queued up
 			if (!switch_queue.empty()) {
 				info = switch_queue.front();
-				command[0] = info.straight;
-				command[1] = info.track_id;
+				if (info.straight) {
+					get_straight_byte(command, info.track_id);
+				} else {
+					get_curved_byte(command, info.track_id);
+				}
 				UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
+				switch_state[get_switch_id(info.track_id)] = info.straight ? 's' : 'c';
 				TrainCourierReq req_to_courier = { CourierRequestHeader::SWITCH_DELAY, { 0x0, 0x0 } };
 				courier_pool.request(&req_to_courier, sizeof(TrainCourierReq));
 			} else {
 				get_clear_track_byte(command);
 				UART::Putc(uart_tid, TRAIN_UART_CHANNEL, command[0]);
-				// no need to send any more message
+				while(!switch_subscriber.empty()) {
+					Message::Reply::Reply(switch_subscriber.front(), switch_state, sizeof(switch_state));
+					switch_subscriber.pop();
+				}
 			}
 			break;
 		}
@@ -217,6 +240,10 @@ void Train::train_admin() {
 		case RequestHeader::COURIER_COMPLETE: {
 			// default fall through if you don't desire the any job to be done at courier end
 			courier_pool.receive(from);
+			break;
+		} 
+		case RequestHeader::SWITCH_OBSERVE: {
+			switch_subscriber.push(from);
 			break;
 		}
 		default: {
