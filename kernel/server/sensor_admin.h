@@ -3,6 +3,7 @@
 #include "../etl/queue.h"
 #include "../kernel.h"
 #include "../rpi.h"
+#include "request_header.h"
 namespace Sensor
 {
 
@@ -16,7 +17,6 @@ void sensor_admin();
 void sensor_courier();
 void courier_time_out();
 
-enum class RequestHeader : uint32_t { SENSOR_UPDATE, GET_SENSOR_STATE, SENSOR_TIME_OUT }; // note that notify is an exclusive, clock notifier message.
 
 union RequestBody {
 	char sensor_state[NUM_SENSOR_BYTES];
@@ -24,18 +24,17 @@ union RequestBody {
 };
 
 struct SensorAdminReq {
-	RequestHeader header;
+	Message::RequestHeader header;
 	RequestBody body; // depending on the header, it treats the body differently
 } __attribute__((aligned(8)));
 
-enum class CourierRequestHeader : uint32_t { OBSERVER, TIMEOUT }; // note that notify is an exclusive, clock notifier message.
 
 struct CourierRequestBody {
 	uint64_t info = 0;
 };
 
 struct SensorCourierReq {
-	CourierRequestHeader header;
+	Message::RequestHeader header;
 	CourierRequestBody body;
 } __attribute__((aligned(8)));
 }

@@ -4,7 +4,7 @@
 #include "../rpi.h"
 #include "../utils/hashmap.h"
 #include "../utils/utility.h"
-
+#include "request_header.h"
 namespace Name
 {
 constexpr int MAX_NAME_SERVER_SIZE = 256;
@@ -20,7 +20,6 @@ constexpr uint64_t NAME_REQ_LENGTH = MAX_NAME_LENGTH + 8;
  */
 void name_server();
 
-enum class RequestHeader : uint64_t { REGISTER_AS, WHO_IS };
 enum Exception { INVALID_NS_TASK_ID = -1, NAME_NOT_REGISTERED = -2, INVALID_IDEN = -3 };
 struct RequestBody {
 	char arr[MAX_NAME_LENGTH];
@@ -43,7 +42,7 @@ struct RequestBody {
 };
 
 struct NameServerReq {
-	RequestHeader header;
+	Message::RequestHeader header;
 	RequestBody name;
 } __attribute__((packed, aligned(8)));
 }

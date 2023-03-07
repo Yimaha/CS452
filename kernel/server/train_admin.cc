@@ -2,6 +2,7 @@
 #include "courier_pool.h"
 
 using namespace Train;
+using namespace Message;
 
 static const char extra_switch[] = { 0x99, 0x9A, 0x9B, 0x9C };
 int get_switch_id(int id) {
@@ -28,7 +29,7 @@ void get_clear_track_byte(char code[]) {
 	code[0] = '\0' + 32;
 }
 
-int train_num_to_index(int train_num) {
+int Train::train_num_to_index(int train_num) {
 	for (int i = 0; i < Train::NUM_TRAINS; i++) {
 		if (Train::TRAIN_NUMBERS[i] == train_num) {
 			return i;
@@ -44,6 +45,10 @@ bool Train::TrainStatus::setSpeed(int s) {
 
 int Train::TrainStatus::getSpeed() {
 	return speed;
+}
+
+bool Train::TrainStatus::getDirection() {
+	return direction;
 }
 
 bool Train::TrainStatus::revStart() {
@@ -115,7 +120,7 @@ void Train::train_admin() {
 
 	get_curved_byte(command, 1);
 	UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
-	TrainCourierReq req_to_courier = { CourierRequestHeader::SWITCH_DELAY, { 0x0, 0x0 } };
+	TrainCourierReq req_to_courier = { RequestHeader::TRAIN_COUR_SWITCH_DELAY, { 0x0, 0x0 } };
 	courier_pool.request(&req_to_courier, sizeof(TrainCourierReq));
 
 	// once we pushed all jobs, initialize a job that just setup all the switches
@@ -135,7 +140,7 @@ void Train::train_admin() {
 	while (true) {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(TrainAdminReq));
 		switch (req.header) {
-		case RequestHeader::SPEED: {
+		case RequestHeader::TRAIN_SPEED: {
 			Message::Reply::Reply(from, nullptr, 0); // unblock after job is done
 			char train_id = req.body.id;
 			char desire_speed = req.body.action; // should be an integer within 0 - 31
@@ -148,7 +153,7 @@ void Train::train_admin() {
 			}
 			break;
 		}
-		case RequestHeader::REV: {
+		case RequestHeader::TRAIN_REV: {
 			char train_id = req.body.id;
 			int train_index = train_num_to_index(train_id);
 			bool revStart = trains[train_index].revStart();
@@ -157,13 +162,13 @@ void Train::train_admin() {
 				command[0] = 0;
 				command[1] = train_id;
 				UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
-				TrainCourierReq req_to_courier = { CourierRequestHeader::REV_DELAY, { train_id, req.body.action } };
+				TrainCourierReq req_to_courier = { RequestHeader::TRAIN_COUR_REV_DELAY, { train_id, req.body.action } };
 				courier_pool.request(&req_to_courier, sizeof(req_to_courier));
 			}
 			trains[train_index].rev_subscribers.push(from);
 			break;
 		}
-		case RequestHeader::SWITCH: {
+		case RequestHeader::TRAIN_SWITCH: {
 			char track_id = req.body.id;
 			bool s = req.body.action == 's'; // if true, then straight, else, curved
 			if (s) {
@@ -175,13 +180,13 @@ void Train::train_admin() {
 			if (switch_queue.empty()) {
 				UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
 				switch_state[get_switch_id(track_id)] = req.body.action;
-				TrainCourierReq req_to_courier = { CourierRequestHeader::SWITCH_DELAY, { 0x0, 0x0 } };
+				TrainCourierReq req_to_courier = { RequestHeader::TRAIN_COUR_SWITCH_DELAY, { 0x0, 0x0 } };
 				courier_pool.request(&req_to_courier, sizeof(TrainCourierReq));
 			}
 			switch_queue.push({ from, track_id, s });
 			break;
 		}
-		case RequestHeader::SWITCH_DELAY_COMPLETE: {
+		case RequestHeader::TRAIN_SWITCH_DELAY_COMPLETE: {
 			// unblock and place the courier back into the pool
 			courier_pool.receive(from);
 
@@ -204,19 +209,19 @@ void Train::train_admin() {
 				}
 				UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
 				switch_state[get_switch_id(info.track_id)] = info.straight ? 's' : 'c';
-				TrainCourierReq req_to_courier = { CourierRequestHeader::SWITCH_DELAY, { 0x0, 0x0 } };
+				TrainCourierReq req_to_courier = { RequestHeader::TRAIN_COUR_SWITCH_DELAY, { 0x0, 0x0 } };
 				courier_pool.request(&req_to_courier, sizeof(TrainCourierReq));
 			} else {
 				get_clear_track_byte(command);
 				UART::Putc(uart_tid, TRAIN_UART_CHANNEL, command[0]);
-				while(!switch_subscriber.empty()) {
+				while (!switch_subscriber.empty()) {
 					Message::Reply::Reply(switch_subscriber.front(), switch_state, sizeof(switch_state));
 					switch_subscriber.pop();
 				}
 			}
 			break;
 		}
-		case RequestHeader::DELAY_REV_COMPLETE: {
+		case RequestHeader::TRAIN_DELAY_REV_COMPLETE: {
 			courier_pool.receive(from);
 			int train_index = train_num_to_index(req.body.id);
 			bool reverse = trains[train_index].revClear();
@@ -237,13 +242,23 @@ void Train::train_admin() {
 			}
 			break;
 		}
-		case RequestHeader::COURIER_COMPLETE: {
+		case RequestHeader::TRAIN_COURIER_COMPLETE: {
 			// default fall through if you don't desire the any job to be done at courier end
 			courier_pool.receive(from);
 			break;
-		} 
-		case RequestHeader::SWITCH_OBSERVE: {
+		}
+		case RequestHeader::TRAIN_SWITCH_OBSERVE: {
 			switch_subscriber.push(from);
+			break;
+		}
+		case RequestHeader::TRAIN_OBSERVE: {
+			TerminalTrainStatus train_msg[Train::NUM_TRAINS] = { { 0, 0 } };
+			for (int i = 0; i < Train::NUM_TRAINS; i++) {
+				train_msg[i].speed = trains[i].getSpeed();
+				train_msg[i].direction = trains[i].getDirection();
+			}
+
+			Message::Reply::Reply(from, reinterpret_cast<char*>(train_msg), sizeof(train_msg));
 			break;
 		}
 		default: {
@@ -265,17 +280,17 @@ void Train::train_courier() {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(TrainCourierReq));
 		Message::Reply::Reply(from, nullptr, 0); // unblock caller right away
 		switch (req.header) {
-		case CourierRequestHeader::REV_DELAY: {
+		case RequestHeader::TRAIN_COUR_REV_DELAY: {
 			// it wait for about 4 seconds then send in the command to reverse and speed up
 			char train_id = req.body.id;
 			Clock::Delay(clock_tid, 400);
-			req_to_admin = { RequestHeader::DELAY_REV_COMPLETE, RequestBody { train_id, 0x0 } };
+			req_to_admin = { RequestHeader::TRAIN_DELAY_REV_COMPLETE, RequestBody { train_id, 0x0 } };
 			Message::Send::Send(train_admin_tid, (const char*)&req_to_admin, sizeof(TrainAdminReq), nullptr, 0);
 			break;
 		}
-		case CourierRequestHeader::SWITCH_DELAY: {
+		case RequestHeader::TRAIN_COUR_SWITCH_DELAY: {
 			Clock::Delay(clock_tid, 15); // delay by 150 ms
-			req_to_admin = { RequestHeader::SWITCH_DELAY_COMPLETE, RequestBody { 0x0, 0x0 } };
+			req_to_admin = { RequestHeader::TRAIN_SWITCH_DELAY_COMPLETE, RequestBody { 0x0, 0x0 } };
 			Message::Send::Send(train_admin_tid, (const char*)&req_to_admin, sizeof(TrainAdminReq), nullptr, 0);
 			break;
 		}
@@ -283,4 +298,12 @@ void Train::train_courier() {
 			Task::_KernelCrash("Train Courier illegal type: [%d]\r\n", req.header);
 		}
 	}
+}
+
+bool operator==(const Train::TerminalTrainStatus& lhs, const Train::TerminalTrainStatus& rhs) {
+	return lhs.speed == rhs.speed && lhs.direction == rhs.direction;
+}
+
+bool operator!=(const Train::TerminalTrainStatus& lhs, const Train::TerminalTrainStatus& rhs) {
+	return !(lhs == rhs);
 }

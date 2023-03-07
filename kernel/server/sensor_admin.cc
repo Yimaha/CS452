@@ -15,18 +15,18 @@ void Sensor::sensor_admin() {
 		Task::_KernelCrash("Failed to enable sensor\r\n");
 	}
 	char sensor_state[NUM_SENSOR_BYTES] = { 0b10101010 };
-	SensorCourierReq req_to_courier = { CourierRequestHeader::OBSERVER, { SENSOR_DELAY } };
+	SensorCourierReq req_to_courier = { Message::RequestHeader::AWAIT_SENSOR_READING, { SENSOR_DELAY } };
 	Message::Send::Send(courier, (const char*)&req_to_courier, sizeof(SensorCourierReq), nullptr, 0);
 #ifdef TIME_OUT
 	uint64_t sensor_query_counter = 0;
 	Courier::CourierPool<SensorCourierReq> courier_pool = Courier::CourierPool<SensorCourierReq>(&courier_time_out, Priority::TERMINAL_PRIORITY);
-	SensorCourierReq req_to_timeout = { CourierRequestHeader::TIMEOUT, { sensor_query_counter } };
+	SensorCourierReq req_to_timeout = { Message::RequestHeader:SENSOR_TIMEOUT_START, { sensor_query_counter } };
 #endif
 
 	while (true) {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(SensorAdminReq));
 		switch (req.header) {
-		case RequestHeader::SENSOR_UPDATE: {
+		case Message::RequestHeader::SENSOR_UPDATE: {
 			Message::Reply::Reply(from, nullptr, 0); // after copying
 			Message::Send::Send(from, (const char*)&req_to_courier, sizeof(SensorCourierReq), nullptr, 0);
 #ifdef TIME_OUT
@@ -44,7 +44,7 @@ void Sensor::sensor_admin() {
 
 			break;
 		}
-		case RequestHeader::GET_SENSOR_STATE: {
+		case Message::RequestHeader::GET_SENSOR_STATE: {
 			subscribers.push(from);
 			break;
 		}
@@ -78,13 +78,13 @@ void Sensor::sensor_courier() {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(SensorCourierReq));
 		Message::Reply::Reply(from, nullptr, 0); // unblock caller right away
 		switch (req.header) {
-		case CourierRequestHeader::OBSERVER: {
+		case Message::RequestHeader::AWAIT_SENSOR_READING: {
 			UART::Putc(uart_trans_tid, 1, (char)133); // random delay between 50 - 60 ms
-			Clock::Delay(clock_tid, req.body.info); // delay by 60 always to unify result
+			Clock::Delay(clock_tid, req.body.info);	  // delay by 60 always to unify result
 			for (int i = 0; i < NUM_SENSOR_BYTES; i++) {
 				req_to_admin.body.sensor_state[i] = UART::Getc(uart_rec_tid, 1);
 			}
-			req_to_admin.header = RequestHeader::SENSOR_UPDATE;
+			req_to_admin.header = Message::RequestHeader::SENSOR_UPDATE;
 			Message::Send::Send(sensor_admin_tid, (const char*)&req_to_admin, sizeof(SensorAdminReq), nullptr, 0);
 			break;
 		}
@@ -101,13 +101,13 @@ void Sensor::courier_time_out() {
 	int from;
 	const int DELAY = 100;
 	SensorCourierReq req;
-	SensorAdminReq req_to_admin = { RequestHeader::SENSOR_TIME_OUT, { 0 } };
+	SensorAdminReq req_to_admin = { Message::RequestHeader::SENSOR_TIMEOUT, { 0 } };
 
 	while (true) {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(SensorCourierReq));
 		Message::Reply::Reply(from, nullptr, 0); // unblock caller right away
 		switch (req.header) {
-		case CourierRequestHeader::TIMEOUT: {
+		case Message::RequestHeader::SENSOR_TIMEOUT_START: {
 			Clock::Delay(clock_tid, DELAY); // it could delay by 0 as well, which might clog the uart channel too much
 			req_to_admin.body.time_out_id = req.body.info;
 			Message::Send::Send(sensor_admin_tid, (const char*)&req_to_admin, sizeof(req_to_admin), nullptr, 0);
