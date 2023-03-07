@@ -15,11 +15,11 @@ void Name::name_server() {
 		Message::Receive::Receive(&from, (char*)&req, NAME_REQ_LENGTH);
 
 		// Check if the request is a register or whois
-		if (req.header == RequestHeader::REGISTER_AS) {
+		if (req.header == Message::RequestHeader::REGISTER_AS) {
 			// Add the name to the name server
 			name_server[req.name] = from;
 			Message::Reply::Reply(from, (char*)&from, sizeof(int));
-		} else if (req.header == RequestHeader::WHO_IS) {
+		} else if (req.header == Message::RequestHeader::WHO_IS) {
 			// Whois
 			if (name_server.find(req.name) != name_server.end()) {
 				// Send the tid

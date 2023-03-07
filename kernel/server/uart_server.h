@@ -4,6 +4,7 @@
 #include "../kernel.h"
 #include "../rpi.h"
 #include "../utils/utility.h"
+#include "request_header.h"
 namespace UART
 {
 
@@ -19,7 +20,7 @@ constexpr int UART_0_TRANSMITTER_TID = 5;
 constexpr int UART_0_RECEIVER_TID = 6;
 constexpr int UART_1_TRANSMITTER_TID = 7;
 constexpr int UART_1_RECEIVER_TID = 8;
-constexpr int CHAR_QUEUE_SIZE = 1024;
+constexpr int CHAR_QUEUE_SIZE = 2048;
 constexpr int TASK_QUEUE_SIZE = 64;
 constexpr int UART_FIFO_MAX_SIZE = 64;
 constexpr int UART_MESSAGE_LIMIT = 512;
@@ -36,8 +37,6 @@ void uart_1_CTS_notifier();
 void uart_1_receive_notifier();
 void uart_1_receive_timeout_notifier();
 
-enum class RequestHeader : uint32_t { NONE, NOTIFY_RECEIVE, NOTIFY_TRANSMISSION, NOTIFY_CTS, GETC, PUTC, PUTS };
-
 struct WorkerRequestBody {
 	uint64_t msg_len = 0;
 	char msg[UART_MESSAGE_LIMIT];
@@ -50,17 +49,17 @@ union RequestBody
 };
 
 struct UARTServerReq {
-	RequestHeader header = RequestHeader::NONE;
+	Message::RequestHeader header = Message::RequestHeader::NONE;
 	RequestBody body = { '0' };
 
 	UARTServerReq() { }
 
-	UARTServerReq(RequestHeader h, char b) {
+	UARTServerReq(Message::RequestHeader h, char b) {
 		header = h;
 		body.regular_msg = b;
 	}
 
-	UARTServerReq(RequestHeader h, WorkerRequestBody worker_msg) {
+	UARTServerReq(Message::RequestHeader h, WorkerRequestBody worker_msg) {
 		header = h;
 		body.worker_msg = worker_msg;
 	}

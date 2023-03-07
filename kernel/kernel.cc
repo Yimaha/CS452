@@ -3,6 +3,8 @@
 #include "user/user_tasks.h"
 #include "utils/printf.h"
 
+using namespace Message;
+
 int Task::Create(Priority priority, void (*function)()) {
 	return to_kernel(Kernel::HandlerCode::CREATE, priority, function);
 }
@@ -37,7 +39,7 @@ int Message::Reply::Reply(int tid, const char* msg, int msglen) {
 	return to_kernel(Kernel::HandlerCode::REPLY, tid, msg, msglen);
 }
 
-int name_server_interface_helper(const char* name, Name::RequestHeader header) {
+int name_server_interface_helper(const char* name, Message::RequestHeader header) {
 	char reply[4];
 	const int rplen = sizeof(int);
 	Name::NameServerReq req = { header, { 0 } };
@@ -54,15 +56,15 @@ int name_server_interface_helper(const char* name, Name::RequestHeader header) {
 }
 
 int Name::RegisterAs(const char* name) {
-	const int ret = name_server_interface_helper(name, Name::RequestHeader::REGISTER_AS);
+	const int ret = name_server_interface_helper(name, Message::RequestHeader::REGISTER_AS);
 	return (ret >= 0) ? 0 : Name::Exception::INVALID_NS_TASK_ID;
 }
 
 int Name::WhoIs(const char* name) {
-	return name_server_interface_helper(name, Name::RequestHeader::WHO_IS);
+	return name_server_interface_helper(name, Message::RequestHeader::WHO_IS);
 }
 
-int timer_server_interface_helper(int tid, Clock::RequestHeader header, uint32_t ticks = 0) {
+int timer_server_interface_helper(int tid, Message::RequestHeader header, uint32_t ticks = 0) {
 	char reply[4];
 	Clock::ClockServerReq req = { header, { ticks } }; // body is irrelevant
 	if (tid != Clock::CLOCK_SERVER_ID) {
@@ -79,21 +81,21 @@ int timer_server_interface_helper(int tid, Clock::RequestHeader header, uint32_t
 }
 
 int Clock::Time(int tid) {
-	return timer_server_interface_helper(tid, Clock::RequestHeader::TIME);
+	return timer_server_interface_helper(tid, Message::RequestHeader::TIME);
 }
 
 int Clock::Delay(int tid, int ticks) {
 	if (ticks < 0) {
 		return Clock::Exception::NEGATIVE_DELAY;
 	}
-	return timer_server_interface_helper(tid, Clock::RequestHeader::DELAY, (uint32_t)ticks);
+	return timer_server_interface_helper(tid, Message::RequestHeader::DELAY, (uint32_t)ticks);
 }
 
 int Clock::DelayUntil(int tid, int ticks) {
 	if (ticks < 0) {
 		return Clock::Exception::NEGATIVE_DELAY;
 	}
-	return timer_server_interface_helper(tid, Clock::RequestHeader::DELAY_UNTIL, (uint32_t)ticks);
+	return timer_server_interface_helper(tid, Message::RequestHeader::DELAY_UNTIL, (uint32_t)ticks);
 }
 
 int Clock::IdleStats(uint64_t* idle_time, uint64_t* total_time) {
@@ -134,17 +136,17 @@ int UART::UartReadAll(int channel, char* buffer) { // designed for reading all t
 int UART::Putc(int tid, int uart, char ch) {
 	// since we only have uart0, uart param is ignored
 	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID)) {
-		return -1;
+		Task::_KernelCrash("either id is not correct in Putc\r\n");
 	}
-	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::PUTC, ch);
+	UART::UARTServerReq req = UART::UARTServerReq(RequestHeader::UART_PUTC, ch);
 	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
 	return 0;
 }
 
 int UART::Puts(int tid, int uart, const char* s, uint64_t len) {
 	// since we only have uart0, uart param is ignored
-	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID)) {
-		return -1;
+	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID) || len > UART::UART_MESSAGE_LIMIT) {
+		Task::_KernelCrash("either id is not correct or len is too big in Puts\r\n");
 	}
 	UART::WorkerRequestBody body;
 	body.msg_len = len;
@@ -152,7 +154,7 @@ int UART::Puts(int tid, int uart, const char* s, uint64_t len) {
 		body.msg[i] = s[i];
 	}
 
-	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::PUTS, body);
+	UART::UARTServerReq req = UART::UARTServerReq(RequestHeader::UART_PUTS, body);
 	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
 	return 0;
 }
@@ -167,7 +169,7 @@ int UART::PutsNullTerm(int tid, int uart, const char* s, uint64_t len) {
 		body.msg[body.msg_len] = s[body.msg_len];
 	}
 
-	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::PUTS, body);
+	UART::UARTServerReq req = UART::UARTServerReq(RequestHeader::UART_PUTS, body);
 	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
 	return 0;
 }
@@ -177,7 +179,7 @@ int UART::Getc(int tid, int uart) {
 	if ((uart == 0 && tid != UART::UART_0_RECEIVER_TID) || (uart == 1 && tid != UART::UART_1_RECEIVER_TID)) {
 		return -1;
 	}
-	UART::UARTServerReq req = UART::UARTServerReq(UART::RequestHeader::GETC, '0'); // body is irrelevant
+	UART::UARTServerReq req = UART::UARTServerReq(RequestHeader::UART_GETC, '0'); // body is irrelevant
 	char c;
 	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), &c, 1);
 	return (int)c;
@@ -260,9 +262,9 @@ void Kernel::handle_syscall() {
 	case HandlerCode::REPLY:
 		handle_reply();
 		break;
-	case HandlerCode::CREATE: {
+	case HandlerCode::CREATE:
+		handle_create();
 		break;
-	}
 	case HandlerCode::MY_TID:
 		tasks[active_task]->to_ready(tasks[active_task]->task_id, &scheduler);
 		break;
@@ -278,38 +280,30 @@ void Kernel::handle_syscall() {
 	case HandlerCode::MY_PRIORITY:
 		tasks[active_task]->to_ready(static_cast<int>(tasks[active_task]->priority), &scheduler);
 		break;
-	case HandlerCode::AWAIT_EVENT: {
+	case HandlerCode::AWAIT_EVENT:
 		handle_await_event((int)active_request->x1);
 		break;
-	}
-	case HandlerCode::AWAIT_EVENT_WITH_BUFFER: {
+	case HandlerCode::AWAIT_EVENT_WITH_BUFFER:
 		handle_await_event_with_buffer(active_request->x1, (char*)active_request->x2);
 		break;
-	}
-	case HandlerCode::WRITE_REGISTER: {
+	case HandlerCode::WRITE_REGISTER:
 		handle_write_register();
 		break;
-	}
-	case HandlerCode::READ_REGISTER: {
+	case HandlerCode::READ_REGISTER:
 		handle_read_register();
 		break;
-	}
-	case HandlerCode::READ_ALL: {
+	case HandlerCode::READ_ALL:
 		handle_read_all();
 		break;
-	}
-	case HandlerCode::TRANSMIT_INTERRUPT: {
+	case HandlerCode::TRANSMIT_INTERRUPT:
 		handle_transmit_interrupt();
 		break;
-	}
-	case HandlerCode::RECEIVE_INTERRUPT: {
+	case HandlerCode::RECEIVE_INTERRUPT:
 		handle_receive_interrupt();
 		break;
-	}
-	case HandlerCode::IDLE_STATS: {
+	case HandlerCode::IDLE_STATS:
 		handle_idle_stats();
 		break;
-	}
 	case HandlerCode::CRASH: {
 		const char* msg = reinterpret_cast<const char*>(active_request->x1);
 		kcrash(msg);
