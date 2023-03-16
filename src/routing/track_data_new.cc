@@ -2376,7 +2376,7 @@ void init_trackb(track_node* track) {
 	}
 
 	track[86].edge[DIR_CURVED].broken = true;
-	track[88].edge[DIR_CURVED].broken = true;
+	track[88].edge[DIR_STRAIGHT].broken = true;
 	track[92].edge[DIR_CURVED].broken = true;
 	track[122].edge[DIR_CURVED].broken = true;
 	track[120].edge[DIR_STRAIGHT].broken = true;

@@ -67,7 +67,6 @@ void LocalPathing::local_pathing_worker() {
 			req_to_global.body.routing_request.dest = req.body.command.args[0];
 
 			int offset = (req.body.command.num_args >= 2) ? req.body.command.args[1] : 0;
-			debug_print(addr.term_trans_tid, "Offset: %d\r\n", offset);
 			req_to_global.body.routing_request.offset = offset;
 
 			Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));

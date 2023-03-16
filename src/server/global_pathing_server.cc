@@ -163,7 +163,7 @@ void Planning::TrainStatus::pre_compute_path(bool set_switches) {
 					pipe_sw(node->num, 'c');
 				}
 			} else {
-				Task::_KernelCrash("impossible path\r\n");
+				Task::_KernelCrash("impossible path from %d to %d\r\n", node - track, next_node - track);
 			}
 		} else if (node->type == node_type::NODE_SENSOR) {
 			sensors_landmark += 1;
@@ -930,14 +930,15 @@ void Planning::global_pathing_server() {
 	Dijkstra dijkstra = Dijkstra(track);
 
 	int clear_to_send = CLEAR_TO_SEND_LIMIT;
-	auto check_clear_to_send = [&]() {
-		if (!clear_to_send) {
-			// need better log system.
-			debug_print(addr.term_trans_tid, "you are not clear to send, yet receive a clear to send request \r\n");
-		} else {
-			clear_to_send -= 1;
-		}
-	};
+	(void)clear_to_send;
+	// auto check_clear_to_send = [&]() {
+	// 	if (!clear_to_send) {
+	// 		// need better log system.
+	// 		debug_print(addr.term_trans_tid, "you are not clear to send, yet receive a clear to send request \r\n");
+	// 	} else {
+	// 		clear_to_send -= 1;
+	// 	}
+	// };
 
 	PlanningCourReq req_to_unblock = { RequestHeader::GLOBAL_COUR_AWAIT_SENSOR, { 0x0 } };
 	courier_pool.request(&req_to_unblock);
