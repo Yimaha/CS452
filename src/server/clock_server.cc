@@ -2,6 +2,8 @@
 #include "../utils/printf.h"
 
 using namespace Clock;
+using namespace Message;
+
 
 void Clock::clock_server() {
 	Name::RegisterAs(CLOCK_SERVER_NAME);
@@ -80,10 +82,10 @@ void Clock::clock_server() {
 
 void Clock::clock_notifier() {
 	// no need to register any name
-	int clock_tid = Name::WhoIs(CLOCK_SERVER_NAME);
+	AddressBook addr = getAddressBook();
 	ClockServerReq req = { Message::RequestHeader::NOTIFY_TIMER, { 0 } };
 	while (true) {
 		Interrupt::AwaitEvent(TIMER_INTERRUPT_ID);
-		Message::Send::Send(clock_tid, reinterpret_cast<const char*>(&req), sizeof(ClockServerReq), nullptr, 0);
+		Message::Send::Send(addr.clock_tid, reinterpret_cast<const char*>(&req), sizeof(ClockServerReq), nullptr, 0);
 	}
 }

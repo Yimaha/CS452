@@ -14,8 +14,8 @@ void SystemTask::k4_dummy_train() {
 	Train::TrainAdminReq req = { RequestHeader::TRAIN_SPEED, Train::RequestBody { 2, 0 } };
 	while (true) {
 		for (int i = 0; i < 10; i++) {
-			req.body.id = 78;
-			req.body.action = i * 2;
+			req.body.command.id = 78;
+			req.body.command.action = i * 2;
 			Send::Send(train_tid, (const char*)&req, sizeof(req), nullptr, 0);
 			Clock::Delay(clock_tid, 100);
 		}
@@ -26,14 +26,14 @@ void SystemTask::k4_dummy_train_rev() {
 	int train_tid = Name::WhoIs(Train::TRAIN_SERVER_NAME);
 	int clock_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
 	Train::TrainAdminReq req = { RequestHeader::TRAIN_SPEED, Train::RequestBody { 2, 0 } };
-	req.body.id = 78;
-	req.body.action = 12;
+	req.body.command.id = 78;
+	req.body.command.action = 12;
 	Send::Send(train_tid, (const char*)&req, sizeof(req), nullptr, 0);
 	Clock::Delay(clock_tid, 100);
 	while (true) {
 		req.header = RequestHeader::TRAIN_REV;
-		req.body.id = 78;
-		req.body.action = 12;
+		req.body.command.id = 78;
+		req.body.command.action = 12;
 		Send::Send(train_tid, (const char*)&req, sizeof(req), nullptr, 0);
 		Clock::Delay(clock_tid, 1000);
 	}
@@ -44,7 +44,7 @@ void SystemTask::k4_dummy_train_sensor() {
 	int sensor_admin = Name::WhoIs(Sensor::SENSOR_ADMIN_NAME);
 	int uart_tid = Name::WhoIs(UART::UART_0_TRANSMITTER);
 	Sensor::SensorAdminReq req;
-	req.header =  RequestHeader::GET_SENSOR_STATE;
+	req.header =  RequestHeader::SENSOR_AWAIT_STATE;
 	char result[10];
 
 	while (true) {
