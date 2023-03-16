@@ -153,6 +153,10 @@ void Planning::TrainStatus::pre_compute_path(bool set_switches) {
 		node = &track[*it];
 		it++;
 		if (node->type == node_type::NODE_BRANCH) {
+			if (it == localization.path.end()) {
+				break;
+			}
+
 			track_node* next_node = &track[*it];
 			if (next_node == node->edge[DIR_STRAIGHT].dest) {
 				if (set_switches) {
@@ -534,6 +538,10 @@ void Planning::TrainStatus::look_ahead() {
 			if (node->type == node_type::NODE_MERGE) {
 				mm_look_ahead += (looked_ahead_count < 2) ? node->edge[DIR_AHEAD].dist : 0;
 			} else if (node->type == node_type::NODE_BRANCH) {
+				if (it == localization.path.end()) {
+					break;
+				}
+
 				track_node* next_node = &track[*it];
 				if (next_node == node->edge[DIR_STRAIGHT].dest) {
 					pipe_sw(node->num, 's');
