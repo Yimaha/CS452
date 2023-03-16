@@ -92,10 +92,16 @@ void print_int(uint64_t val) {
 
 // Attempt to read an up-to-n-digit number from a buffer
 // Returns the number read, or -1 on failure
-int scan_int(const char str[], const int read_len, int* out_len) {
+int scan_int(const char str[], int* out_len, const int read_len) {
 	int i = 0;
 	int num = 0;
-	while (i < read_len) {
+	bool is_negative = false;
+	if (str[i] == '-') {
+		i++;
+		is_negative = true;
+	}
+
+	while (read_len == 0 || i < read_len) {
 		char c = str[i];
 		if (is_digit(c)) {
 			num = num * 10 + (c - '0');
@@ -104,10 +110,24 @@ int scan_int(const char str[], const int read_len, int* out_len) {
 		}
 		i++;
 	}
+
 	if (i == 0) {
-		return -1;
+		return READ_INT_FAIL;
 	}
 
 	*out_len = i;
-	return num;
+	return num * (is_negative ? -1 : 1);
+}
+
+// strncmp for const char*
+int strncmp(const char* s1, const char* s2, int n) {
+	for (int i = 0; i < n; i++) {
+		if (s1[i] != s2[i]) {
+			return s1[i] - s2[i];
+		} else if (s1[i] == '\0') {
+			return 0;
+		}
+	}
+
+	return 0;
 }

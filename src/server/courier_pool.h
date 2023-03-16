@@ -19,7 +19,7 @@ public:
 			courier_queue.push(Task::Create(priority, function));
 		}
 	};
-	void request(T* req, int len);
+	void request(T* req);
 	void receive(int tid);
 	~CourierPool();
 
@@ -29,11 +29,11 @@ private:
 };
 
 template <typename T>
-void CourierPool<T>::request(T* req, int len) {
-	if (courier_queue.empty()) {
+void CourierPool<T>::request(T* req) {
+	if (courier_queue.empty() || courier_queue.front() == -1) {
 		Task::_KernelCrash("\r\nout of courier for type: %s\r\n");
 	}
-	Message::Send::Send(courier_queue.front(), (const char*)req, len, nullptr, 0);
+	Message::Send::Send(courier_queue.front(), (const char*)req, sizeof(T), nullptr, 0);
 	courier_queue.pop();
 }
 

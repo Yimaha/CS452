@@ -1,6 +1,6 @@
 
-#include "../kernel/etl/unordered_map.h"
-#include "../kernel/kernel.h"
+#include "../src/etl/unordered_map.h"
+#include "../src/kernel.h"
 #include <cassert>
 #include <iostream>
 

@@ -6,7 +6,6 @@
 using namespace UART;
 using namespace Message;
 
-
 void UART::uart_0_server_transmit() {
 	const int uart_channel = 0;
 	Name::RegisterAs(UART_0_TRANSMITTER);
@@ -182,21 +181,25 @@ void UART::uart_0_server_receive() {
 }
 
 /**
- * For uart0, you will receive interrupt in the form of timeout, since the terminal does not obey the 4 byte rule and is incredibly fast
- * thus, we listen to timeout event, and decide who to queue next
+ * For uart0, you will receive interrupt in the form of timeout, since the terminal does not obey the 4 byte rule and is
+ * incredibly fast thus, we listen to timeout event, and decide who to queue next
  */
 void UART::uart_0_receive_notifier() {
 	int uart_tid = Name::WhoIs(UART_0_RECEIVER);
 	UARTServerReq req = { RequestHeader::UART_NOTIFY_RECEIVE, WorkerRequestBody { 0x0, 0x0 } };
 	while (true) {
 		req.body.worker_msg.msg_len = Interrupt::AwaitEventWithBuffer(UART_0_RX_TIMEOUT, req.body.worker_msg.msg);
-		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0); // we don't worry about response
+		Message::Send::Send(uart_tid,
+							reinterpret_cast<const char*>(&req),
+							sizeof(UARTServerReq),
+							nullptr,
+							0); // we don't worry about response
 	}
 }
 
 /**
- * The job of the transmission notifier is to prepare THR interrupt, ewhich is only triggered if the amount of space left reaches a certian point
- * default value is 0
+ * The job of the transmission notifier is to prepare THR interrupt, ewhich is only triggered if the amount of space
+ * left reaches a certian point default value is 0
  */
 void UART::uart_0_transmission_notifier() {
 	int uart_tid = Name::WhoIs(UART_0_TRANSMITTER);
@@ -344,6 +347,8 @@ void UART::uart_1_server_receive() {
 		case RequestHeader::UART_NOTIFY_RECEIVE: {
 			Message::Reply::Reply(from, nullptr, 0); // unblock receiver right away right away
 			// body is irrlevant, we simply try to read until we
+			// this call ideally should never happen, if it does, then we have issue with sensor not coming back fast
+			// enough.
 			int c = UartReadRegister(uart_channel, UART_RHR);
 			while (c != UART::Exception::FAILED_TO_READ) { // until there is nothing to read
 				char reply = (char)c;

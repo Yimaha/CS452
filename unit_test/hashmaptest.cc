@@ -1,6 +1,6 @@
 
-#include "../kernel/utils/hashmap.h"
-#include "../kernel/utils/utility.h"
+#include "../src/utils/hashmap.h"
+#include "../src/utils/utility.h"
 #include <cassert>
 #include <iostream>
 

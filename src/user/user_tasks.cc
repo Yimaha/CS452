@@ -3,8 +3,11 @@
 #include "../k4/k4_client.h"
 #include "../kernel.h"
 #include "../rpi.h"
+#include "../server/global_pathing_server.h"
+#include "../server/local_pathing_server.h"
 #include "../server/train_admin.h"
 #include "../server/uart_server.h"
+#include "../tc1/tc1_client.h"
 #include "../utils/utility.h"
 
 void UserTask::launch() {
@@ -29,6 +32,16 @@ void UserTask::launch() {
 		Task::Create(Priority::CRITICAL_PRIORITY, &UART::uart_1_server_transmit);
 		Task::Create(Priority::CRITICAL_PRIORITY, &UART::uart_1_server_receive);
 
+		Task::Create(Priority::HIGH_PRIORITY, &Planning::global_pathing_server);
+
+		LocalPathing::LocalPathingReq req;
+		req.header = Message::RequestHeader::LOCAL_PATH_SET_TRAIN;
+		for (int i = 0; i < Train::NUM_TRAINS; ++i) {
+			int tid = Task::Create(Priority::HIGH_PRIORITY, &LocalPathing::local_pathing_worker);
+			req.body.train_num = Train::TRAIN_NUMBERS[i];
+			Message::Send::Send(tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
+		}
+
 		Task::Create(Priority::HIGH_PRIORITY, &Train::train_admin);
 		Task::Create(Priority::HIGH_PRIORITY, &Sensor::sensor_admin);
 
@@ -38,6 +51,8 @@ void UserTask::launch() {
 		// Task::Create(3, &SystemTask::k4_dummy_train_switch); // temp dummy test to see if io works
 
 		Task::Create(Priority::TERMINAL_PRIORITY, &Terminal::terminal_admin);
+
+		// Task::Create(Priority::TERMINAL_PRIORITY, &SystemTask::tc1_dummy);
 
 		Task::Exit();
 	}
