@@ -110,7 +110,7 @@ void Planning::TrainStatus::toIdle() {
 	pipe_tr();
 	localization.path.clear();
 	while (!train_sub.empty()) {
-		Reply::Reply(train_sub.front(), nullptr, 0);
+		Reply::EmptyReply(train_sub.front());
 		train_sub.pop();
 	}
 }
@@ -264,7 +264,7 @@ bool Planning::TrainStatus::calibrate_base_velocity(int from) {
 	cali_state.last_trigger = Clock::Time(addr.clock_tid);
 
 	track_node* next_node = localization.last_node->edge[DIR_AHEAD].dest;
-	debug_print(addr.term_trans_tid, "last_node %s \r\n", localization.last_node->name);
+	debug_print(addr.term_trans_tid, "last_node %s\r\n", localization.last_node->name);
 	while (true) {
 		if (next_node->type == node_type::NODE_MERGE) {
 			// merge node simply ignore and add the length
@@ -280,7 +280,7 @@ bool Planning::TrainStatus::calibrate_base_velocity(int from) {
 				next_node = next_node->edge[DIR_CURVED].dest;
 			} else {
 				Task::_KernelCrash(
-					"impossible path passed from continuous localizations %d %s %d \r\n", switch_id, next_node->name, switch_state[switch_id]);
+					"impossible path passed from continuous localizations %d %s %d\r\n", switch_id, next_node->name, switch_state[switch_id]);
 			}
 		} else if (next_node->type == node_type::NODE_SENSOR) {
 			sub_to_sensor(next_node->num);
@@ -328,7 +328,7 @@ bool Planning::TrainStatus::calibrate_velocity(bool from_up, int from, SpeedLeve
 	pre_compute_path();
 	localization.state = TrainState::CALIBRATE_VELOCITY;
 	if (from_up) {
-		pipe_tr(13);
+		pipe_tr(FAST_CALIBRATION_SPEED);
 	}
 	pipe_tr();
 	return true;
@@ -379,15 +379,15 @@ void TrainStatus::calibrate_starting(int from, SpeedLevel speed) {
 	cali_state.target_velocity = getVelocity();
 	cali_state.target_speed = speed;
 
-	add_path(16);  // B1
-	add_path(61);  // D14
-	add_path(113); // MR17.
-	add_path(77);  // E14
+	add_path(SENSOR_B[0]);		// B1
+	add_path(SENSOR_D[13]);		// D14
+	add_path(TRACK_MERGES[16]); // MR17.
+	add_path(SENSOR_E[13]);		// E14
 
 	localization.distance_traveled = 0;
-	localization.distance_traveled += track[16].edge[DIR_AHEAD].dist;
-	localization.distance_traveled += track[61].edge[DIR_AHEAD].dist;
-	localization.distance_traveled += track[113].edge[DIR_AHEAD].dist;
+	localization.distance_traveled += track[SENSOR_B[0]].edge[DIR_AHEAD].dist;
+	localization.distance_traveled += track[SENSOR_D[13]].edge[DIR_AHEAD].dist;
+	localization.distance_traveled += track[TRACK_MERGES[16]].edge[DIR_AHEAD].dist;
 
 	pre_compute_path();
 	localization.state = TrainState::CALIBRATE_STARTING;
@@ -484,7 +484,7 @@ void Planning::TrainStatus::calibrate_stopping_distance(bool from_up, int from, 
 
 	localization.state = TrainState::CALIBRATE_STOPPING_DISTANCE_PHASE_1;
 	if (from_up) {
-		pipe_tr(13);
+		pipe_tr(FAST_CALIBRATION_SPEED);
 	}
 	pipe_tr();
 }
@@ -532,7 +532,7 @@ void Planning::TrainStatus::look_ahead() {
 	} else {
 		int looked_ahead_count = 0;
 		long mm_look_ahead = 0;
-		for (auto it = localization.path.begin(); it != localization.path.end() && looked_ahead_count < 4;) {
+		for (auto it = localization.path.begin(); it != localization.path.end() && looked_ahead_count < LOOK_AHEAD_SENSORS;) {
 			track_node* node = &track[*it];
 			it++;
 			if (node->type == node_type::NODE_MERGE) {
@@ -545,17 +545,17 @@ void Planning::TrainStatus::look_ahead() {
 				track_node* next_node = &track[*it];
 				if (next_node == node->edge[DIR_STRAIGHT].dest) {
 					pipe_sw(node->num, 's');
-					mm_look_ahead += (looked_ahead_count < 2) ? node->edge[DIR_STRAIGHT].dist : 0;
+					mm_look_ahead += (looked_ahead_count < LOOK_AHEAD_DISTANCE) ? node->edge[DIR_STRAIGHT].dist : 0;
 				} else if (next_node == node->edge[DIR_CURVED].dest) {
 					pipe_sw(node->num, 'c');
-					mm_look_ahead += (looked_ahead_count < 2) ? node->edge[DIR_CURVED].dist : 0;
+					mm_look_ahead += (looked_ahead_count < LOOK_AHEAD_DISTANCE) ? node->edge[DIR_CURVED].dist : 0;
 				} else {
 					Task::_KernelCrash("impossible path passed from calibration\r\n");
 				}
 			} else if (node->type == node_type::NODE_SENSOR) {
 				looked_ahead_count += 1;
-				if (looked_ahead_count != 2) {
-					mm_look_ahead += (looked_ahead_count < 2) ? node->edge[DIR_AHEAD].dist : 0;
+				if (looked_ahead_count != LOOK_AHEAD_DISTANCE) {
+					mm_look_ahead += (looked_ahead_count < LOOK_AHEAD_DISTANCE) ? node->edge[DIR_AHEAD].dist : 0;
 				}
 			} else {
 				break;
@@ -659,7 +659,7 @@ void Planning::TrainStatus::end_acceleration_calibrate() {
 	long v_2 = cali_state.target_velocity;
 	long v_1 = cali_state.prev_velocity;
 	long v_a = (v_2 + v_1) / 2; // average velocity in NM / seconds
-	if ((d * 100) / t < v_a) {
+	if ((d * TWO_DECIMAL_PLACE) / t < v_a) {
 		// convert d from mm to nm, then - nm / seconds * seconds
 		long t_1 = (d * PER_SEC_TO_PER_10_MS - (v_2 * t / PER_SEC_TO_PER_10_MS)) * PER_SEC_TO_PER_10_MS / (v_a - v_2);
 		long acceleration = (v_2 - v_1) * PER_SEC_TO_PER_10_MS / t_1; // so it is MM / ticks
@@ -690,12 +690,12 @@ void Planning::TrainStatus::handle_train_calibrate_acceleration(int sensor_index
 	 */
 
 	// step 1
-	if (sensor_index == 77) {
+	if (sensor_index == SENSOR_E[13]) {
 		cali_state.expected_sensor_hit -= 1;
 		if (cali_state.expected_sensor_hit == 0) { // if it hit E14 the second time, calibrate
 			end_acceleration_calibrate();
 		}
-	} else if (sensor_index == 16) { // speed it up when it hit the B1 the first time
+	} else if (sensor_index == SENSOR_B[0]) { // speed it up when it hit the B1 the first time
 		toSpeed(cali_state.target_speed);
 		cali_state.last_trigger = Clock::Time(addr.clock_tid);
 		pipe_tr();
@@ -709,7 +709,7 @@ void Planning::TrainStatus::handle_train_calibrate_starting(int sensor_index) {
 	 * once it reaches 77, based on the current velocity data, calibrate acceleration
 	 */
 
-	if (sensor_index == 77) {
+	if (sensor_index == SENSOR_E[13]) {
 		end_acceleration_calibrate();
 	}
 }
@@ -720,7 +720,8 @@ void TrainStatus::handle_train_calibrate_base_velocity() {
 	 */
 	uint64_t current_time = Clock::Time(addr.clock_tid);
 	// distance traveled is not in 2 decimal place, and / 10 ms instead of 1s, thus *100 *100
-	cali_state.slow_calibration_mm = (localization.distance_traveled) * 10000 / (current_time - cali_state.last_trigger);
+	int mul = TWO_DECIMAL_PLACE * PER_SEC_TO_PER_10_MS;
+	cali_state.slow_calibration_mm = (localization.distance_traveled) * mul / (current_time - cali_state.last_trigger);
 	toIdle();
 	debug_print(addr.term_trans_tid, "base speed of train %d is %llu\r\n", my_id, cali_state.slow_calibration_mm);
 }
@@ -730,7 +731,7 @@ void TrainStatus::handle_train_calibrate_stopping_distance_phase_1(int sensor_in
 	 * if you are locating and you hit a sensor you stop immediately and you set your last_node = desire node
 	 */
 	clear_traveled_sensor(sensor_index);
-	if (sensor_index == 31) {
+	if (sensor_index == SENSOR_B[15]) {
 		toSpeed(SpeedLevel::SPEED_STOP);
 		pipe_tr();
 		debug_print(addr.term_trans_tid, "stopping train %d\r\n", my_id);
@@ -747,27 +748,27 @@ void TrainStatus::handle_train_calibrate_stopping_distance_phase_2(int sensor_in
 	 * that hits
 	 */
 	long slow_travled_time = Clock::Time(addr.clock_tid) - cali_state.last_trigger;
-	long slow_travled_distance = cali_state.slow_calibration_mm * slow_travled_time / 100;
+	long slow_travled_distance = cali_state.slow_calibration_mm * slow_travled_time / TWO_DECIMAL_PLACE;
 	clear_traveled_sensor(sensor_index);
-	long real_stop_distance = localization.distance_traveled * 100 - slow_travled_distance;
+	long real_stop_distance = localization.distance_traveled * TWO_DECIMAL_PLACE - slow_travled_distance;
 	// note that now we have real_stopping_distance, assuming our velocity is valid,
 	// we can actually also reverse calculate deceleration from speed back to 0,
 	// note that real_displacement should never be negative, or at least it shouldn't be negative
 	debug_print(addr.term_trans_tid,
-				"from %d targetspeed %d, velocity %ld, speedstop %d, real_stop_distance %ld \r\n",
+				"from %d targetspeed %d, velocity %ld, speedstop %d, real_stop_distance %ld\r\n",
 				localization.from,
 				cali_state.target_speed,
 				cali_state.target_velocity,
 				SpeedLevel::SPEED_STOP,
 				real_stop_distance);
 	long v_a = cali_state.target_velocity / 2;
-	long t = real_stop_distance * 100 / v_a; // in ticks
+	long t = real_stop_distance * TWO_DECIMAL_PLACE / v_a; // in ticks
 	long acceleration = -cali_state.target_velocity * TWO_DECIMAL_PLACE / t;
 
 	speeds[localization.from][cali_state.target_speed].stopping_distance = real_stop_distance < 0 ? 0 : real_stop_distance;
 	accelerations[cali_state.target_speed][SpeedLevel::SPEED_STOP] = acceleration;
 	toIdle();
-	debug_print(addr.term_trans_tid, "real stop distance for train %d is %ld, thus, deceleration %ld \r\n", my_id, real_stop_distance, acceleration);
+	debug_print(addr.term_trans_tid, "real stop distance for train %d is %ld, thus, deceleration %ld\r\n", my_id, real_stop_distance, acceleration);
 }
 
 void TrainStatus::handle_train_locate(int sensor_index) {
@@ -778,7 +779,7 @@ void TrainStatus::handle_train_locate(int sensor_index) {
 	toIdle();
 	localization.last_node = &track[sensor_index];
 	localization.mm_offset = 0;
-	debug_print(addr.term_trans_tid, "train %d is currently at sensor %s \r\n", my_id, localization.last_node->name);
+	debug_print(addr.term_trans_tid, "train %d is currently at sensor %s\r\n", my_id, localization.last_node->name);
 }
 
 void Planning::TrainStatus::sensor_notify(int sensor_index) {
@@ -847,7 +848,7 @@ void TrainStatus::continuous_localization(int sensor_index) {
 				next_node = next_node->edge[DIR_CURVED].dest;
 			} else {
 				Task::_KernelCrash(
-					"impossible path passed from continuous localizations %d %s %d \r\n", switch_id, next_node->name, switch_state[switch_id]);
+					"impossible path passed from continuous localizations %d %s %d\r\n", switch_id, next_node->name, switch_state[switch_id]);
 			}
 		} else if (next_node->type == node_type::NODE_SENSOR) {
 			sensor_subs->push_back(etl::make_pair(my_index, next_node->num)); // let train subscribe to it
@@ -858,7 +859,7 @@ void TrainStatus::continuous_localization(int sensor_index) {
 	}
 
 	debug_print(addr.term_trans_tid,
-				"train %d is at %s, next is %s, arrival_tick_diff is %ld, arrival_dist_diff is %ld \r\n",
+				"train %d is at %s, next is %s, arrival_tick_diff is %ld, arrival_dist_diff is %ld\r\n",
 				my_id,
 				localization.last_node->name,
 				next_node->name,
@@ -923,10 +924,11 @@ void Planning::global_pathing_server() {
 	Name::RegisterAs(GLOBAL_PATHING_SERVER_NAME);
 	AddressBook addr = getAddressBook();
 	TrainStatus trains[NUM_TRAINS];
-	char switch_state[22];
-	for (int i = 0; i < 22; i++) {
+	char switch_state[NUM_SWITCHES];
+	for (int i = 0; i < NUM_SWITCHES; i++) {
 		switch_state[i] = 'c';
 	}
+
 	Courier::CourierPool<PlanningCourReq> courier_pool = Courier::CourierPool<PlanningCourReq>(&global_pathing_courier, Priority::HIGH_PRIORITY);
 	// first one tells who you are, second one tells you which sensor are you sub to
 	// -1 means sub to all sensor, only used during calibration
@@ -955,7 +957,7 @@ void Planning::global_pathing_server() {
 		for (int i = 0; i < Sensor::NUM_SENSOR_BYTES; i++) {
 			for (int j = 1; j <= CHAR_BIT; j++) {
 				if (sensor_state[i] & (1 << (CHAR_BIT - j))) {
-					int sensor_index = i * 8 + j - 1;
+					int sensor_index = i * CHAR_BIT + j - 1;
 					for (auto it = sensor_subs.begin(); it != sensor_subs.end(); it++) {
 						if (it->second == sensor_index || it->second == -1) {
 							trains[it->first].sensor_notify(sensor_index);
@@ -1029,7 +1031,7 @@ void Planning::global_pathing_server() {
 			break;
 		}
 		case RequestHeader::GLOBAL_SET_TRACK: {
-			Message::Reply::Reply(from, nullptr, 0); // unblock after job is done
+			Message::Reply::EmptyReply(from); // unblock after job is done
 			if (req.body.info == GLOBAL_PATHING_TRACK_A_ID) {
 				init_tracka(track);
 			} else if (req.body.info == GLOBAL_PATHING_TRACK_B_ID) {
@@ -1116,7 +1118,7 @@ void Planning::global_pathing_courier() {
 	// worker only has few types
 	while (true) {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(PlanningCourReq));
-		Message::Reply::Reply(from, nullptr, 0); // unblock caller right away
+		Message::Reply::EmptyReply(from); // unblock caller right away
 		switch (req.header) {
 		case RequestHeader::GLOBAL_COUR_AWAIT_SENSOR: {
 			req_to_admin = { RequestHeader::GLOBAL_CLEAR_TO_SEND, RequestBody { 0x0 } };
@@ -1127,7 +1129,7 @@ void Planning::global_pathing_courier() {
 								(char*)&req_to_admin.body.sensor_state,
 								Sensor::NUM_SENSOR_BYTES);
 			// now we have the next update time, we should notify trian admin that we are allow to sent again.
-			Message::Send::Send(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin), nullptr, 0);
+			Message::Send::SendNoReply(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin));
 			break;
 		}
 		case RequestHeader::GLOBAL_COUR_SWITCH: {
@@ -1136,8 +1138,8 @@ void Planning::global_pathing_courier() {
 			req_to_train.header = RequestHeader::TRAIN_SWITCH;
 			req_to_train.body.command.id = req.body.command.id;
 			req_to_train.body.command.action = req.body.command.action;
-			Send::Send(addr.train_admin_tid, reinterpret_cast<char*>(&req_to_train), sizeof(req_to_train), nullptr, 0);
-			Send::Send(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin), nullptr, 0);
+			Send::SendNoReply(addr.train_admin_tid, reinterpret_cast<char*>(&req_to_train), sizeof(req_to_train));
+			Send::SendNoReply(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin));
 			break;
 		}
 
@@ -1147,8 +1149,8 @@ void Planning::global_pathing_courier() {
 			req_to_train.header = RequestHeader::TRAIN_SPEED;
 			req_to_train.body.command.id = req.body.command.id;
 			req_to_train.body.command.action = req.body.command.action;
-			Send::Send(addr.train_admin_tid, reinterpret_cast<char*>(&req_to_train), sizeof(req_to_train), nullptr, 0);
-			Send::Send(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin), nullptr, 0);
+			Send::SendNoReply(addr.train_admin_tid, reinterpret_cast<char*>(&req_to_train), sizeof(req_to_train));
+			Send::SendNoReply(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin));
 			break;
 		}
 		case RequestHeader::GLOBAL_COUR_STOPPING: {
@@ -1157,14 +1159,14 @@ void Planning::global_pathing_courier() {
 			}
 			req_to_admin = { RequestHeader::GLOBAL_STOPPING_COMPLETE, RequestBody { 0x0 } };
 			req_to_admin.body.stopping_request.id = req.body.stopping_request.id;
-			Send::Send(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin), nullptr, 0);
+			Send::SendNoReply(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin));
 			break;
 		}
 		case RequestHeader::GLOBAL_COUR_STOPPING_DISTANCE_PHASE_2_DELAY: {
-			Clock::Delay(addr.clock_tid, 700);
+			Clock::Delay(addr.clock_tid, PHASE_2_CALIBRATION_PAUSE);
 			req_to_admin = { RequestHeader::GLOBAL_STOPPING_DISTANCE_START_PHASE_2, RequestBody { 0x0 } };
 			req_to_admin.body.stopping_request.id = req.body.stopping_request.id;
-			Send::Send(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin), nullptr, 0);
+			Send::SendNoReply(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin));
 			break;
 		}
 		default:

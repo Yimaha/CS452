@@ -30,6 +30,12 @@ constexpr long OFFSET_BOUND = 200;
 constexpr int CLEAR_TO_SEND_LIMIT = 1;
 constexpr int FROM_DOWN = 0;
 constexpr int FROM_UP = 1;
+constexpr int NUM_TRAIN_SUBS = 16;
+
+const int FAST_CALIBRATION_SPEED = 13;
+const int LOOK_AHEAD_SENSORS = 4;
+const int LOOK_AHEAD_DISTANCE = 2;
+const int PHASE_2_CALIBRATION_PAUSE = 700;
 
 const int SENSORS_PER_LETTER = 16;
 const int SENSOR_A[SENSORS_PER_LETTER] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
@@ -37,6 +43,9 @@ const int SENSOR_B[SENSORS_PER_LETTER] = { 16, 17, 18, 19, 20, 21, 22, 23, 24, 2
 const int SENSOR_C[SENSORS_PER_LETTER] = { 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47 };
 const int SENSOR_D[SENSORS_PER_LETTER] = { 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63 };
 const int SENSOR_E[SENSORS_PER_LETTER] = { 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79 };
+
+const int TRACK_BRANCHES[NUM_SWITCHES] = { 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122 };
+const int TRACK_MERGES[NUM_SWITCHES] = { 81, 83, 85, 87, 89, 91, 93, 95, 97, 99, 101, 103, 105, 107, 109, 111, 113, 115, 117, 119, 121, 123 };
 
 enum SpeedLevel { SPEED_STOP = 0, SPEED_1 = 1, SPEED_MAX = 2 };
 enum class TrainState : uint32_t {
@@ -203,21 +212,21 @@ public:
 	char my_id = 0;
 	int my_index = -1;
 
-	// localization related paramter
+	// localization related parameter
 	LocalizationInfo localization;
 	// calibration related parameters
 	SpeedInfo speeds[2][static_cast<int>(SpeedLevel::SPEED_MAX) + 1];
 	long accelerations[static_cast<int>(SpeedLevel::SPEED_MAX) + 1][static_cast<int>(SpeedLevel::SPEED_MAX) + 1] = { 0 };
-	// constant informatoin related to calibration
+	// constant information related to calibration
 	CalibrationInfo calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX) + 1];
-	// non-constant informatoin related to calibration
+	// non-constant information related to calibration
 	CalibrationState cali_state;
 
 	// shared attribute with main thread
 	AddressBook addr;
 	Courier::CourierPool<PlanningCourReq>* courier_pool = nullptr;
 	etl::list<etl::pair<int, int>, Train::NUM_TRAINS>* sensor_subs = nullptr;
-	etl::queue<int, 16> train_sub;
+	etl::queue<int, NUM_TRAIN_SUBS> train_sub;
 	track_node* track;
 	PlanningCourReq req_to_courier;
 	char* switch_state;

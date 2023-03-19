@@ -66,13 +66,13 @@ void UART::uart_0_server_transmit() {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(UARTServerReq));
 		switch (req.header) {
 		case RequestHeader::UART_NOTIFY_TRANSMISSION: {
-			Message::Reply::Reply(from, nullptr, 0); // unblock receiver right away right away
+			Message::Reply::EmptyReply(from); // unblock receiver right away right away
 			transmit_interrupt_enable = false;
 			tryClearTransmit();
 			break;
 		}
 		case RequestHeader::UART_PUTC: {
-			Message::Reply::Reply(from, nullptr, 0); // unblock putc guy right away
+			Message::Reply::EmptyReply(from); // unblock putc guy right away
 			// the default behaviour is putc, but if we are full, then we wait for interrupt
 			char c = req.body.regular_msg;
 
@@ -89,7 +89,7 @@ void UART::uart_0_server_transmit() {
 			break;
 		}
 		case RequestHeader::UART_PUTS: {
-			Message::Reply::Reply(from, nullptr, 0); // unblock putc guy right away right away
+			Message::Reply::EmptyReply(from); // unblock putc guy right away right away
 			// the default behaviour is putc, but if we are full, then we wait for interrupt
 			const char* s = req.body.worker_msg.msg;
 			int len = req.body.worker_msg.msg_len;
@@ -138,7 +138,7 @@ void UART::uart_0_server_receive() {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(UARTServerReq));
 		switch (req.header) {
 		case RequestHeader::UART_NOTIFY_RECEIVE: {
-			Message::Reply::Reply(from, nullptr, 0); // unblock receiver right away right away
+			Message::Reply::EmptyReply(from); // unblock receiver right away right away
 
 			WorkerRequestBody body = req.body.worker_msg;
 			int length = body.msg_len;
@@ -189,10 +189,7 @@ void UART::uart_0_receive_notifier() {
 	UARTServerReq req = { RequestHeader::UART_NOTIFY_RECEIVE, WorkerRequestBody { 0x0, 0x0 } };
 	while (true) {
 		req.body.worker_msg.msg_len = Interrupt::AwaitEventWithBuffer(UART_0_RX_TIMEOUT, req.body.worker_msg.msg);
-		Message::Send::Send(uart_tid,
-							reinterpret_cast<const char*>(&req),
-							sizeof(UARTServerReq),
-							nullptr,
+		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr,
 							0); // we don't worry about response
 	}
 }
@@ -206,7 +203,7 @@ void UART::uart_0_transmission_notifier() {
 	UARTServerReq req = { RequestHeader::UART_NOTIFY_TRANSMISSION, { 0 } };
 	while (true) {
 		Interrupt::AwaitEvent(UART_0_TXR_INTERRUPT);
-		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0);
+		Message::Send::SendNoReply(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq));
 	}
 }
 
@@ -255,7 +252,7 @@ void UART::uart_1_server_transmit() {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(UARTServerReq));
 		switch (req.header) {
 		case RequestHeader::UART_NOTIFY_TRANSMISSION: {
-			Message::Reply::Reply(from, nullptr, 0); // unblock receiver right away right away
+			Message::Reply::EmptyReply(from); // unblock receiver right away right away
 			TX_await = false;
 
 			if (!transmit_queue.empty()) {
@@ -266,7 +263,7 @@ void UART::uart_1_server_transmit() {
 			break;
 		}
 		case RequestHeader::UART_NOTIFY_CTS: {
-			Message::Reply::Reply(from, nullptr, 0); // unblock receiver right away right away
+			Message::Reply::EmptyReply(from); // unblock receiver right away right away
 			CTS_await += 1;
 
 			if (!transmit_queue.empty()) {
@@ -278,7 +275,7 @@ void UART::uart_1_server_transmit() {
 		}
 		case RequestHeader::UART_PUTC: {
 
-			Message::Reply::Reply(from, nullptr, 0); // unblock putc guy right away right away
+			Message::Reply::EmptyReply(from); // unblock putc guy right away right away
 			// the default behaviour is putc, but if we are full, then we wait for interrupt
 			char c = req.body.regular_msg;
 			if (transmit_queue.empty()) {
@@ -295,7 +292,7 @@ void UART::uart_1_server_transmit() {
 			break;
 		}
 		case RequestHeader::UART_PUTS: {
-			Message::Reply::Reply(from, nullptr, 0); // unblock putc guy right away right away
+			Message::Reply::EmptyReply(from); // unblock putc guy right away right away
 			// the default behaviour is putc, but if we are full, then we wait for interrupt
 			const char* s = req.body.worker_msg.msg;
 			int len = req.body.worker_msg.msg_len;
@@ -345,7 +342,7 @@ void UART::uart_1_server_receive() {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(UARTServerReq));
 		switch (req.header) {
 		case RequestHeader::UART_NOTIFY_RECEIVE: {
-			Message::Reply::Reply(from, nullptr, 0); // unblock receiver right away right away
+			Message::Reply::EmptyReply(from); // unblock receiver right away right away
 			// body is irrlevant, we simply try to read until we
 			// this call ideally should never happen, if it does, then we have issue with sensor not coming back fast
 			// enough.
@@ -398,7 +395,7 @@ void UART::uart_1_transmission_notifier() {
 	UARTServerReq req = { RequestHeader::UART_NOTIFY_TRANSMISSION, { 0 } };
 	while (true) {
 		Interrupt::AwaitEvent(UART_1_TXR_INTERRUPT);
-		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0);
+		Message::Send::SendNoReply(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq));
 	}
 }
 
@@ -407,7 +404,7 @@ void UART::uart_1_CTS_notifier() {
 	UARTServerReq req = { RequestHeader::UART_NOTIFY_CTS, { 0 } };
 	while (true) {
 		Interrupt::AwaitEvent(UART_1_MSR_INTERRUPT);
-		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0);
+		Message::Send::SendNoReply(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq));
 	}
 }
 
@@ -416,7 +413,7 @@ void UART::uart_1_receive_notifier() {
 	UARTServerReq req = { RequestHeader::UART_NOTIFY_RECEIVE, { 0 } };
 	while (true) {
 		Interrupt::AwaitEvent(UART_1_RX_INTERRUPT);
-		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0);
+		Message::Send::SendNoReply(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq));
 	}
 }
 
@@ -425,6 +422,6 @@ void UART::uart_1_receive_timeout_notifier() {
 	UARTServerReq req = { RequestHeader::UART_NOTIFY_RECEIVE, { 0 } };
 	while (true) {
 		Interrupt::AwaitEvent(UART_1_RX_TIMEOUT);
-		Message::Send::Send(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq), nullptr, 0);
+		Message::Send::SendNoReply(uart_tid, reinterpret_cast<const char*>(&req), sizeof(UARTServerReq));
 	}
 }

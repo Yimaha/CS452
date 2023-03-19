@@ -22,7 +22,7 @@ void Sensor::sensor_admin() {
 	}
 	uint64_t delay_ticks = Clock::Time(addr.clock_tid) + SENSOR_DELAY;
 	SensorCourierReq req_to_courier = { Message::RequestHeader::SENSOR_COUR_AWAIT_READING, { delay_ticks } };
-	Message::Send::Send(courier, (const char*)&req_to_courier, sizeof(SensorCourierReq), nullptr, 0);
+	Message::Send::SendNoReply(courier, (const char*)&req_to_courier, sizeof(SensorCourierReq));
 #ifdef TIME_OUT
 	uint64_t sensor_query_counter = 0;
 	Courier::CourierPool<SensorCourierReq> courier_pool = Courier::CourierPool<SensorCourierReq>(&courier_time_out, Priority::TERMINAL_PRIORITY);
@@ -74,7 +74,7 @@ void Sensor::sensor_admin() {
 		}
 		case Message::RequestHeader::SENSOR_RESYNC: {
 			// in the future, resync is not suppose to be called from here, but from the global pathing server.
-			Message::Reply::Reply(from, nullptr, 0);
+			Message::Reply::EmptyReply(from);
 			resync = true;
 			break;
 		}
@@ -103,7 +103,7 @@ void Sensor::sensor_courier() {
 	SensorAdminReq req_to_admin;
 
 	Message::Receive::Receive(&from, (char*)&req, sizeof(SensorCourierReq));
-	Message::Reply::Reply(from, nullptr, 0); // unblock caller right away
+	Message::Reply::EmptyReply(from); // unblock caller right away
 
 	switch (req.header) {
 	case Message::RequestHeader::SENSOR_COUR_AWAIT_READING: {
@@ -135,12 +135,12 @@ void Sensor::courier_time_out() {
 
 	while (true) {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(SensorCourierReq));
-		Message::Reply::Reply(from, nullptr, 0); // unblock caller right away
+		Message::Reply::EmptyReply(from); // unblock caller right away
 		switch (req.header) {
 		case Message::RequestHeader::SENSOR_COUR_TIMEOUT_START: {
 			Clock::Delay(addr.clock_tid, DELAY); // it could delay by 0 as well, which might clog the uart channel too much
 			req_to_admin.body.time_out_id = req.body.info;
-			Message::Send::Send(addr.sensor_admin_tid, (const char*)&req_to_admin, sizeof(req_to_admin), nullptr, 0);
+			Message::Send::SendNoReply(addr.sensor_admin_tid, (const char*)&req_to_admin, sizeof(req_to_admin));
 			break;
 		}
 		default: {

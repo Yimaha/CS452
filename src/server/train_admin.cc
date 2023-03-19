@@ -48,8 +48,7 @@ struct SwitchDelayMessage {
 void Train::train_admin() {
 	Name::RegisterAs(TRAIN_SERVER_NAME);
 	const uint64_t POOL_SIZE = 64;
-	Courier::CourierPool<TrainCourierReq> courier_pool
-		= Courier::CourierPool<TrainCourierReq>(&train_courier, Priority::HIGH_PRIORITY);
+	Courier::CourierPool<TrainCourierReq> courier_pool = Courier::CourierPool<TrainCourierReq>(&train_courier, Priority::HIGH_PRIORITY);
 	AddressBook addr = getAddressBook();
 	int uart_tid = addr.train_trans_tid;
 
@@ -62,7 +61,7 @@ void Train::train_admin() {
 	etl::queue<SwitchDelayMessage, POOL_SIZE> switch_queue;
 	etl::queue<int, POOL_SIZE> switch_subscriber;
 
-	// auto resync = [&]() { Send::Send(sensor_admin, (const char*)&req_to_sensor, sizeof(req_to_sensor), nullptr, 0);
+	// auto resync = [&]() { Send::SendEmptyReply(sensor_admin, (const char*)&req_to_sensor, sizeof(req_to_sensor));
 	// };
 
 	for (int i = 1; i <= 18; i++) {
@@ -76,8 +75,7 @@ void Train::train_admin() {
 	get_curved_byte(command, 1);
 	UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
 	TrainCourierReq req_to_courier = { RequestHeader::TRAIN_COUR_SWITCH_DELAY, { 0x0, 0x0 } };
-	req_to_courier.body.next_delay
-		= Clock::Time(addr.clock_tid) + Sensor::SENSOR_DELAY; // timing is not relevant at startup
+	req_to_courier.body.next_delay = Clock::Time(addr.clock_tid) + Sensor::SENSOR_DELAY; // timing is not relevant at startup
 	courier_pool.request(&req_to_courier);
 
 	// once we pushed all jobs, initialize a job that just setup all the switches
@@ -91,7 +89,7 @@ void Train::train_admin() {
 		switch (req.header) {
 		case RequestHeader::TRAIN_SPEED: {
 			// raw call means train server is not responsible for timing.
-			Message::Reply::Reply(from, nullptr, 0); // unblock after job is done
+			Message::Reply::EmptyReply(from); // unblock after job is done
 			char train_id = req.body.command.id;
 			char desire_speed = req.body.command.action; // should be an integer within 0 - 31
 			int train_index = train_num_to_index(train_id);
@@ -103,7 +101,7 @@ void Train::train_admin() {
 		}
 		case RequestHeader::TRAIN_REV: {
 			// raw call means train server is not responsible for timing.
-			Message::Reply::Reply(from, nullptr, 0); // unblock after job is done
+			Message::Reply::EmptyReply(from); // unblock after job is done
 			char train_id = req.body.command.id;
 			int train_index = train_num_to_index(train_id);
 			trains[train_index].direction = !trains[train_index].direction;
@@ -116,7 +114,7 @@ void Train::train_admin() {
 			char track_id = req.body.command.id;
 			if (get_switch_id(track_id) == req.body.command.action) {
 				// no need to do anything
-				Message::Reply::Reply(from, nullptr, 0);
+				Message::Reply::EmptyReply(from);
 			} else {
 				bool s = req.body.command.action == 's'; // if true, then straight, else, curved
 				if (s) {
@@ -144,7 +142,7 @@ void Train::train_admin() {
 
 			SwitchDelayMessage info = switch_queue.front();
 			if (info.from > 0) {
-				Message::Reply::Reply(info.from, nullptr, 0);
+				Message::Reply::EmptyReply(info.from);
 			}
 			switch_queue.pop();
 			// if there is another swtich request queued up
@@ -198,14 +196,14 @@ void Train::train_courier() {
 	// worker only has few types
 	while (true) {
 		Message::Receive::Receive(&from, (char*)&req, sizeof(TrainCourierReq));
-		Message::Reply::Reply(from, nullptr, 0); // unblock caller right away
+		Message::Reply::EmptyReply(from); // unblock caller right away
 		switch (req.header) {
 		case RequestHeader::TRAIN_COUR_SWITCH_DELAY: {
 			Clock::DelayUntil(addr.clock_tid, Sensor::SENSOR_DELAY * 2);
 			// delay by 2 ticks of sensor intervel, so block until + one following it
 
 			req_to_admin = { RequestHeader::TRAIN_SWITCH_DELAY_COMPLETE, RequestBody { 0x0, 0x0 } };
-			Message::Send::Send(addr.train_admin_tid, (const char*)&req_to_admin, sizeof(TrainAdminReq), nullptr, 0);
+			Message::Send::SendNoReply(addr.train_admin_tid, (const char*)&req_to_admin, sizeof(TrainAdminReq));
 			break;
 		}
 
