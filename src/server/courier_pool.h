@@ -33,13 +33,13 @@ void CourierPool<T>::request(T* req) {
 	if (courier_queue.empty() || courier_queue.front() == -1) {
 		Task::_KernelCrash("\r\nout of courier for type: %s\r\n");
 	}
-	Message::Send::Send(courier_queue.front(), (const char*)req, sizeof(T), nullptr, 0);
+	Message::Send::SendNoReply(courier_queue.front(), (const char*)req, sizeof(T));
 	courier_queue.pop();
 }
 
 template <typename T>
 void CourierPool<T>::receive(int from) {
-	Message::Reply::Reply(from, nullptr, 0);
+	Message::Reply::EmptyReply(from);
 	courier_queue.push(from);
 }
 

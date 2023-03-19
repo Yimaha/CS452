@@ -39,7 +39,7 @@ void UserTask::launch() {
 		for (int i = 0; i < Train::NUM_TRAINS; ++i) {
 			int tid = Task::Create(Priority::HIGH_PRIORITY, &LocalPathing::local_pathing_worker);
 			req.body.train_num = Train::TRAIN_NUMBERS[i];
-			Message::Send::Send(tid, reinterpret_cast<char*>(&req), sizeof(req), nullptr, 0);
+			Message::Send::SendNoReply(tid, reinterpret_cast<char*>(&req), sizeof(req));
 		}
 
 		Task::Create(Priority::HIGH_PRIORITY, &Train::train_admin);

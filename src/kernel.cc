@@ -63,8 +63,7 @@ int name_server_interface_helper(const char* name, Message::RequestHeader header
 	for (uint64_t i = 0; name[i] != '\0' && i < Name::MAX_NAME_LENGTH; ++i)
 		req.name.arr[i] = name[i];
 
-	const int res = Message::Send::Send(
-		Name::NAME_SERVER_ID, reinterpret_cast<const char*>(&req), Name::NAME_REQ_LENGTH, reply, rplen);
+	const int res = Message::Send::Send(Name::NAME_SERVER_ID, reinterpret_cast<const char*>(&req), Name::NAME_REQ_LENGTH, reply, rplen);
 	if (res < 0) // Send failed
 		return Name::Exception::INVALID_NS_TASK_ID;
 
@@ -88,8 +87,7 @@ int timer_server_interface_helper(int tid, Message::RequestHeader header, uint32
 		return Clock::Exception::INVALID_ID;
 	}
 #ifdef OUR_DEBUG
-	const int res
-		= Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(Clock::ClockServerReq), reply, 4);
+	const int res = Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(Clock::ClockServerReq), reply, 4);
 	if (res < 0) // Send failed
 		return Name::Exception::INVALID_NS_TASK_ID;
 #else
@@ -157,14 +155,13 @@ int UART::Putc(int tid, int uart, char ch) {
 		Task::_KernelCrash("either id is not correct in Putc\r\n");
 	}
 	UART::UARTServerReq req = UART::UARTServerReq(RequestHeader::UART_PUTC, ch);
-	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
+	Message::Send::SendNoReply(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq));
 	return 0;
 }
 
 int UART::Puts(int tid, int uart, const char* s, uint64_t len) {
 	// since we only have uart0, uart param is ignored
-	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID)
-		|| len > UART::UART_MESSAGE_LIMIT) {
+	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID) || len > UART::UART_MESSAGE_LIMIT) {
 		Task::_KernelCrash("either id is not correct or len is too big in Puts\r\n");
 	}
 	UART::WorkerRequestBody body;
@@ -174,7 +171,7 @@ int UART::Puts(int tid, int uart, const char* s, uint64_t len) {
 	}
 
 	UART::UARTServerReq req = UART::UARTServerReq(RequestHeader::UART_PUTS, body);
-	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
+	Message::Send::SendNoReply(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq));
 	return 0;
 }
 
@@ -189,7 +186,7 @@ int UART::PutsNullTerm(int tid, int uart, const char* s, uint64_t len) {
 	}
 
 	UART::UARTServerReq req = UART::UARTServerReq(RequestHeader::UART_PUTS, body);
-	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
+	Message::Send::SendNoReply(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq));
 	return 0;
 }
 
@@ -351,8 +348,7 @@ void Kernel::handle_syscall() {
 }
 
 void Kernel::interrupt_control(int channel) {
-	int control = UART::get_control_bits(
-		enable_transmit_interrupt[channel], enable_receive_interrupt[channel], enable_CTS[channel]);
+	int control = UART::get_control_bits(enable_transmit_interrupt[channel], enable_receive_interrupt[channel], enable_CTS[channel]);
 	uart_put(UART::SPI_CHANNEL, channel, UART_IER, control);
 }
 
@@ -399,14 +395,12 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 			// this is a really shitty way to handle this, I think it would probably be better if we something similar
 			// to a dedicated class object but we will fix it soon once experiementa go through.
 			if (exception_code == UART::InterruptType::UART_RX_TIMEOUT && uart_0_receive_tid != Task::MAIDENLESS) {
-				int input_len = uart_get_all(
-					DEFAULT_SPI_CHANNEL, TERMINAL_UART_CHANNEL, tasks[uart_0_receive_tid]->get_event_buffer());
+				int input_len = uart_get_all(DEFAULT_SPI_CHANNEL, TERMINAL_UART_CHANNEL, tasks[uart_0_receive_tid]->get_event_buffer());
 				tasks[uart_0_receive_tid]->to_ready(input_len, &scheduler);
 				uart_0_receive_tid = Task::MAIDENLESS;
 				enable_receive_interrupt[TERMINAL_UART_CHANNEL] = false;
 				interrupt_control(TERMINAL_UART_CHANNEL);
-			} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT
-					   && uart_0_transmit_tid != Task::MAIDENLESS) {
+			} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT && uart_0_transmit_tid != Task::MAIDENLESS) {
 				tasks[uart_0_transmit_tid]->to_ready(0x0, &scheduler);
 				uart_0_transmit_tid = Task::MAIDENLESS;
 				enable_transmit_interrupt[TERMINAL_UART_CHANNEL] = false;
@@ -427,27 +421,23 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 
 			// this is a really shitty way to handle this, I think it would probably be better if we something similar
 			// to a dedicated class object but we will fix it soon once experiementa go through.
-			if (exception_code == UART::InterruptType::UART_RX_TIMEOUT
-				&& uart_1_receive_timeout_tid != Task::MAIDENLESS) {
+			if (exception_code == UART::InterruptType::UART_RX_TIMEOUT && uart_1_receive_timeout_tid != Task::MAIDENLESS) {
 				tasks[uart_1_receive_timeout_tid]->to_ready(0x0, &scheduler);
 				uart_1_receive_timeout_tid = Task::MAIDENLESS;
 				enable_receive_interrupt[TRAIN_UART_CHANNEL] = false;
 				interrupt_control(TRAIN_UART_CHANNEL);
-			} else if (exception_code == UART::InterruptType::UART_RX_INTERRUPT
-					   && uart_1_receive_tid != Task::MAIDENLESS) {
+			} else if (exception_code == UART::InterruptType::UART_RX_INTERRUPT && uart_1_receive_tid != Task::MAIDENLESS) {
 				tasks[uart_1_receive_tid]->to_ready(0x0, &scheduler);
 				uart_1_receive_tid = Task::MAIDENLESS;
 				enable_receive_interrupt[TRAIN_UART_CHANNEL] = false;
 				interrupt_control(TRAIN_UART_CHANNEL);
-			} else if (exception_code == UART::InterruptType::UART_MODEM_INTERRUPT
-					   && uart_1_msr_tid != Task::MAIDENLESS) {
+			} else if (exception_code == UART::InterruptType::UART_MODEM_INTERRUPT && uart_1_msr_tid != Task::MAIDENLESS) {
 				char state = uart_get(DEFAULT_SPI_CHANNEL, TRAIN_UART_CHANNEL, UART_MSR);
 				if ((state & 0x1) == 0x1 && (state & 0b10000) == 0b10000) {
 					tasks[uart_1_msr_tid]->to_ready(0x0, &scheduler);
 					uart_1_msr_tid = Task::MAIDENLESS;
 				}
-			} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT
-					   && uart_1_transmit_tid != Task::MAIDENLESS) {
+			} else if (exception_code == UART::InterruptType::UART_TXR_INTERRUPT && uart_1_transmit_tid != Task::MAIDENLESS) {
 				tasks[uart_1_transmit_tid]->to_ready(0x0, &scheduler);
 				uart_1_transmit_tid = Task::MAIDENLESS;
 				enable_transmit_interrupt[TRAIN_UART_CHANNEL] = false;
@@ -504,10 +494,8 @@ void Kernel::handle_send() {
 		int replylen = active_request->x5;
 		if (tasks[rid]->is_receive_block()) {
 			tasks[rid]->fill_response(active_task, msg, msglen);
-			tasks[rid]->to_ready(
-				msglen, &scheduler); // unblock receiver, and the response is the length of the original message
-			tasks[active_task]->to_reply_block(
-				reply, replylen); // since you already put the message through, you just waiting on response
+			tasks[rid]->to_ready(msglen, &scheduler);			 // unblock receiver, and the response is the length of the original message
+			tasks[active_task]->to_reply_block(reply, replylen); // since you already put the message through, you just waiting on response
 		} else {
 			// reader is not ready to read we just push it to its inbox
 			tasks[rid]->queue_message(active_task, msg, msglen);
