@@ -1,6 +1,5 @@
 
 #pragma once
-#include "../kernel.h"
 #include "../rpi.h"
 #include "../utils/hashmap.h"
 #include "../utils/utility.h"

@@ -31,12 +31,28 @@ int Message::Send::Send(int tid, const char* msg, int msglen, char* reply, int r
 	return to_kernel(Kernel::HandlerCode::SEND, tid, msg, msglen, reply, rplen);
 }
 
+int Message::Send::SendNoReply(int tid, const char* msg, int msglen) {
+	return to_kernel(Kernel::HandlerCode::SEND, tid, msg, msglen, nullptr, 0);
+}
+
+int Message::Send::EmptySend(int tid) {
+	return to_kernel(Kernel::HandlerCode::SEND, tid, nullptr, 0, nullptr, 0);
+}
+
 int Message::Receive::Receive(int* tid, char* msg, int msglen) {
 	return to_kernel(Kernel::HandlerCode::RECEIVE, tid, msg, msglen);
 }
 
+int Message::Receive::EmptyReceive(int* tid) {
+	return to_kernel(Kernel::HandlerCode::RECEIVE, tid, nullptr, 0);
+}
+
 int Message::Reply::Reply(int tid, const char* msg, int msglen) {
 	return to_kernel(Kernel::HandlerCode::REPLY, tid, msg, msglen);
+}
+
+int Message::Reply::EmptyReply(int tid) {
+	return to_kernel(Kernel::HandlerCode::REPLY, tid, nullptr, 0);
 }
 
 int name_server_interface_helper(const char* name, Message::RequestHeader header) {
@@ -107,9 +123,9 @@ int Interrupt::AwaitEvent(int eventId) {
 }
 
 int Interrupt::AwaitEventWithBuffer(int eventId, char* buffer) {
-	// this is a specialized version of await event, where we also accept a buffer which will be used to copy information
-	// due to the natural size of event registers, it is assumed buffer holds at least 64 bytes
-	// note the return value is how much of the buffer is used
+	// this is a specialized version of await event, where we also accept a buffer which will be used to copy
+	// information due to the natural size of event registers, it is assumed buffer holds at least 64 bytes note the
+	// return value is how much of the buffer is used
 	return to_kernel(Kernel::HandlerCode::AWAIT_EVENT_WITH_BUFFER, eventId, buffer);
 }
 
@@ -139,7 +155,7 @@ int UART::Putc(int tid, int uart, char ch) {
 		Task::_KernelCrash("either id is not correct in Putc\r\n");
 	}
 	UART::UARTServerReq req = UART::UARTServerReq(RequestHeader::UART_PUTC, ch);
-	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
+	Message::Send::SendNoReply(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq));
 	return 0;
 }
 
@@ -155,7 +171,7 @@ int UART::Puts(int tid, int uart, const char* s, uint64_t len) {
 	}
 
 	UART::UARTServerReq req = UART::UARTServerReq(RequestHeader::UART_PUTS, body);
-	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
+	Message::Send::SendNoReply(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq));
 	return 0;
 }
 
@@ -170,7 +186,7 @@ int UART::PutsNullTerm(int tid, int uart, const char* s, uint64_t len) {
 	}
 
 	UART::UARTServerReq req = UART::UARTServerReq(RequestHeader::UART_PUTS, body);
-	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), nullptr, 0);
+	Message::Send::SendNoReply(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq));
 	return 0;
 }
 
@@ -183,6 +199,20 @@ int UART::Getc(int tid, int uart) {
 	char c;
 	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), &c, 1);
 	return (int)c;
+}
+
+int Terminal::TermDebugPuts(const char* msg) {
+	WorkerRequestBody body;
+	uint32_t i = 0;
+	for (; i < MAX_PUTS_LEN - 1 && msg[i] != '\0'; i++) {
+		body.msg[i] = msg[i];
+	}
+
+	body.msg[i] = '\0';
+	body.msg_len = i;
+	TerminalServerReq req = TerminalServerReq(RequestHeader::TERM_DEBUG_PUTS, body);
+	Message::Send::SendNoReply(TERMINAL_ADMIN_TID, reinterpret_cast<char*>(&req), sizeof(TerminalServerReq));
+	return 0;
 }
 
 Kernel::Kernel() {
@@ -347,21 +377,23 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 		 * even same type, but uart0 vs uart1
 		 *
 		 * in order to differentiate them, we relies on checking the register later, IIR,
-		 * IIR includes both the information about if there is an interrupt to handle, and if so, what is the interrupt exactly.
+		 * IIR includes both the information about if there is an interrupt to handle, and if so, what is the interrupt
+		 * exactly.
 		 *
 		 * the general work flow is 1. we receive UART_INTERRUPT_ID interrupt, thus recognize interrupt happened
 		 * we check IIR to see what type of interrupt happened, we could potentially get a large quantity of interrupt
-		 * overall, the goal is that if we receive interrupt in the form of UART_INTERRUPT_ID, we keep cleraing interrupt
-		 * until every interrupt associated with uart is cleared
+		 * overall, the goal is that if we receive interrupt in the form of UART_INTERRUPT_ID, we keep cleraing
+		 * interrupt until every interrupt associated with uart is cleared
 		 *
-		 * Also note that server is in control of which register is flipped, thus also in control of which interrupt is happening.
+		 * Also note that server is in control of which register is flipped, thus also in control of which interrupt is
+		 * happening.
 		 */
 
 		int exception_code = (int)(uart_get(DEFAULT_SPI_CHANNEL, TERMINAL_UART_CHANNEL, UART_IIR) & 0x3F);
 
 		do {
-			// this is a really shitty way to handle this, I think it would probably be better if we something similar to a dedicated class object
-			// but we will fix it soon once experiementa go through.
+			// this is a really shitty way to handle this, I think it would probably be better if we something similar
+			// to a dedicated class object but we will fix it soon once experiementa go through.
 			if (exception_code == UART::InterruptType::UART_RX_TIMEOUT && uart_0_receive_tid != Task::MAIDENLESS) {
 				int input_len = uart_get_all(DEFAULT_SPI_CHANNEL, TERMINAL_UART_CHANNEL, tasks[uart_0_receive_tid]->get_event_buffer());
 				tasks[uart_0_receive_tid]->to_ready(input_len, &scheduler);
@@ -376,7 +408,10 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 			} else if (exception_code == UART::InterruptType::UART_CLEAR) {
 				break;
 			} else {
-				kcrash("Uart 0 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d\r\n", exception_code, uart_0_receive_tid, uart_0_transmit_tid);
+				kcrash("Uart 0 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d\r\n",
+					   exception_code,
+					   uart_0_receive_tid,
+					   uart_0_transmit_tid);
 			}
 			exception_code = (int)(uart_get(DEFAULT_SPI_CHANNEL, TERMINAL_UART_CHANNEL, UART_IIR) & 0x3F);
 		} while (exception_code != UART::InterruptType::UART_CLEAR);
@@ -384,8 +419,8 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 		exception_code = (int)(uart_get(DEFAULT_SPI_CHANNEL, TRAIN_UART_CHANNEL, UART_IIR) & 0x3F);
 		do {
 
-			// this is a really shitty way to handle this, I think it would probably be better if we something similar to a dedicated class object
-			// but we will fix it soon once experiementa go through.
+			// this is a really shitty way to handle this, I think it would probably be better if we something similar
+			// to a dedicated class object but we will fix it soon once experiementa go through.
 			if (exception_code == UART::InterruptType::UART_RX_TIMEOUT && uart_1_receive_timeout_tid != Task::MAIDENLESS) {
 				tasks[uart_1_receive_timeout_tid]->to_ready(0x0, &scheduler);
 				uart_1_receive_timeout_tid = Task::MAIDENLESS;
@@ -410,7 +445,11 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 			} else if (exception_code == UART::InterruptType::UART_CLEAR) {
 				break;
 			} else {
-				kcrash("Uart 1 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d msr_tid %d\r\n", exception_code, uart_1_receive_tid, uart_1_transmit_tid, uart_1_msr_tid);
+				kcrash("Uart 1 Too Slow \r\nexception code: %d receive_tid: %d transmit_tid %d msr_tid %d\r\n",
+					   exception_code,
+					   uart_1_receive_tid,
+					   uart_1_transmit_tid,
+					   uart_1_msr_tid);
 			}
 			exception_code = (int)(uart_get(DEFAULT_SPI_CHANNEL, TRAIN_UART_CHANNEL, UART_IIR) & 0x3F);
 		} while (exception_code != UART::InterruptType::UART_CLEAR);
@@ -485,9 +524,11 @@ void Kernel::handle_reply() {
 	char* msg = (char*)active_request->x2;
 	int msglen = active_request->x3;
 	if (tasks[to] == nullptr) {
-		tasks[active_task]->to_ready(Message::Reply::Exception::NO_SUCH_TASK, &scheduler); // communicating a non existing task
+		tasks[active_task]->to_ready(Message::Reply::Exception::NO_SUCH_TASK,
+									 &scheduler); // communicating a non existing task
 	} else if (!tasks[to]->is_reply_block()) {
-		tasks[active_task]->to_ready(Message::Reply::Exception::NOT_WAITING_FOR_REPLY, &scheduler); // communicating with a task that is not reply blocked
+		tasks[active_task]->to_ready(Message::Reply::Exception::NOT_WAITING_FOR_REPLY,
+									 &scheduler); // communicating with a task that is not reply blocked
 	} else {
 		int min_len = tasks[to]->fill_response(active_task, msg, msglen);
 		tasks[to]->to_ready(min_len, &scheduler);

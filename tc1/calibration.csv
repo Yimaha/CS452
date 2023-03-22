@@ -1,0 +1,3 @@
+train_number,base_velocity,low_velocity_from_low,low_velocity_from_high,high_velocity,accel01,accel02,accel12,accel21,sdist_low_from_low,sdist_low_from_high,sdist_high
+24,1684,16000,20000,55000,7800,12220,12700,-15419,12500,12500,101500
+58,2507,12700,12700,49000,3990,6939,7959,-13900,7966,7966,96523
