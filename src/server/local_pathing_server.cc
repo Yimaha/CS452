@@ -28,7 +28,7 @@ void LocalPathing::local_pathing_worker() {
 	AddressBook addr = Message::getAddressBook();
 	PlanningServerReq req_to_global;
 
-	auto send_to_dest_at_speed = [&addr, &req_to_global, internal_train_num](int dest, SpeedLevel speed, int offset = 0) {
+	auto send_to_dest_at_speed = [&addr, &req_to_global, internal_train_num](int dest, SpeedLevel speed) {
 		req_to_global = { RequestHeader::GLOBAL_PATH, Planning::RequestBody { 0x0 } };
 		req_to_global.body.routing_request.id = internal_train_num;
 		req_to_global.body.routing_request.dest = dest;
@@ -70,7 +70,7 @@ void LocalPathing::local_pathing_worker() {
 		Clock::Delay(addr.clock_tid, delay);
 	};
 
-	auto calibrate_stopping_distance = [&](SpeedLevel level, bool from_up, int delay = 0) {
+	auto calibrate_stopping_distance = [&](SpeedLevel level, bool from_up) {
 		req_to_global = { RequestHeader::GLOBAL_CALIBRATE_STOPPING_DISTANCE, Planning::RequestBody { 0x0 } };
 		req_to_global.body.calibration_request.id = internal_train_num;
 		req_to_global.body.calibration_request.level = level;
