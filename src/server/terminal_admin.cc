@@ -359,7 +359,7 @@ void Terminal::terminal_admin() {
 							char dir = train_state[i].direction ? 'S' : 'R';
 
 							long vel = global_train_info[i].velocity;
-							sprintf(buf, TRAIN_PRINTOUT[j], speed, dir, vel / 100, vel % 100);
+							sprintf(buf, TRAIN_PRINTOUT[j], speed, dir, relu(vel) / 100, relu(vel) % 100);
 							break;
 						}
 						case TrainUIReq::TrainUINextPrev: {
@@ -385,7 +385,7 @@ void Terminal::terminal_admin() {
 							int t = global_train_info[i].time_to_next_sensor;
 							int d = global_train_info[i].dist_to_next_sensor;
 
-							sprintf(buf, TRAIN_PRINTOUT[j], t % FOUR_DIGITS, d % FOUR_DIGITS);
+							sprintf(buf, TRAIN_PRINTOUT[j], relu(t) % FOUR_DIGITS, relu(d) % FOUR_DIGITS);
 							break;
 						}
 						case TrainUIReq::TrainUISrcDst: {
