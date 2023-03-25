@@ -38,6 +38,7 @@ const int LOOK_AHEAD_DISTANCE = 2;
 const int PHASE_2_CALIBRATION_PAUSE = 700;
 
 const int SENSORS_PER_LETTER = 16;
+const int TOTAL_SENSORS = 80;
 const int SENSOR_A[SENSORS_PER_LETTER] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
 const int SENSOR_B[SENSORS_PER_LETTER] = { 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 };
 const int SENSOR_C[SENSORS_PER_LETTER] = { 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47 };
@@ -46,6 +47,9 @@ const int SENSOR_E[SENSORS_PER_LETTER] = { 64, 65, 66, 67, 68, 69, 70, 71, 72, 7
 
 const int TRACK_BRANCHES[NUM_SWITCHES] = { 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122 };
 const int TRACK_MERGES[NUM_SWITCHES] = { 81, 83, 85, 87, 89, 91, 93, 95, 97, 99, 101, 103, 105, 107, 109, 111, 113, 115, 117, 119, 121, 123 };
+
+const int NO_PATH = -1;
+const int NO_SENSOR = -1;
 
 enum SpeedLevel { SPEED_STOP = 0, SPEED_1 = 1, SPEED_MAX = 2 };
 enum class TrainState : uint32_t {
@@ -93,6 +97,7 @@ struct AccelerationCalibrationRequest {
 	SpeedLevel from;
 	SpeedLevel to;
 };
+
 union RequestBody
 {
 	uint64_t info;
@@ -108,6 +113,32 @@ struct PlanningServerReq {
 	Message::RequestHeader header;
 	RequestBody body;
 } __attribute__((aligned(8)));
+
+struct GlobalTrainInfo {
+	long velocity;
+	int next_sensor;
+	int prev_sensor;
+
+	int time_to_next_sensor; // expected time to next sensor in ticks
+	int dist_to_next_sensor; // expected distance to next sensor in mm
+
+	int path_src;
+	int path_dest;
+
+	int barge_count = 0;
+	int barge_weight = 1;
+
+	friend bool operator==(const GlobalTrainInfo& lhs, const GlobalTrainInfo& rhs) {
+		return lhs.velocity == rhs.velocity && lhs.next_sensor == rhs.next_sensor && lhs.prev_sensor == rhs.prev_sensor
+			   && lhs.time_to_next_sensor == rhs.time_to_next_sensor && lhs.dist_to_next_sensor == rhs.dist_to_next_sensor
+			   && lhs.path_src == rhs.path_src && lhs.path_dest == rhs.path_dest && lhs.barge_count == rhs.barge_count
+			   && lhs.barge_weight == rhs.barge_weight;
+	}
+
+	friend bool operator!=(const GlobalTrainInfo& lhs, const GlobalTrainInfo& rhs) {
+		return !(lhs == rhs);
+	}
+};
 
 struct PlanningCourReq {
 	Message::RequestHeader header;
@@ -156,6 +187,8 @@ public:
 		long time_traveled = 0;
 		long active_velocity = 0;
 		long expected_arrival_ticks = 0;
+
+		int next_sensor = 0;
 	};
 
 	TrainStatus() { }

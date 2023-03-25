@@ -2,6 +2,7 @@
 #include "../etl/circular_buffer.h"
 #include "../etl/deque.h"
 #include "../etl/queue.h"
+#include "../server/global_pathing_server.h"
 #include "../server/local_pathing_server.h"
 #include "../server/train_admin.h"
 #include "../utils/buffer.h"
@@ -15,10 +16,14 @@ const int HANDLE_FAIL = -1;
 const char SENSOR_LETTERS[] = "ABCDE";
 constexpr char SPACES[] = "                                                                      ";
 
-struct Command {
+struct TerminalCommand {
 	char cmd[CMD_LEN];
 	int len;
 };
+
+int relu(int x) {
+	return x > 0 ? x : 0;
+}
 
 void str_cpy(const char* source, char* target, int* index, int len, bool check_null_char = false) {
 	for (int i = 0; i < len && (!check_null_char || source[i] != '\0'); i++) {
@@ -42,31 +47,6 @@ void log_time(char buf[], const uint32_t ticks) {
 	sprintf(buf, "%c%c%c:%c%c.%c", mh, mt, mo, st, so, to);
 }
 
-void move_cursor(int r, int c, char* buf, size_t* len) {
-	char numstr[10] = { 0 };
-	*len = 0;
-	for (size_t i = 0; i < sizeof(MOVE_CURSOR) - 1; ++i) {
-		if (MOVE_CURSOR[i] == 'r') {
-			itoa_10(r, numstr);
-			for (int j = 0; numstr[j] != '\0'; ++j) {
-				buf[*len] = numstr[j];
-				*len += 1;
-			}
-
-		} else if (MOVE_CURSOR[i] == 'c') {
-			itoa_10(c, numstr);
-			for (int j = 0; numstr[j] != '\0'; ++j) {
-				buf[*len] = numstr[j];
-				*len += 1;
-			}
-
-		} else {
-			buf[*len] = MOVE_CURSOR[i];
-			++(*len);
-		}
-	}
-}
-
 // Given a switch number, find the cursor position
 // of the switch in the UI
 void sw_to_cursor_pos(char sw, int* r, int* c) {
@@ -79,27 +59,22 @@ void sw_to_cursor_pos(char sw, int* r, int* c) {
 	}
 }
 
-// Given a train number, find the cursor position
-// of the train in the UI
-etl::pair<int, int> train_to_cursor_pos(int train) {
-	switch (train) {
-	case Train::TRAIN_NUMBERS[0]:
-		return { TRAIN_PRINTOUT_ROW + 2, TRAIN_PRINTOUT_FIRST };
-	case Train::TRAIN_NUMBERS[1]:
-		return { TRAIN_PRINTOUT_ROW + 3, TRAIN_PRINTOUT_FIRST };
-	case Train::TRAIN_NUMBERS[2]:
-		return { TRAIN_PRINTOUT_ROW + 2, TRAIN_PRINTOUT_FIRST + TRAIN_PRINTOUT_WIDTH };
-	case Train::TRAIN_NUMBERS[3]:
-		return { TRAIN_PRINTOUT_ROW + 3, TRAIN_PRINTOUT_FIRST + TRAIN_PRINTOUT_WIDTH };
-	case Train::TRAIN_NUMBERS[4]:
-		return { TRAIN_PRINTOUT_ROW + 2, TRAIN_PRINTOUT_FIRST + 2 * TRAIN_PRINTOUT_WIDTH };
-	case Train::TRAIN_NUMBERS[5]:
-		return { TRAIN_PRINTOUT_ROW + 3, TRAIN_PRINTOUT_FIRST + 2 * TRAIN_PRINTOUT_WIDTH };
-	default:
+// Given a train number and a UI request enum class, find the cursor position
+// of the train in the UI and return the x and y position as a pair
+etl::pair<int, int> train_to_cursor_pos(int train, TrainUIReq req) {
+	int r = TRAIN_PRINTOUT_ROW + static_cast<int>(req) + 1;
+	int tindex = Train::train_num_to_index(train);
+	if (tindex == Train::NO_TRAIN) {
 		return { -1, -1 };
 	}
-}
 
+	int c = TRAIN_PRINTOUT_FIRST + tindex * TRAIN_PRINTOUT_WIDTH + TRAIN_PRINTOUT_UI_OFFSETS[tindex];
+	if (train >= 10 && static_cast<int>(req) > 0) {
+		c -= 1;
+	}
+
+	return { r, c };
+}
 
 int handle_tr(AddressBook& addr, const char cmd[]) {
 	int i = 3;
@@ -287,8 +262,8 @@ void Terminal::terminal_admin() {
 	char printing_buffer[UART::UART_MESSAGE_LIMIT]; // 512 is good for now
 	int printing_index = 0;
 	char buf[TERM_A_BUFLEN];
-	etl::circular_buffer<Command, CMD_HISTORY_LEN> cmd_history = etl::circular_buffer<Command, CMD_HISTORY_LEN>();
-	cmd_history.push(Command { { 0 }, 0 });
+	etl::circular_buffer<TerminalCommand, CMD_HISTORY_LEN> cmd_history = etl::circular_buffer<TerminalCommand, CMD_HISTORY_LEN>();
+	cmd_history.push(TerminalCommand { { 0 }, 0 });
 	size_t cmd_history_index = 0;
 	TAState escape_status = TAState::TA_DEFAULT_ARROW_STATE;
 
@@ -307,6 +282,7 @@ void Terminal::terminal_admin() {
 
 	bool isTrainStateModified = false;
 	Train::TrainRaw train_state[Train::NUM_TRAINS];
+	Planning::GlobalTrainInfo global_train_info[Train::NUM_TRAINS];
 
 	// This is used to keep track of number of activated sensors
 
@@ -350,8 +326,6 @@ void Terminal::terminal_admin() {
 					char write[4] = { l, ((it.second + pos > 9) ? '1' : '0'), ones, ' ' };
 					str_cpy(write, printing_buffer, &printing_index, 4);
 				}
-
-				str_cpy(RESET_CURSOR, printing_buffer, &printing_index, sizeof(RESET_CURSOR) - 1);
 			}
 
 			if (isSwitchStateModified) {
@@ -365,15 +339,84 @@ void Terminal::terminal_admin() {
 				}
 			}
 
+			str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
+			UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);
+			printing_index = 0;
+			str_cpy(SAVE_CURSOR, printing_buffer, &printing_index, sizeof(SAVE_CURSOR) - 1);
+
 			if (isTrainStateModified) {
 				isTrainStateModified = false;
 				for (int i = 0; i < Train::NUM_TRAINS; ++i) {
 					int train_num = Train::TRAIN_NUMBERS[i];
-					etl::pair<int, int> pos = train_to_cursor_pos(train_num);
-					int speed = train_state[i].speed;
-					char dir = train_state[i].direction ? 'S' : 'R';
-					sprintf(buf, "\033[%d;%dH%d%c ", pos.first, pos.second, speed, dir);
-					str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
+					for (int j = static_cast<int>(TrainUIReq::TrainUISpeedDir); j != static_cast<int>(TrainUIReq::DEFAULT); ++j) {
+						etl::pair<int, int> pos = train_to_cursor_pos(train_num, static_cast<TrainUIReq>(j));
+						int len = sprintf(buf, MOVE_CURSOR_F, pos.first, pos.second);
+						str_cpy(buf, printing_buffer, &printing_index, len);
+
+						switch (static_cast<TrainUIReq>(j)) {
+						case TrainUIReq::TrainUISpeedDir: {
+							int speed = train_state[i].speed;
+							char dir = train_state[i].direction ? 'S' : 'R';
+
+							long vel = global_train_info[i].velocity;
+							sprintf(buf, TRAIN_PRINTOUT[j], speed, dir, vel / 100, vel % 100);
+							break;
+						}
+						case TrainUIReq::TrainUINextPrev: {
+							int next = global_train_info[i].next_sensor;
+							int prev = global_train_info[i].prev_sensor;
+
+							char nc = 'X', pc = 'X';
+							int nnum = 0, pnum = 0;
+							if (next != Planning::NO_SENSOR && next < Planning::TOTAL_SENSORS) {
+								nc = SENSOR_LETTERS[next / Planning::SENSORS_PER_LETTER];
+								nnum = next % Planning::SENSORS_PER_LETTER;
+							}
+
+							if (prev != Planning::NO_SENSOR && prev < Planning::TOTAL_SENSORS) {
+								pc = SENSOR_LETTERS[prev / Planning::SENSORS_PER_LETTER];
+								pnum = prev % Planning::SENSORS_PER_LETTER;
+							}
+
+							sprintf(buf, TRAIN_PRINTOUT[j], nc, nnum, pc, pnum);
+							break;
+						}
+						case TrainUIReq::TrainUITimeDist: {
+							int t = global_train_info[i].time_to_next_sensor;
+							int d = global_train_info[i].dist_to_next_sensor;
+
+							sprintf(buf, TRAIN_PRINTOUT[j], t % FOUR_DIGITS, d % FOUR_DIGITS);
+							break;
+						}
+						case TrainUIReq::TrainUISrcDst: {
+							int src = global_train_info[i].path_src;
+							int dst = global_train_info[i].path_dest;
+
+							src = (src == Planning::NO_SENSOR) ? 0 : src;
+							dst = (dst == Planning::NO_SENSOR) ? 0 : dst;
+
+							sprintf(buf, TRAIN_PRINTOUT[j], src, dst);
+							break;
+						}
+						case TrainUIReq::TrainUIBarge: {
+							int barge_count = global_train_info[i].barge_count;
+							int barge_weight = global_train_info[i].barge_weight;
+
+							sprintf(buf, TRAIN_PRINTOUT[j], barge_count, barge_weight % THREE_DIGITS);
+							break;
+						}
+						default: {
+							break;
+						}
+
+						} // switch
+						str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
+					}
+
+					str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
+					UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);
+					printing_index = 0;
+					str_cpy(SAVE_CURSOR, printing_buffer, &printing_index, sizeof(SAVE_CURSOR) - 1);
 				}
 			}
 
@@ -416,12 +459,11 @@ void Terminal::terminal_admin() {
 			printing_index = 0;
 			str_cpy(CLEAR_SCREEN, printing_buffer, &printing_index, sizeof(CLEAR_SCREEN) - 1);
 			str_cpy(TOP_LEFT, printing_buffer, &printing_index, sizeof(TOP_LEFT) - 1);
-
-			int terminal_admin_tid = Task::MyTid();
-			int len = sprintf(buf, TERM_A_TID_MSG, terminal_admin_tid);
-			str_cpy(buf, printing_buffer, &printing_index, len);
-
+			str_cpy(CYAN_CURSOR, printing_buffer, &printing_index, sizeof(CYAN_CURSOR) - 1);
+			str_cpy(WELCOME_MSG, printing_buffer, &printing_index, sizeof(WELCOME_MSG) - 1);
+			str_cpy(RED_CURSOR, printing_buffer, &printing_index, sizeof(RED_CURSOR) - 1);
 			str_cpy(SENSOR_DATA, printing_buffer, &printing_index, sizeof(SENSOR_DATA) - 1);
+			str_cpy(WHITE_CURSOR, printing_buffer, &printing_index, sizeof(WHITE_CURSOR) - 1);
 			for (int i = 0; i < Terminal::SWITCH_UI_LEN; ++i) {
 				str_cpy(Terminal::SWITCH_UI[i], printing_buffer, &printing_index, UART::UART_MESSAGE_LIMIT, true);
 			}
@@ -437,14 +479,14 @@ void Terminal::terminal_admin() {
 
 				UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);
 				printing_index = 0;
+				Clock::Delay(addr.clock_tid, 2);
 			}
 
 			str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
-			str_cpy(WELCOME_MSG, printing_buffer, &printing_index, sizeof(WELCOME_MSG) - 1);
 			str_cpy(DELIMINATION, printing_buffer, &printing_index, sizeof(DELIMINATION) - 1);
 			str_cpy(SAVE_CURSOR_NO_JUMP, printing_buffer, &printing_index, sizeof(SAVE_CURSOR_NO_JUMP) - 1);
 
-			len = sprintf(buf, SETUP_SCROLL, SCROLL_TOP, SCROLL_BOTTOM);
+			int len = sprintf(buf, SETUP_SCROLL, SCROLL_TOP, SCROLL_BOTTOM);
 			str_cpy(buf, printing_buffer, &printing_index, len);
 			str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
 			str_cpy("\r\n", printing_buffer, &printing_index, 2);
@@ -453,7 +495,7 @@ void Terminal::terminal_admin() {
 			str_cpy(DELIMINATION, printing_buffer, &printing_index, sizeof(DELIMINATION) - 1);
 			str_cpy("\r\n", printing_buffer, &printing_index, 2);
 			str_cpy(DEBUG_TITLE, printing_buffer, &printing_index, sizeof(DEBUG_TITLE) - 1);
-			str_cpy(HIDE_CURSOR, printing_buffer, &printing_index, sizeof(HIDE_CURSOR) - 1);
+			// str_cpy(HIDE_CURSOR, printing_buffer, &printing_index, sizeof(HIDE_CURSOR) - 1);
 
 			UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);
 			isRunning = true;
@@ -481,6 +523,15 @@ void Terminal::terminal_admin() {
 			for (int i = 0; i < Train::NUM_TRAINS; ++i) {
 				isTrainStateModified = isTrainStateModified || (train_state[i] != body[i]);
 				train_state[i] = body[i];
+			}
+			break;
+		}
+		case RequestHeader::TERM_TRAIN_STATUS_MORE: {
+			Reply::EmptyReply(from);
+			Planning::GlobalTrainInfo* body = reinterpret_cast<Planning::GlobalTrainInfo*>(req.body.worker_msg.msg);
+			for (int i = 0; i < Train::NUM_TRAINS; ++i) {
+				isTrainStateModified = isTrainStateModified || (global_train_info[i] != body[i]);
+				global_train_info[i] = body[i];
 			}
 			break;
 		}
@@ -551,7 +602,7 @@ void Terminal::terminal_admin() {
 					char buf_3[3] = { '\033', '[', c };
 					str_cpy(buf_3, printing_buffer, &printing_index, 3);
 				}
-				}
+				} // switch
 
 				escape_status = TAState::TA_DEFAULT_ARROW_STATE;
 			} else if (c == '\b') {
@@ -623,7 +674,7 @@ void Terminal::terminal_admin() {
 
 				cmd_history[cmd_history_index].len = char_count;
 				char_count = 0;
-				cmd_history.push(Command { { 0 }, 0 });
+				cmd_history.push(TerminalCommand { { 0 }, 0 });
 				if (cmd_history_index < cmd_history.max_size() - 1) {
 					cmd_history_index++;
 				}
@@ -664,7 +715,7 @@ void Terminal::terminal_admin() {
 		default: {
 			Task::_KernelCrash("Illegal command passed to terminal admin: [%d]\r\n", req.header);
 		}
-		}
+		} // switch
 	}
 }
 
@@ -836,21 +887,30 @@ void Terminal::switch_state_courier() {
 void Terminal::train_state_courier() {
 	Terminal::TerminalServerReq req_to_terminal;
 	Train::TrainAdminReq req_to_train;
-	int train_admin = Name::WhoIs(Train::TRAIN_SERVER_NAME);
-	int terminal_admin = Name::WhoIs(Terminal::TERMINAL_ADMIN);
-	int clock_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
+	Planning::PlanningServerReq req_to_global_planning;
+	AddressBook addr = getAddressBook();
 
 	req_to_train.header = RequestHeader::TRAIN_OBSERVE;
-	req_to_terminal.header = RequestHeader::TERM_TRAIN_STATUS;
-	req_to_terminal.body.worker_msg.msg_len = Train::NUM_TRAINS * sizeof(Train::TrainRaw);
+	req_to_global_planning.header = RequestHeader::GLOBAL_OBSERVE;
 	int update_frequency = 100; // update once a second
 	while (true) {
-		Send::Send(train_admin,
+		req_to_terminal.header = RequestHeader::TERM_TRAIN_STATUS;
+		req_to_terminal.body.worker_msg.msg_len = Train::NUM_TRAINS * sizeof(Train::TrainRaw);
+		Send::Send(addr.train_admin_tid,
 				   reinterpret_cast<char*>(&req_to_train),
 				   sizeof(Train::TrainAdminReq),
 				   req_to_terminal.body.worker_msg.msg,
 				   req_to_terminal.body.worker_msg.msg_len);
-		Send::SendNoReply(terminal_admin, reinterpret_cast<char*>(&req_to_terminal), sizeof(Terminal::TerminalServerReq));
-		Clock::Delay(clock_tid, update_frequency);
+		Send::SendNoReply(addr.terminal_admin_tid, reinterpret_cast<char*>(&req_to_terminal), sizeof(Terminal::TerminalServerReq));
+
+		req_to_terminal.header = RequestHeader::TERM_TRAIN_STATUS_MORE;
+		req_to_terminal.body.worker_msg.msg_len = Train::NUM_TRAINS * sizeof(Planning::GlobalTrainInfo);
+		Send::Send(addr.global_pathing_tid,
+				   reinterpret_cast<char*>(&req_to_global_planning),
+				   sizeof(Planning::PlanningServerReq),
+				   req_to_terminal.body.worker_msg.msg,
+				   req_to_terminal.body.worker_msg.msg_len);
+		Send::SendNoReply(addr.terminal_admin_tid, reinterpret_cast<char*>(&req_to_terminal), sizeof(Terminal::TerminalServerReq));
+		Clock::Delay(addr.clock_tid, update_frequency);
 	}
 }

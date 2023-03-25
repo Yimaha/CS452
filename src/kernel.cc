@@ -433,7 +433,7 @@ void Kernel::handle_interrupt(InterruptCode icode) {
 				interrupt_control(TRAIN_UART_CHANNEL);
 			} else if (exception_code == UART::InterruptType::UART_MODEM_INTERRUPT && uart_1_msr_tid != Task::MAIDENLESS) {
 				char state = uart_get(DEFAULT_SPI_CHANNEL, TRAIN_UART_CHANNEL, UART_MSR);
-				if ((state & 0x1) == 0x1 && (state & 0b10000) == 0b10000) {
+				if ((state & 0x1) == 0x1 && (state & 0b10000) == 0b00000) {
 					tasks[uart_1_msr_tid]->to_ready(0x0, &scheduler);
 					uart_1_msr_tid = Task::MAIDENLESS;
 				}
