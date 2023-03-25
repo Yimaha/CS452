@@ -925,7 +925,7 @@ void Planning::global_pathing_server() {
 	Name::RegisterAs(GLOBAL_PATHING_SERVER_NAME);
 	AddressBook addr = getAddressBook();
 	TrainStatus trains[NUM_TRAINS];
-	GlobalTrainInfo global_info[NUM_TRAINS];
+	Terminal::GlobalTrainInfo global_info[NUM_TRAINS];
 	char switch_state[NUM_SWITCHES];
 	for (int i = 0; i < NUM_SWITCHES; i++) {
 		switch_state[i] = 'c';

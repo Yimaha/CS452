@@ -282,7 +282,7 @@ void Terminal::terminal_admin() {
 
 	bool isTrainStateModified = false;
 	Train::TrainRaw train_state[Train::NUM_TRAINS];
-	Planning::GlobalTrainInfo global_train_info[Train::NUM_TRAINS];
+	GlobalTrainInfo global_train_info[Train::NUM_TRAINS];
 
 	// This is used to keep track of number of activated sensors
 
@@ -463,11 +463,12 @@ void Terminal::terminal_admin() {
 			str_cpy(WELCOME_MSG, printing_buffer, &printing_index, sizeof(WELCOME_MSG) - 1);
 			str_cpy(RED_CURSOR, printing_buffer, &printing_index, sizeof(RED_CURSOR) - 1);
 			str_cpy(SENSOR_DATA, printing_buffer, &printing_index, sizeof(SENSOR_DATA) - 1);
-			str_cpy(WHITE_CURSOR, printing_buffer, &printing_index, sizeof(WHITE_CURSOR) - 1);
+			str_cpy(BLUE_CURSOR, printing_buffer, &printing_index, sizeof(WHITE_CURSOR) - 1);
 			for (int i = 0; i < Terminal::SWITCH_UI_LEN; ++i) {
 				str_cpy(Terminal::SWITCH_UI[i], printing_buffer, &printing_index, UART::UART_MESSAGE_LIMIT, true);
 			}
 
+			str_cpy(WHITE_CURSOR, printing_buffer, &printing_index, sizeof(WHITE_CURSOR) - 1);
 			UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);
 			printing_index = 0;
 
@@ -495,7 +496,7 @@ void Terminal::terminal_admin() {
 			str_cpy(DELIMINATION, printing_buffer, &printing_index, sizeof(DELIMINATION) - 1);
 			str_cpy("\r\n", printing_buffer, &printing_index, 2);
 			str_cpy(DEBUG_TITLE, printing_buffer, &printing_index, sizeof(DEBUG_TITLE) - 1);
-			// str_cpy(HIDE_CURSOR, printing_buffer, &printing_index, sizeof(HIDE_CURSOR) - 1);
+			str_cpy(HIDE_CURSOR, printing_buffer, &printing_index, sizeof(HIDE_CURSOR) - 1);
 
 			UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);
 			isRunning = true;
@@ -528,8 +529,8 @@ void Terminal::terminal_admin() {
 		}
 		case RequestHeader::TERM_TRAIN_STATUS_MORE: {
 			Reply::EmptyReply(from);
-			Planning::GlobalTrainInfo* body = reinterpret_cast<Planning::GlobalTrainInfo*>(req.body.worker_msg.msg);
-			for (int i = 0; i < Train::NUM_TRAINS; ++i) {
+			GlobalTrainInfo* body = req.body.train_info;
+			for (int i = 0; i < TERM_NUM_TRAINS; ++i) {
 				isTrainStateModified = isTrainStateModified || (global_train_info[i] != body[i]);
 				global_train_info[i] = body[i];
 			}
@@ -904,12 +905,11 @@ void Terminal::train_state_courier() {
 		Send::SendNoReply(addr.terminal_admin_tid, reinterpret_cast<char*>(&req_to_terminal), sizeof(Terminal::TerminalServerReq));
 
 		req_to_terminal.header = RequestHeader::TERM_TRAIN_STATUS_MORE;
-		req_to_terminal.body.worker_msg.msg_len = Train::NUM_TRAINS * sizeof(Planning::GlobalTrainInfo);
 		Send::Send(addr.global_pathing_tid,
 				   reinterpret_cast<char*>(&req_to_global_planning),
 				   sizeof(Planning::PlanningServerReq),
-				   req_to_terminal.body.worker_msg.msg,
-				   req_to_terminal.body.worker_msg.msg_len);
+				   reinterpret_cast<char*>(&req_to_terminal.body),
+				   sizeof(RequestBody));
 		Send::SendNoReply(addr.terminal_admin_tid, reinterpret_cast<char*>(&req_to_terminal), sizeof(Terminal::TerminalServerReq));
 		Clock::Delay(addr.clock_tid, update_frequency);
 	}

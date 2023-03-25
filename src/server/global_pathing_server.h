@@ -114,32 +114,6 @@ struct PlanningServerReq {
 	RequestBody body;
 } __attribute__((aligned(8)));
 
-struct GlobalTrainInfo {
-	long velocity;
-	int next_sensor;
-	int prev_sensor;
-
-	int time_to_next_sensor; // expected time to next sensor in ticks
-	int dist_to_next_sensor; // expected distance to next sensor in mm
-
-	int path_src;
-	int path_dest;
-
-	int barge_count = 0;
-	int barge_weight = 1;
-
-	friend bool operator==(const GlobalTrainInfo& lhs, const GlobalTrainInfo& rhs) {
-		return lhs.velocity == rhs.velocity && lhs.next_sensor == rhs.next_sensor && lhs.prev_sensor == rhs.prev_sensor
-			   && lhs.time_to_next_sensor == rhs.time_to_next_sensor && lhs.dist_to_next_sensor == rhs.dist_to_next_sensor
-			   && lhs.path_src == rhs.path_src && lhs.path_dest == rhs.path_dest && lhs.barge_count == rhs.barge_count
-			   && lhs.barge_weight == rhs.barge_weight;
-	}
-
-	friend bool operator!=(const GlobalTrainInfo& lhs, const GlobalTrainInfo& rhs) {
-		return !(lhs == rhs);
-	}
-};
-
 struct PlanningCourReq {
 	Message::RequestHeader header;
 	RequestBody body;

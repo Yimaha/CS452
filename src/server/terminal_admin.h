@@ -2,9 +2,9 @@
 
 #include "../etl/queue.h"
 #include "../kernel.h"
-#include "../server/sensor_admin.h"
 #include "../utils/utility.h"
 #include "request_header.h"
+#include "sensor_admin.h"
 
 namespace Terminal
 {
@@ -68,7 +68,7 @@ const char TRAIN_UI_L0[]
 	= "               "
 	  "_--====-===-========-----========-==--=--============---===--=--=======-====-=========---=-========-==--=-============-======-====-====-_\r\n";
 const char TRAIN_UI_L1[] = "             _(  1:           mm/s - | 2:           mm/s - | 24:           mm/s - | 58:           mm/s - | 74:           "
-						   "mm/s - | 78:          mm/s -   )_\r\n";
+						   "mm/s - | 78:           mm/s -   )_\r\n";
 const char TRAIN_UI_L2[]
 	= "            (     NxS:     PrS:      |  NxS:     PrS:      |  NxS:      PrS:      |  NxS:     PrS:       |  NxS:     PrS:  "
 	  "     |  NxS:     PrS:          )\r\n";
@@ -140,6 +140,7 @@ const int TERMINAL_ADMIN_TID = 24;
 
 const int MAX_COMMAND_LEN = 8;
 const int MAX_COMMAND_NUMS = 32;
+const int TERM_NUM_TRAINS = 6;
 
 const int CLOCK_UPDATE_FREQUENCY = 10;
 constexpr int CMD_LEN = 64;
@@ -162,6 +163,32 @@ struct GenericCommand {
 	GenericCommand() { }
 };
 
+struct GlobalTrainInfo {
+	long velocity;
+	int next_sensor;
+	int prev_sensor;
+
+	long time_to_next_sensor; // expected time to next sensor in ticks
+	long dist_to_next_sensor; // expected distance to next sensor in mm
+
+	int path_src;
+	int path_dest;
+
+	int barge_count = 0;
+	int barge_weight = 1;
+
+	friend bool operator==(const GlobalTrainInfo& lhs, const GlobalTrainInfo& rhs) {
+		return lhs.velocity == rhs.velocity && lhs.next_sensor == rhs.next_sensor && lhs.prev_sensor == rhs.prev_sensor
+			   && lhs.time_to_next_sensor == rhs.time_to_next_sensor && lhs.dist_to_next_sensor == rhs.dist_to_next_sensor
+			   && lhs.path_src == rhs.path_src && lhs.path_dest == rhs.path_dest && lhs.barge_count == rhs.barge_count
+			   && lhs.barge_weight == rhs.barge_weight;
+	}
+
+	friend bool operator!=(const GlobalTrainInfo& lhs, const GlobalTrainInfo& rhs) {
+		return !(lhs == rhs);
+	}
+};
+
 struct WorkerRequestBody {
 	uint32_t msg_len = 0;
 	char msg[MAX_PUTS_LEN];
@@ -171,6 +198,7 @@ union RequestBody
 {
 	char regular_msg;
 	WorkerRequestBody worker_msg;
+	GlobalTrainInfo train_info[TERM_NUM_TRAINS];
 };
 
 struct TerminalServerReq {
