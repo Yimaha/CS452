@@ -172,6 +172,7 @@ void Planning::TrainStatus::pre_compute_path(bool set_switches) {
 		} else if (node->type == node_type::NODE_SENSOR) {
 			sensors_landmark += 1;
 			if (sensors_landmark == 2) {
+				localization.next_sensor = node - track;
 				sub_to_sensor(node->num);
 			}
 		}
@@ -924,6 +925,7 @@ void Planning::global_pathing_server() {
 	Name::RegisterAs(GLOBAL_PATHING_SERVER_NAME);
 	AddressBook addr = getAddressBook();
 	TrainStatus trains[NUM_TRAINS];
+	Terminal::GlobalTrainInfo global_info[NUM_TRAINS];
 	char switch_state[NUM_SWITCHES];
 	for (int i = 0; i < NUM_SWITCHES; i++) {
 		switch_state[i] = 'c';
@@ -1095,6 +1097,35 @@ void Planning::global_pathing_server() {
 			Planning::SpeedLevel speed = req.body.calibration_request.level;
 			bool from_up = req.body.calibration_request.from_up;
 			trains[train_index].calibrate_stopping_distance(from_up, from, speed);
+			break;
+		}
+
+		case RequestHeader::GLOBAL_OBSERVE: {
+			for (int i = 0; i < NUM_TRAINS; ++i) {
+				global_info[i].velocity = trains[i].getVelocity();
+				global_info[i].next_sensor = trains[i].localization.next_sensor;
+				int prev = trains[i].localization.last_node - track;
+				if (prev < TOTAL_SENSORS) {
+					global_info[i].prev_sensor = prev;
+				} else {
+					global_info[i].prev_sensor = NO_SENSOR;
+				}
+
+				if (!trains[i].localization.path.empty()) {
+					global_info[i].path_src = trains[i].localization.path.front();
+					global_info[i].path_dest = trains[i].localization.path.back();
+				} else {
+					global_info[i].path_src = NO_PATH;
+					global_info[i].path_dest = NO_PATH;
+				}
+
+				long current_time = Clock::Time(addr.clock_tid);
+				long tick_since_last_local = current_time - trains[i].localization.time_traveled;
+				global_info[i].time_to_next_sensor = trains[i].localization.expected_arrival_ticks - tick_since_last_local;
+				global_info[i].dist_to_next_sensor = global_info[i].time_to_next_sensor * trains[i].localization.active_velocity / TWO_DECIMAL_PLACE;
+			}
+
+			Reply::Reply(from, reinterpret_cast<char*>(global_info), sizeof(global_info));
 			break;
 		}
 
