@@ -155,13 +155,16 @@ void LocalPathing::local_pathing_worker() {
 			// then start calibration at max speed
 			calibrate_velocity(SPEED_MAX, true, SHORT_DELAY);
 			send_to_b1();
+			debug_print(addr.term_trans_tid, "Cali max speed for train %d finished\r\n", internal_train_num);
 
 			// recalibrate at lower speed
 			calibrate_velocity(SPEED_1, true, SHORT_DELAY);
 			send_to_b1();
+			debug_print(addr.term_trans_tid, "Cali slow speed from up for train %d finished\r\n", internal_train_num);
 
 			// recalibrate at lower speed
 			calibrate_velocity(SPEED_1, false, 0);
+			debug_print(addr.term_trans_tid, "Cali slow speed from down for train %d finished\r\n", internal_train_num);
 
 			Reply::EmptyReply(from);
 			break;
@@ -177,6 +180,7 @@ void LocalPathing::local_pathing_worker() {
 
 			// then start calibration
 			calibrate_starting(SPEED_1, true, LONG_DELAY);
+			debug_print(addr.term_trans_tid, "Cali starting accel for train %d finished\r\n", internal_train_num);
 
 			// send yourself to sensor 16
 			send_to_b1(SPEED_1, LONG_DELAY);

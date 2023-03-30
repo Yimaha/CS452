@@ -258,6 +258,7 @@ void Terminal::terminal_admin() {
 	Task::Create(Priority::TERMINAL_PRIORITY, &train_state_courier);
 
 	bool isRunning = false;
+	bool isDebug = false;
 
 	char printing_buffer[UART::UART_MESSAGE_LIMIT]; // 512 is good for now
 	int printing_index = 0;
@@ -502,6 +503,18 @@ void Terminal::terminal_admin() {
 			isRunning = true;
 			break;
 		}
+		case RequestHeader::TERM_DEBUG_START: {
+			// Instead of the fancy start menu, just put a simple prompt '>'.
+			Reply::EmptyReply(from);
+			printing_index = 0;
+
+			str_cpy(CLEAR_SCREEN, printing_buffer, &printing_index, sizeof(CLEAR_SCREEN) - 1);
+			str_cpy(TOP_LEFT, printing_buffer, &printing_index, sizeof(TOP_LEFT) - 1);
+
+			UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);
+			isDebug = true;
+			break;
+		}
 		case RequestHeader::TERM_REVERSE_COMPLETE: {
 			courier_pool.receive(from);
 			break;
@@ -542,16 +555,20 @@ void Terminal::terminal_admin() {
 			int result = 0;
 			int printing_index = 0;
 
-			str_cpy(SAVE_CURSOR_NO_JUMP, printing_buffer, &printing_index, sizeof(SAVE_CURSOR_NO_JUMP) - 1);
-			sprintf(buf, PROMPT_CURSOR, sizeof(PROMPT_NNL) + char_count);
-			str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
+			if (!isDebug) {
+				str_cpy(SAVE_CURSOR_NO_JUMP, printing_buffer, &printing_index, sizeof(SAVE_CURSOR_NO_JUMP) - 1);
+				sprintf(buf, PROMPT_CURSOR, sizeof(PROMPT_NNL) + char_count);
+				str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
+			}
 
 			if (char_count > CMD_LEN) {
 				sprintf(buf, "\033M\r%s", ERROR);
 				str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
 				char_count = 0;
-				str_cpy(PROMPT_NNL, printing_buffer, &printing_index, sizeof(PROMPT_NNL) - 1);
 
+				if (!isDebug) {
+					str_cpy(PROMPT_NNL, printing_buffer, &printing_index, sizeof(PROMPT_NNL) - 1);
+				}
 			} else if (escape_status == TAState::TA_FOUND_ESCAPE) {
 				escape_status = (c == '[') ? TAState::TA_FOUND_BRACKET : TAState::TA_DEFAULT_ARROW_STATE;
 			} else if (escape_status == TAState::TA_FOUND_BRACKET) {
@@ -564,9 +581,11 @@ void Terminal::terminal_admin() {
 							str_cpy(SPACES, printing_buffer, &printing_index, char_count + sizeof(PROMPT_NNL) - 1);
 							str_cpy("\r", printing_buffer, &printing_index, 1);
 						}
-						str_cpy(PROMPT_NNL, printing_buffer, &printing_index, sizeof(PROMPT_NNL) - 1);
-						str_cpy(cmd_history[cmd_history_index].cmd, printing_buffer, &printing_index, cmd_history[cmd_history_index].len);
 
+						if (!isDebug) {
+							str_cpy(PROMPT_NNL, printing_buffer, &printing_index, sizeof(PROMPT_NNL) - 1);
+						}
+						str_cpy(cmd_history[cmd_history_index].cmd, printing_buffer, &printing_index, cmd_history[cmd_history_index].len);
 						char_count = cmd_history[cmd_history_index].len;
 					}
 					break;
@@ -580,7 +599,9 @@ void Terminal::terminal_admin() {
 							str_cpy("\r", printing_buffer, &printing_index, 1);
 						}
 
-						str_cpy(PROMPT_NNL, printing_buffer, &printing_index, sizeof(PROMPT_NNL) - 1);
+						if (!isDebug) {
+							str_cpy(PROMPT_NNL, printing_buffer, &printing_index, sizeof(PROMPT_NNL) - 1);
+						}
 						str_cpy(cmd_history[cmd_history_index].cmd, printing_buffer, &printing_index, cmd_history[cmd_history_index].len);
 
 						char_count = cmd_history[cmd_history_index].len;
@@ -633,22 +654,29 @@ void Terminal::terminal_admin() {
 
 					if (cmd_history[cmd_history_index].cmd[i] == '\r') {
 						UART::Puts(addr.term_trans_tid, 0, QUIT, sizeof(QUIT) - 1);
+						char command[2] = { 15, 0 };
 						for (int k = 0; k < Train::NUM_TRAINS; ++k) {
 							// Stop all trains
-							// set_train_speed(train_logic_server_tid, Train::TRAIN_NUMBERS[k], 0);
+							sprintf(buf, "Stopping train %d\r\n", TRAIN_NUMBERS[k]);
+							UART::PutsNullTerm(addr.term_trans_tid, 0, buf, TERM_A_BUFLEN);
+
+							command[1] = TRAIN_NUMBERS[k];
+							UART::Puts(addr.train_trans_tid, TRAIN_UART_CHANNEL, command, 2);
 						}
 
+						Clock::Delay(addr.clock_tid, 50);
 						restart();
 					} else {
 						result = HANDLE_FAIL;
 					}
-					// } else if (strncmp(cmd_parsed.name, "clear", MAX_COMMAND_LEN) == 0) {
-					// 	for (int r = SCROLL_BOTTOM; r >= SCROLL_TOP; --r) {
-					// 		int len = sprintf(buf, MOVE_CURSOR_F, r, 1);
-					// 		UART::Puts(addr.term_trans_tid, 0, buf, len);
-					// 		UART::Puts(addr.term_trans_tid, 0, CLEAR_LINE, sizeof(CLEAR_LINE) - 1);
-					// 		Clock::Delay(addr.clock_tid, 1);
-					// 	}
+				} else if (strncmp(cmd_parsed.name, "clear", MAX_COMMAND_LEN) == 0) {
+					int top = isDebug ? 1 : SCROLL_TOP;
+					for (int r = SCROLL_BOTTOM; r >= top; --r) {
+						int len = sprintf(buf, MOVE_CURSOR_F, r, 1);
+						UART::Puts(addr.term_trans_tid, 0, buf, len);
+						UART::Puts(addr.term_trans_tid, 0, CLEAR_LINE, sizeof(CLEAR_LINE) - 1);
+						Clock::Delay(addr.clock_tid, 1);
+					}
 				} else if (!cmd_parsed.success) {
 					result = HANDLE_FAIL;
 				} else if (strncmp(cmd_parsed.name, "go", MAX_COMMAND_LEN) == 0) {
@@ -680,22 +708,22 @@ void Terminal::terminal_admin() {
 					cmd_history_index++;
 				}
 
-				// Have a block of code here to save the cursor so the terminal can print regular stuff
-				// Clock::Delay(addr.clock_tid, 5);
-				// UART::Puts(addr.term_trans_tid, 0, SAVE_CURSOR_NO_JUMP, sizeof(SAVE_CURSOR_NO_JUMP) - 1);
-				// sprintf(buf, PROMPT_CURSOR, sizeof(PROMPT_NNL) + char_count);
-				// UART::PutsNullTerm(addr.term_trans_tid, 0, buf, TERM_A_BUFLEN);
+				if (!isDebug) {
+					if (result == HANDLE_FAIL) {
+						sprintf(buf, "\033M\r%s", ERROR);
+						str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
+					} else {
+						sprintf(buf, "\033M\r%s\r\n", CLEAR_LINE);
+						str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
+					}
 
-				if (result == HANDLE_FAIL) {
-					sprintf(buf, "\033M\r%s", ERROR);
+					sprintf(buf, "%s%s", CLEAR_LINE, PROMPT_NNL);
 					str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
 				} else {
-					sprintf(buf, "\033M\r%s\r\n", CLEAR_LINE);
+					const char* s = (result == HANDLE_FAIL) ? ERROR : "";
+					sprintf(buf, "%s\r\n", s);
 					str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
 				}
-
-				sprintf(buf, "%s%s", CLEAR_LINE, PROMPT_NNL);
-				str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
 			} else if (c == '\033') {
 				// Escape sequence. Try to read an arrow key.
 				escape_status = TAState::TA_FOUND_ESCAPE;
@@ -703,9 +731,12 @@ void Terminal::terminal_admin() {
 				cmd_history[cmd_history_index].cmd[char_count++] = c;
 				str_cpy(&c, printing_buffer, &printing_index, 1);
 			}
-			str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
-			UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);
 
+			if (!isDebug) {
+				str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
+			}
+
+			UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);
 			break;
 		}
 		case RequestHeader::TERM_DEBUG_PUTS: {
@@ -854,7 +885,11 @@ void Terminal::user_input_courier() {
 
 	int terminal_tid = Name::WhoIs(Terminal::TERMINAL_ADMIN);
 
-	UART::Getc(UART::UART_0_RECEIVER_TID, 0);
+	char c = UART::Getc(UART::UART_0_RECEIVER_TID, 0);
+	if (c == 'D' || c == 'd') {
+		treq.header = RequestHeader::TERM_DEBUG_START;
+	}
+
 	Send::SendNoReply(terminal_tid, reinterpret_cast<char*>(&treq), sizeof(Terminal::TerminalServerReq));
 	treq.header = RequestHeader::TERM_PUTC;
 	while (true) {

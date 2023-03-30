@@ -883,41 +883,121 @@ void initialize_all_train(TrainStatus* trains,
 		trains[i].addr = getAddressBook();
 		trains[i].track = track;
 		trains[i].switch_state = switch_state;
-		if (TRAIN_NUMBERS[i] == 24) {
+
+		switch (TRAIN_NUMBERS[i]) {
+		case TRAIN_NUMBERS[0]: { // Train 1, okay nvm train 1 is actually disabled
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
+
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 12750, 0 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 12750, 0 };
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 49000, 0 };
+
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0, 16 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 3, 9 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 3, 14 };
+			trains[i].cali_state.slow_calibration_speed = 4;
+			trains[i].cali_state.slow_calibration_mm = 3200;
+			break;
+		}
+		case TRAIN_NUMBERS[1]: { // Train 2 (uncalibrated values, because 2 is also unreliable)
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
+
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 12750, 0 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 12750, 0 };
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 49000, 0 };
+
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0, 16 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 3, 9 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 3, 14 };
+			trains[i].cali_state.slow_calibration_speed = 4;
+			trains[i].cali_state.slow_calibration_mm = 3200;
+			break;
+		}
+		case TRAIN_NUMBERS[2]: { // Train 24, easily the best train, no contest
 			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
 			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
 			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 16000, 12500 };
 			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 20000, 12500 };
 			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 55000, 101500 };
-			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0, 0 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0, 16 };
 			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 3, 7 };
 			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 3, 13 };
-			trains[i].cali_state.slow_calibration_speed = 3;
-			trains[i].cali_state.slow_calibration_mm = 1684; // 16.84 mm / s
+			trains[i].cali_state.slow_calibration_speed = 4;
+			trains[i].cali_state.slow_calibration_mm = 3700; // 37.00 mm/s
 			// mm / s^2 in 2 decimal places
 			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_1)] = 7800;
 			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 12220;
 			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 12700;
 			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_1)] = -15419;
+			break;
 		}
-
-		if (TRAIN_NUMBERS[i] == 78) {
+		case TRAIN_NUMBERS[3]: { // Train 58, slow af but it seems to be semi-reliable
 			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
 			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
-			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 12700, 7966 };
-			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 12700, 7966 };
-			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 49000, 96523 };
-			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0, 0 };
-			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 3, 7 };
+
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 25000, 30000 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 25000, 30000 };
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 55000, 120000 };
+
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0, 16 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 3, 9 };
 			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 3, 14 };
 			trains[i].cali_state.slow_calibration_speed = 4;
-			trains[i].cali_state.slow_calibration_mm = 2507;
-			// mm / s^2 in 2 decimal places
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_1)] = 3990;
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 6939;
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 7959;
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_1)] = -13900;
+			trains[i].cali_state.slow_calibration_mm = 3375;
+
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_1)] = 7286;
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 10658;
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 9845;
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_1)] = -12250;
+			break;
 		}
+		case TRAIN_NUMBERS[4]: { // Train 74, ???
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
+
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 22300, 36000 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 22300, 36000 };
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 39000, 70000 };
+
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0, 16 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 3, 5 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 3, 14 };
+			trains[i].cali_state.slow_calibration_speed = 2;
+			trains[i].cali_state.slow_calibration_mm = 7600;
+
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_1)] = 4715;
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 7360;
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 24500;
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_1)] = -5800;
+			break;
+		}
+		case Train::TRAIN_NUMBERS[5]: { // Train 78
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 27000, 31500 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 27000, 31500 };
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 51000, 93500 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0, 0 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 3, 10 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 3, 14 };
+			trains[i].cali_state.slow_calibration_speed = 4;
+			trains[i].cali_state.slow_calibration_mm = 2774;
+			// mm / s^2 in 2 decimal places
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_1)] = 5200;
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 7000;
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 7000;
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_1)] = -11300;
+
+			// -13972, -11703
+			break;
+		}
+		default: {
+			// wtf train number is this? Just ignore it I guess
+			break;
+		}
+		} // switch
 	}
 }
 
@@ -937,7 +1017,7 @@ void Planning::global_pathing_server() {
 	// (notice that it means you cannot have multiple trains calibrate at the same time)
 	etl::list<etl::pair<int, int>, NUM_TRAINS> sensor_subs;
 	track_node track[TRACK_MAX]; // This is guaranteed to be big enough.
-	init_trackb(track);			 // default configuration is part a
+	init_tracka(track);			 // default configuration is part a
 	initialize_all_train(trains, &courier_pool, &sensor_subs, track, switch_state);
 	Dijkstra dijkstra = Dijkstra(track);
 
