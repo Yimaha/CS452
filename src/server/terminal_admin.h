@@ -37,7 +37,7 @@ constexpr char CLEAR_LINE[] = "\r\033[K";
 const int SCROLL_TOP = 23;
 const int SCROLL_BOTTOM = 80;
 
-constexpr char START_PROMPT[] = "Press any key to enter OS mode\r\n";
+constexpr char START_PROMPT[] = "Press [Dd] to enter debug mode, or any other key to enter OS mode\r\n";
 constexpr char SENSOR_DATA[] = "\r\nRECENT SENSOR DATA:\r\n\r\n\r\n";
 constexpr char DEBUG_TITLE[] = "Debug:\r\n";
 constexpr char WELCOME_MSG[] = "\r\nWelcome to AbyssOS! ©Pi Technologies, 2023\r\n";
