@@ -3,11 +3,13 @@
 #include "../etl/circular_buffer.h"
 #include "../interrupt/clock.h"
 #include "../routing/dijkstra.h"
+#include "../routing/kinematic.h"
 #include "../routing/track_data_new.h"
 #include "../rpi.h"
 #include "../utils/utility.h"
 #include "courier_pool.h"
 #include "request_header.h"
+#include "track_server.h"
 #include "train_admin.h"
 using namespace Train;
 using namespace Message;
@@ -24,15 +26,19 @@ namespace Planning
 constexpr char GLOBAL_PATHING_SERVER_NAME[] = "GPATH";
 constexpr uint64_t GLOBAL_PATHING_TRACK_A_ID = 1;
 constexpr uint64_t GLOBAL_PATHING_TRACK_B_ID = 2;
-constexpr long PER_SEC_TO_PER_10_MS = 100;
-constexpr long TWO_DECIMAL_PLACE = 100;
-constexpr long OFFSET_BOUND = 200;
+constexpr int64_t TWO_DECIMAL_PLACE = 100;
+constexpr int64_t OFFSET_BOUND = 200;
 constexpr int CLEAR_TO_SEND_LIMIT = 1;
 constexpr int FROM_DOWN = 0;
 constexpr int FROM_UP = 1;
+constexpr int DEST_LIMIT = 64;
 constexpr int NUM_TRAIN_SUBS = 16;
+constexpr int64_t MULTI_ERROR_MARGIN_STRAIGHT = 40;
+constexpr int64_t MULTI_ERROR_MARGIN_REVERSE = 190;
+constexpr int64_t MIN_STABLE_DIST_MARGIN = 20000;
 
 const int FAST_CALIBRATION_SPEED = 13;
+const int RESERVE_AHEAD_MIN_SENSOR = 2;
 const int LOOK_AHEAD_SENSORS = 4;
 const int LOOK_AHEAD_DISTANCE = 2;
 const int PHASE_2_CALIBRATION_PAUSE = 700;
@@ -55,11 +61,17 @@ enum SpeedLevel { SPEED_STOP = 0, SPEED_1 = 1, SPEED_MAX = 2 };
 enum class TrainState : uint32_t {
 	IDLE,
 	LOCATE,
-	GO_TO,
+	GO_TO, // note that GO_TO assume you are the only train on the track,
 	LOOP,
 	LOOP_EXIT_B1,
 	LOOP_EXIT_D4,
 	STOPPING,
+	MULTI_PATHING, // state where you are given the right to go ahead,
+	MULTI_WAITING, // state where you are not given the right to go ahead, come back after like 3 seconds to see if you can go
+	MULTI_STOPPING,
+	MULTI_BUNNY_HOP,
+	REVERSING,
+	// calibration based state will never be used in real system.
 	CALIBRATE_VELOCITY,
 	CALIBRATE_STOPPING_DISTANCE_PHASE_1,
 	CALIBRATE_STOPPING_DISTANCE_PHASE_2,
@@ -77,6 +89,11 @@ struct Command {
 struct StoppingRequset {
 	char id;
 	uint64_t delay;
+};
+
+struct PeddingRequest {
+	char id;
+	int pedding;
 };
 
 struct CalibrationRequest {
@@ -106,6 +123,7 @@ union RequestBody
 	RoutingRequest routing_request;
 	CalibrationRequest calibration_request;
 	AccelerationCalibrationRequest calibration_request_acceleration;
+	PeddingRequest pedding_request;
 	char sensor_state[Sensor::NUM_SENSOR_BYTES];
 };
 
@@ -134,44 +152,61 @@ public:
 
 	struct CalibrationState {
 		uint64_t slow_calibration_speed = 2; // speed level used for localization.
-		long slow_calibration_mm = 0;
+		int64_t slow_calibration_mm = 0;
 		uint64_t last_trigger = 0;
 		uint64_t needed_trigger = 0;
-		long distance_traveled_since_last_calibration = 0;
+		int64_t distance_traveled_since_last_calibration = 0;
 		bool ignore_first = false;
 
 		// acceleration related parameters
-		long prev_velocity;
-		long target_velocity;
+		int64_t prev_velocity;
+		int64_t target_velocity;
 		SpeedLevel prev_speed;
 		SpeedLevel target_speed;
-		long expected_sensor_hit = 0;
+		int64_t bunny_ped = 0;
+		int64_t expected_sensor_hit = 0;
 	};
 
 	struct LocalizationInfo {
 		TrainState state = TrainState::IDLE;
 		SpeedLevel speed = SpeedLevel::SPEED_STOP;
+		int64_t stopping_speed = 5;
 		bool from = FROM_DOWN;
-		bool direction = false;
+		bool direction = true;
 		track_node* last_node = nullptr;
-		uint64_t mm_offset = 0;
+		int last_reserved_node = -1;
+		etl::queue<int, DEST_LIMIT> destinations;
 		etl::list<int, PATH_LIMIT> path;
-		long path_len = 0;
-		long distance_traveled = 0;
-		long time_traveled = 0;
-		long active_velocity = 0;
-		long expected_arrival_ticks = 0;
-
 		int next_sensor = 0;
+
+		int64_t path_len = 0;
+		int64_t distance_traveled = 0;
+		// future sensor prediction related
+		int64_t time_traveled = 0;
+		int64_t eventual_velocity = 0;				// the desire velocity which we will be traveling on
+		int64_t previous_velocity = 0;				// the previous velocity which we were traveling on
+		int64_t expected_arrival_ticks[32] = { 0 }; // will be dropped / changed in the future
+		int64_t sensor_dist[32] = { 0 };			// will be dropped / changed in the future
+		int64_t sensor_ahead = 0;
+		int64_t acceleration = 0;			  // acceleration since the start of time
+		int acceleration_start_timestamp = 0; // when did we start to change speed
+		bool reverse_after = false;
+		int reverse_offset = 0;
+		bool deadlocked = false;
+		int deadlocked_other_id = -1;
 	};
 
-	TrainStatus() { }
+	TrainStatus() {};
 	// initialization related functions
 	void seedSpeedInfo(uint64_t velocity_1, uint64_t velocity_1_from_up, uint64_t velocity_max);
+	bool isAccelerating(int current_time);
 	// setup function before setting state for each state transition
 	void locate();
-	void pre_compute_path(bool set_switches = true);
-	bool goTo(Dijkstra& dijkstra, int dest, SpeedLevel speed);
+	void pre_compute_path(bool early_bird_reservation = true);
+	void simple_pre_compute_path(); // pre_compute_path with no side affect
+
+	bool goTo(int dest, SpeedLevel speed);
+	void multi_path(int dest);
 	bool calibrate_velocity(bool from_up, int from, SpeedLevel speed);
 	void calibrate_stopping_distance(bool from_up, int from, SpeedLevel speed);
 	void calibrate_stopping_distance_phase_2();
@@ -180,28 +215,61 @@ public:
 	void calibrate_starting(int from, SpeedLevel speed);
 	void calibrate_acceleration(int from, SpeedLevel start, SpeedLevel end);
 	void enter_loop(SpeedLevel speed);
-	bool exit_loop(Dijkstra& dijkstra, int dest, int offset);
+	bool exit_loop(int dest, int offset);
+	Track::PathRespond get_path(int source, int dest, bool allow_reverse = false);
+
+	void store_path(Track::PathRespond& res);
 
 	void updateVelocity(uint64_t velocity);
-
-	long getVelocity();
+	void go_rng();
+	int64_t getVelocity();
 	uint64_t getTriggerCountForSpeed();
-	long getTrainSpeedLevel();
+	int64_t getTrainSpeedLevel();
 	uint64_t getCalibrationLoopCount();
-	long getStoppingDistance();
+	int64_t getStoppingDistance();
+	int64_t getMinStableDist();
+	int64_t getRemainDistance();
 
-	bool rev();
+	void raw_reverse(); // nonblocking edition
+	void reverse();
+	void reverse_stopping();
+	void reverse_complete();
+
 	void subscribe(int from);
 	void sensor_unsub();
 	void sub_to_sensor(int sensor_id);
+	void sub_to_sensor_no_delete(int sensor_id);
+
 	void add_path(int landmark);
+	bool try_reserve(Track::TrackServerReq* reservation_request);
+	bool try_reserve(Track::TrackServerReq* reservation_request, bool& deadlock_detected);
+	void cancel_reservation(Track::TrackServerReq* reservation_request);
+	void update_switch_state();
 
 	void sensor_notify(int sensor_index);
 	void continuous_localization(int sensor_index);
 	void continuous_velocity_calibration();
+	void predict_future_sensor(int64_t* mm_look_ahead);
 	void look_ahead();
-	void clear_traveled_sensor(int sensor_index);
+	void simple_look_ahead(); // alternative version of look_ahead with no side affect, just record the value
+	SpeedLevel get_viable_speed();
+	bool reserve_ahead();
+
+	void clear_traveled_sensor(int sensor_index, bool cancel_reservation = false);
+	void clear_traveled_sensor_until(int sensor_index, bool cancel_reservation = false);
+
 	void handle_train_goto(int sensor_index);
+	void schedule_next_multi();
+	void handle_train_multi_pathing(int sensor_index);
+	void handle_train_multi_waiting(bool should_reverse = false);
+	void unblock_other_train(int other_id);
+	bool handle_deadlock();
+	void handle_train_multi_bunny_hop();
+
+	// void handle_train_multi_stopping(int sensor_index);
+	void multi_stopping_begins();
+	void multi_stopping_end();
+
 	void handle_train_calibrate_velocity(int sensor_index);
 	void handle_train_locate(int sensor_index);
 	void handle_train_calibrate_base_velocity();
@@ -212,6 +280,7 @@ public:
 	void handle_train_calibrate_stopping_distance_phase_2(int sensor_index);
 	void handle_train_loop(int sensor_index);
 	void handle_train_exit_loop(int sensor_index, int sub_sensor);
+	void manual_subscription();
 
 	void clear_calibration();
 	void init_calibration();
@@ -223,7 +292,7 @@ public:
 	LocalizationInfo localization;
 	// calibration related parameters
 	SpeedInfo speeds[2][static_cast<int>(SpeedLevel::SPEED_MAX) + 1];
-	long accelerations[static_cast<int>(SpeedLevel::SPEED_MAX) + 1][static_cast<int>(SpeedLevel::SPEED_MAX) + 1] = { 0 };
+	int64_t accelerations[static_cast<int>(SpeedLevel::SPEED_MAX) + 1][static_cast<int>(SpeedLevel::SPEED_MAX) + 1] = { 0 };
 	// constant information related to calibration
 	CalibrationInfo calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX) + 1];
 	// non-constant information related to calibration
@@ -231,21 +300,31 @@ public:
 
 	// shared attribute with main thread
 	AddressBook addr;
-	Courier::CourierPool<PlanningCourReq>* courier_pool = nullptr;
+	Courier::CourierPool<PlanningCourReq, 8>* courier_pool = nullptr;
 	etl::list<etl::pair<int, int>, Train::NUM_TRAINS>* sensor_subs = nullptr;
 	etl::queue<int, NUM_TRAIN_SUBS> train_sub;
 	track_node* track;
 	PlanningCourReq req_to_courier;
-	char* switch_state;
+	char switch_state[NUM_SWITCHES];
 
 	void toIdle();
+	void bunnyHopStopping();
+	void bunnyHopDone();
+	void tryBunnyHopping();
 
 private:
 	bool toSpeed(SpeedLevel s);
-	void pipe_sw(char id, char dir);
 	void pipe_tr();
 	void pipe_tr(char speed);
-	void toStopping(long remaining_distance_NM);
+	void pipe_rv();
+	void toStopping(int64_t remaining_distance_NM);
+	void toMultiStopping(int64_t remaining_distance_NM);
+	void toMultiStoppingFromZero(int64_t remaining_distance_NM);
+
+	uint64_t missing_distance();
+	bool should_subscribe();
+	bool should_stop(int64_t error_margin = 0); // simply tell you if you should stop
+	int get_reverse(int node_id);
 	void refill_loop_path();
 };
 

@@ -7,13 +7,16 @@
 #include "../server/local_pathing_server.h"
 #include "../server/train_admin.h"
 #include "../server/uart_server.h"
+#include "../server/track_server.h"
 #include "../tc1/tc1_client.h"
 #include "../utils/utility.h"
 
 void UserTask::launch() {
 	while (true) {
 		// Create the name server
-		Task::Create(Priority::HIGH_PRIORITY, &Name::name_server);
+		// note that it is idle priority because it will force everyone to register their name first.
+		// and asking for name will also delay you, forcing you to complete them during start up.
+		Task::Create(Priority::CRITICAL_PRIORITY, &Name::name_server);
 
 		// Register in the name server
 		Name::RegisterAs(UserTask::LAUNCH_TASK_NAME);
@@ -33,26 +36,12 @@ void UserTask::launch() {
 		Task::Create(Priority::CRITICAL_PRIORITY, &UART::uart_1_server_receive);
 
 		Task::Create(Priority::HIGH_PRIORITY, &Planning::global_pathing_server);
-
-		LocalPathing::LocalPathingReq req;
-		req.header = Message::RequestHeader::LOCAL_PATH_SET_TRAIN;
-		for (int i = 0; i < Train::NUM_TRAINS; ++i) {
-			int tid = Task::Create(Priority::HIGH_PRIORITY, &LocalPathing::local_pathing_worker);
-			req.body.train_num = Train::TRAIN_NUMBERS[i];
-			Message::Send::SendNoReply(tid, reinterpret_cast<char*>(&req), sizeof(req));
-		}
-
+		Task::Create(Priority::HIGH_PRIORITY, &Track::track_server);
 		Task::Create(Priority::HIGH_PRIORITY, &Train::train_admin);
 		Task::Create(Priority::HIGH_PRIORITY, &Sensor::sensor_admin);
 
-		// Task::Create(3, &SystemTask::k4_dummy); // temp dummy test to see if io works
-		// Task::Create(3, &SystemTask::k4_dummy_train_rev); // temp dummy test to see if io works
-		// Task::Create(3, &SystemTask::k4_dummy_train_sensor); // temp dummy test to see if io works
-		// Task::Create(3, &SystemTask::k4_dummy_train_switch); // temp dummy test to see if io works
 
 		Task::Create(Priority::TERMINAL_PRIORITY, &Terminal::terminal_admin);
-
-		// Task::Create(Priority::TERMINAL_PRIORITY, &SystemTask::tc1_dummy);
 
 		Task::Exit();
 	}

@@ -8,9 +8,9 @@
 namespace Courier
 {
 
-const uint64_t POOL_SIZE = 16;
+const int REQUEST_SIZE = 64;
 
-template <typename T>
+template <typename T, uint64_t POOL_SIZE = 4>
 class CourierPool {
 public:
 	CourierPool(void (*function)(), Priority priority)
@@ -26,21 +26,28 @@ public:
 private:
 	void (*f)();
 	etl::queue<int, POOL_SIZE> courier_queue;
+	etl::queue<T, REQUEST_SIZE> request_queue;
 };
 
-template <typename T>
-void CourierPool<T>::request(T* req) {
-	if (courier_queue.empty() || courier_queue.front() == -1) {
-		Task::_KernelCrash("\r\nout of courier for type: %s\r\n");
+template <typename T, uint64_t POOL_SIZE>
+void CourierPool<T, POOL_SIZE>::request(T* req) {
+	if (courier_queue.empty()) {
+		request_queue.push(*req);
+	} else {
+		Message::Send::SendNoReply(courier_queue.front(), (const char*)req, sizeof(T));
+		courier_queue.pop();
 	}
-	Message::Send::SendNoReply(courier_queue.front(), (const char*)req, sizeof(T));
-	courier_queue.pop();
 }
 
-template <typename T>
-void CourierPool<T>::receive(int from) {
+template <typename T, uint64_t POOL_SIZE>
+void CourierPool<T, POOL_SIZE>::receive(int from) {
 	Message::Reply::EmptyReply(from);
 	courier_queue.push(from);
+	if (!request_queue.empty()) {
+		Message::Send::SendNoReply(courier_queue.front(), (const char*)&request_queue.front(), sizeof(T));
+		request_queue.pop();
+		courier_queue.pop();
+	}
 }
 
 }

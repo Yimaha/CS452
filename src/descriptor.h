@@ -10,7 +10,7 @@
 namespace Descriptor
 {
 
-const uint64_t USER_STACK_SIZE = 131072; // a total of 128kb
+const uint64_t USER_STACK_SIZE = 262144; // a total of 128kb
 const uint64_t INBOX_SIZE = 64;
 
 struct MessageReceiver {
