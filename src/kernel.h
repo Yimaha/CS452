@@ -26,7 +26,7 @@ namespace Task
 constexpr int MAIDENLESS = -1;
 constexpr uint64_t USER_TASK_START_ADDRESS = 0x10000000;
 constexpr uint64_t USER_TASK_LIMIT
-	= 256; // We exactly how much task we are going to create, thus, we can afford to a large quantity of User Task
+	= SCHEDULER_QUEUE_SIZE; // We exactly how much task we are going to create, thus, we can afford to a large quantity of User Task
 
 int MyTid();
 int MyParentTid();
@@ -35,7 +35,7 @@ void Yield();
 int Create(Priority priority, void (*function)());
 Priority MyPriority();
 
-const int MAX_CRASH_MSG_LEN = 256;
+const int MAX_CRASH_MSG_LEN = 50;
 
 // Crash function, with format string argument
 template <typename... Args>

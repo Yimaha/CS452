@@ -161,7 +161,7 @@ int UART::Putc(int tid, int uart, char ch) {
 
 int UART::Puts(int tid, int uart, const char* s, uint64_t len) {
 	// since we only have uart0, uart param is ignored
-	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID) || len > UART::UART_MESSAGE_LIMIT) {
+	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID) || len >= UART::UART_MESSAGE_LIMIT) {
 		Task::_KernelCrash("either id is not correct or len is too big in Puts\r\n");
 	}
 	UART::WorkerRequestBody body;

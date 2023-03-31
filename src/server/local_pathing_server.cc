@@ -122,6 +122,25 @@ void LocalPathing::local_pathing_worker() {
 			break;
 		}
 
+		case RequestHeader::LOCAL_PATH_DEST: {
+			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_MULTI_PATH, Planning::RequestBody { 0x0 } };
+			req_to_global.body.routing_request.id = internal_train_num;
+			req_to_global.body.routing_request.dest = req.body.command.args[0];
+			Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
+			Reply::EmptyReply(from);
+			break;
+		}
+
+		case RequestHeader::LOCAL_PATH_RNG: {
+			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_RNG, Planning::RequestBody { 0x0 } };
+			req_to_global.body.routing_request.id = internal_train_num;
+			for (int i = 0; i < 10; i++) {
+				Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
+			}
+			Reply::EmptyReply(from);
+			break;
+		}
+
 		case RequestHeader::LOCAL_PATH_LOCATE: {
 
 			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_LOCATE, Planning::RequestBody { 0x0 } };
@@ -130,18 +149,6 @@ void LocalPathing::local_pathing_worker() {
 			Reply::EmptyReply(from);
 			break;
 		}
-
-		case RequestHeader::LOCAL_PATH_INIT: {
-			debug_print(addr.term_trans_tid, "LOCAL_PATH_INIT_%d", internal_train_num);
-			for (uint32_t i = 0; i < req.body.command.num_args; ++i) {
-				debug_print(addr.term_trans_tid, " %d", req.body.command.args[i]);
-			}
-
-			debug_print(addr.term_trans_tid, "\r\n");
-			Reply::EmptyReply(from);
-			break;
-		}
-
 		case RequestHeader::LOCAL_PATH_CALI: {
 			// first locate
 
@@ -188,10 +195,10 @@ void LocalPathing::local_pathing_worker() {
 			// then start calibration
 			calibrate_starting(SPEED_MAX, true, LONG_DELAY);
 			send_to_b1(SPEED_1, LONG_DELAY);
-
+			// 4627, 
 			calibrate_acceleration(SPEED_1, SPEED_MAX, LONG_DELAY);
 			send_to_b1(SPEED_1, LONG_DELAY);
-
+			// 8707
 			calibrate_acceleration(SPEED_MAX, SPEED_1, LONG_DELAY);
 
 			break;
@@ -214,6 +221,14 @@ void LocalPathing::local_pathing_worker() {
 			// go to 16
 			send_to_b1(SPEED_1, LONG_DELAY);
 			calibrate_stopping_distance(SPEED_1, true);
+			break;
+		}
+		case RequestHeader::LOCAL_PATH_BUNNY_DIST: {
+			// first locate
+			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_BUNNY_DIST, Planning::RequestBody { 0x0 } };
+			req_to_global.body.pedding_request.id = internal_train_num;
+			req_to_global.body.pedding_request.pedding = req.body.command.args[0];
+			Send::SendNoReply(addr.global_pathing_tid, (const char*)&req_to_global, sizeof(req_to_global));
 			break;
 		}
 

@@ -19,6 +19,9 @@ TaskDescriptor::TaskDescriptor(int id, int parent_id, Priority priority, void (*
 }
 
 void TaskDescriptor::queue_message(int from, char* msg, int msglen) {
+	if (inbox.full()) {
+		Task::_KernelCrash("inbox is full for task id %d", task_id);
+	}
 	inbox.push(MessageStruct { from, msg, msglen });
 }
 

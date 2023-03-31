@@ -4,6 +4,7 @@
 #include "../etl/queue.h"
 #include "../server/global_pathing_server.h"
 #include "../server/local_pathing_server.h"
+#include "../server/track_server.h"
 #include "../server/train_admin.h"
 #include "../utils/buffer.h"
 #include "../utils/printf.h"
@@ -156,11 +157,11 @@ int handle_sw(AddressBook& addr, const char cmd[]) {
 		}
 	}
 
-	Train::TrainAdminReq req;
-	req.header = RequestHeader::TRAIN_SWITCH;
+	Track::TrackServerReq req = {};
+	req.header = RequestHeader::TRACK_SWITCH;
 	req.body.command.id = snum;
 	req.body.command.action = status;
-	Send::SendNoReply(addr.train_admin_tid, reinterpret_cast<char*>(&req), sizeof(req));
+	Send::SendNoReply(addr.track_server_tid, reinterpret_cast<char*>(&req), sizeof(req));
 
 	return 0;
 }
@@ -231,16 +232,17 @@ GenericCommand handle_generic(const char cmd[]) {
 	return command;
 }
 
-void set_switch(int train_server_tid, char snum, char status) {
-	Train::TrainAdminReq req;
-	req.header = RequestHeader::TRAIN_SWITCH;
-	req.body.command.id = snum;
-	req.body.command.action = status;
-	Send::SendNoReply(train_server_tid, reinterpret_cast<char*>(&req), sizeof(req));
-}
-
 void Terminal::terminal_admin() {
 	Name::RegisterAs(TERMINAL_ADMIN);
+
+	LocalPathing::LocalPathingReq req_to_local_train;
+	req_to_local_train.header = Message::RequestHeader::LOCAL_PATH_SET_TRAIN;
+	for (int i = 0; i < Train::NUM_TRAINS; ++i) {
+		int tid = Task::Create(Priority::TERMINAL_PRIORITY, &LocalPathing::local_pathing_worker);
+		req_to_local_train.body.train_num = Train::TRAIN_NUMBERS[i];
+		Message::Send::SendNoReply(tid, reinterpret_cast<char*>(&req_to_local_train), sizeof(req_to_local_train));
+	}
+
 	AddressBook addr = getAddressBook();
 	int from;
 	TerminalServerReq req;
@@ -369,12 +371,12 @@ void Terminal::terminal_admin() {
 
 							char nc = 'X', pc = 'X';
 							int nnum = 0, pnum = 0;
-							if (next != Planning::NO_SENSOR && next < Planning::TOTAL_SENSORS) {
+							if (next != Planning::NO_SENSOR && next > 0 && next < Planning::TOTAL_SENSORS) {
 								nc = SENSOR_LETTERS[next / Planning::SENSORS_PER_LETTER];
 								nnum = next % Planning::SENSORS_PER_LETTER;
 							}
 
-							if (prev != Planning::NO_SENSOR && prev < Planning::TOTAL_SENSORS) {
+							if (prev != Planning::NO_SENSOR && prev > 0 && prev < Planning::TOTAL_SENSORS) {
 								pc = SENSOR_LETTERS[prev / Planning::SENSORS_PER_LETTER];
 								pnum = prev % Planning::SENSORS_PER_LETTER;
 							}
@@ -423,7 +425,7 @@ void Terminal::terminal_admin() {
 
 			str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
 			if (printing_index >= UART::UART_MESSAGE_LIMIT) {
-				Task::_KernelCrash("Too much printing, %d\r\n", printing_index);
+				Task::_KernelCrash("Too much printing\r\n");
 			}
 			UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);
 		}
@@ -697,6 +699,12 @@ void Terminal::terminal_admin() {
 					result = handle_global_pathing(courier_pool, cmd_parsed, RequestHeader::TERM_COUR_LOCAL_CALI_ACCELERATION);
 				} else if (strncmp(cmd_parsed.name, "sdist", MAX_COMMAND_LEN) == 0) {
 					result = handle_global_pathing(courier_pool, cmd_parsed, RequestHeader::TERM_COUR_LOCAL_CALI_STOPPING_DIST);
+				} else if (strncmp(cmd_parsed.name, "dest", MAX_COMMAND_LEN) == 0) {
+					result = handle_global_pathing(courier_pool, cmd_parsed, RequestHeader::TERM_COUR_LOCAL_DEST);
+				} else if (strncmp(cmd_parsed.name, "rng", MAX_COMMAND_LEN) == 0) {
+					result = handle_global_pathing(courier_pool, cmd_parsed, RequestHeader::TERM_COUR_LOCAL_RNG);
+				} else if (strncmp(cmd_parsed.name, "bund", MAX_COMMAND_LEN) == 0) {
+					result = handle_global_pathing(courier_pool, cmd_parsed, RequestHeader::TERM_COUR_LOCAL_BUN_DIST);
 				} else {
 					result = HANDLE_FAIL;
 				}
@@ -739,11 +747,6 @@ void Terminal::terminal_admin() {
 			UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);
 			break;
 		}
-		case RequestHeader::TERM_DEBUG_PUTS: {
-			Message::Reply::EmptyReply(from);
-			UART::Puts(addr.term_trans_tid, 0, req.body.worker_msg.msg, req.body.worker_msg.msg_len);
-			break;
-		}
 		default: {
 			Task::_KernelCrash("Illegal command passed to terminal admin: [%d]\r\n", req.header);
 		}
@@ -758,6 +761,7 @@ void Terminal::terminal_courier() {
 	Terminal::TerminalServerReq req_to_admin;
 	Train::TrainAdminReq req_to_train;
 	LocalPathing::LocalPathingReq req_to_local_pathing;
+	Planning::PlanningServerReq req_to_global;
 
 	auto local_server_redirect = [&](RequestHeader header) {
 		req_to_local_pathing.header = header;
@@ -806,7 +810,11 @@ void Terminal::terminal_courier() {
 			break;
 		}
 		case RequestHeader::TERM_COUR_LOCAL_INIT: {
-			local_server_redirect(RequestHeader::LOCAL_PATH_INIT);
+			req_to_global.header = Message::RequestHeader::GLOBAL_SET_TRACK;
+			req_to_global.body.info = req.body.courier_body.args[0];
+			Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
+			req_to_admin = { RequestHeader::TERM_LOCAL_COMPLETE, '0' };
+			Send::SendNoReply(addr.terminal_admin_tid, reinterpret_cast<char*>(&req_to_admin), sizeof(req_to_admin));
 			break;
 		}
 		case RequestHeader::TERM_COUR_LOCAL_CALI: {
@@ -823,6 +831,18 @@ void Terminal::terminal_courier() {
 		}
 		case RequestHeader::TERM_COUR_LOCAL_CALI_STOPPING_DIST: {
 			local_server_redirect(RequestHeader::LOCAL_PATH_CALI_STOPPING_DISTANCE);
+			break;
+		}
+		case RequestHeader::TERM_COUR_LOCAL_DEST: {
+			local_server_redirect(RequestHeader::LOCAL_PATH_DEST);
+			break;
+		}
+		case RequestHeader::TERM_COUR_LOCAL_RNG: {
+			local_server_redirect(RequestHeader::LOCAL_PATH_RNG);
+			break;
+		}
+		case RequestHeader::TERM_COUR_LOCAL_BUN_DIST: {
+			local_server_redirect(RequestHeader::LOCAL_PATH_BUNNY_DIST);
 			break;
 		}
 		default: {
@@ -900,23 +920,21 @@ void Terminal::user_input_courier() {
 
 void Terminal::switch_state_courier() {
 	Terminal::TerminalServerReq req_to_terminal;
-	Train::TrainAdminReq req_to_train;
-	int train_admin = Name::WhoIs(Train::TRAIN_SERVER_NAME);
-	int terminal_admin = Name::WhoIs(Terminal::TERMINAL_ADMIN);
-	int clock_tid = Name::WhoIs(Clock::CLOCK_SERVER_NAME);
+	Track::TrackServerReq req_to_track = {};
+	AddressBook addr = getAddressBook();
 
-	req_to_train.header = RequestHeader::TRAIN_SWITCH_OBSERVE;
+	req_to_track.header = RequestHeader::TRACK_SWITCH_SUBSCRIBE;
 	req_to_terminal.header = RequestHeader::TERM_SWITCH;
 	req_to_terminal.body.worker_msg.msg_len = Train::NUM_SWITCHES;
 	int update_frequency = 100; // update once a second
 	while (true) {
-		Send::Send(train_admin,
-				   reinterpret_cast<char*>(&req_to_train),
-				   sizeof(Train::TrainAdminReq),
+		Send::Send(addr.track_server_tid,
+				   reinterpret_cast<char*>(&req_to_track),
+				   sizeof(req_to_track),
 				   req_to_terminal.body.worker_msg.msg,
 				   req_to_terminal.body.worker_msg.msg_len);
-		Send::SendNoReply(terminal_admin, reinterpret_cast<char*>(&req_to_terminal), sizeof(Terminal::TerminalServerReq));
-		Clock::Delay(clock_tid, update_frequency);
+		Send::SendNoReply(addr.terminal_admin_tid, reinterpret_cast<char*>(&req_to_terminal), sizeof(Terminal::TerminalServerReq));
+		Clock::Delay(addr.clock_tid, update_frequency);
 	}
 }
 

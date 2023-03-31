@@ -18,7 +18,7 @@ namespace Task
 {
 const static int NO_TASKS = -1;
 const static int NUM_PRIORITIES = static_cast<int>(Priority::IDLE_PRIORITY) + 1;
-const static int SCHEDULER_QUEUE_SIZE = 128; // I can't believe i am saying this but it seems like we are running out
+const static int SCHEDULER_QUEUE_SIZE = 512; // I can't believe i am saying this but it seems like we are running out
 class Scheduler {
 public:
 	Scheduler();
