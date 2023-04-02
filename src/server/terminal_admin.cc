@@ -757,9 +757,11 @@ void Terminal::terminal_admin() {
 
 							command[1] = TRAIN_NUMBERS[k];
 							UART::Puts(addr.train_trans_tid, TRAIN_UART_CHANNEL, command, 2);
+							// revert then revert back
+							UART::Puts(addr.train_trans_tid, TRAIN_UART_CHANNEL, command, 2);
 						}
 
-						Clock::Delay(addr.clock_tid, 50);
+						Clock::Delay(addr.clock_tid, 200); // 2 seconds
 						restart();
 					} else {
 						result = HANDLE_FAIL;

@@ -26,8 +26,8 @@ typedef etl::priority_queue<etl::pair<int, int>, TRACK_MAX> pq_t;
 const int MIN_RANDOM_DEST_DIST = 750;
 const int MAX_RANDOM_DEST_DIST = 2000;
 const int RNG_SEED = 314159;
-
-const int BANNED_SENSORS[] = { 38, 40 };
+// 55, 37 landed wayy to often on a dead zone, dismissed
+const int BANNED_SENSORS[] = { 38, 40, 55, 37};
 const int NUM_BANNED_SENSORS = sizeof(BANNED_SENSORS) / sizeof(int);
 
 struct WeightedPath {

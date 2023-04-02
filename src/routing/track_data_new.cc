@@ -1219,6 +1219,7 @@ void init_tracka(track_node* track) {
 		track[i].edge[DIR_AHEAD].broken = false;
 		track[i].reserved_by = RESERVED_BY_NO_ONE;
 		track[i].reserve_dir = RESERVED_BY_NO_ONE;
+		track[i].index = i;
 		if (track[i].type == NODE_BRANCH) {
 			track[i].edge[DIR_CURVED].broken = false;
 		}
@@ -2411,6 +2412,7 @@ void init_trackb(track_node* track) {
 		track[i].reserved_by = RESERVED_BY_NO_ONE;
 		track[i].reserve_dir = RESERVED_BY_NO_ONE;
 		track[i].edge[DIR_AHEAD].broken = false;
+		track[i].index = i;
 		if (track[i].type == NODE_BRANCH) {
 			// track[i].edge[DIR_STRAIGHT].broken = false;
 			track[i].edge[DIR_CURVED].broken = false;

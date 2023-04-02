@@ -11,7 +11,7 @@ constexpr char TRACK_SERVER_NAME[] = "TRACK_SERVER";
 constexpr int NUM_SWITCHES = 22;
 constexpr uint64_t TRACK_A_ID = 1;
 constexpr uint64_t TRACK_B_ID = 2;
-constexpr int SAFETY_DISTANCE = 200; // 40 cm or 400 mm
+constexpr int SAFETY_DISTANCE = 600; // 40 cm or 400 mm
 
 constexpr int NUM_SWITCH_SUBS = 32;
 
@@ -60,7 +60,6 @@ struct PathRespond {
 struct ReservationStatus {
 	bool successful;
 	bool dead_lock_detected;
-	int dead_lock_other_id;
 	int64_t res_dist;
 };
 

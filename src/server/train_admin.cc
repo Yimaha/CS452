@@ -78,6 +78,9 @@ void Train::train_admin() {
 			// raw call means train server is not responsible for timing.
 			Message::Reply::EmptyReply(from); // unblock after job is done
 			char train_id = req.body.command.id;
+			if (req.body.command.action < 16) {
+				req.body.command.action += 16;
+			}
 			char desire_speed = req.body.command.action; // should be an integer within 0 - 31
 			int train_index = train_num_to_index(train_id);
 			trains[train_index].speed = desire_speed;

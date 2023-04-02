@@ -16,7 +16,6 @@ typedef enum {
 #define DIRECT_RESERVE 1
 #define REVERSE_RESERVE 2
 
-
 struct track_node;
 typedef struct track_node track_node;
 typedef struct track_edge track_edge;
@@ -35,7 +34,8 @@ struct track_node {
 	track_node* reverse;				  /* same location, but opposite direction */
 	int reserved_by = RESERVED_BY_NO_ONE; /* who is the node currently reserved by */
 	int reserve_dir = RESERVED_BY_NO_ONE;
-	track_edge edge[2];					  /* one or two edges to other nodes */
-	int rev_cost;						  /* for merges, specifies how expensive reversing is */
-	int rev_offset;						  /* for merges, specifies how far off the sensor you need to park */
+	track_edge edge[2]; /* one or two edges to other nodes */
+	int rev_cost;		/* for merges, specifies how expensive reversing is */
+	int rev_offset;		/* for merges, specifies how far off the sensor you need to park */
+	int index;			/* Inverted index*/
 };

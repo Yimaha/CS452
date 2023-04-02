@@ -155,10 +155,34 @@ void Track::track_server() {
 	};
 
 	auto branch_safety = [&](track_node* node, int id) {
-		if ((!can_reserve(node->edge[DIR_CURVED].dest, id)) || (!can_reserve(node->edge[DIR_STRAIGHT].dest, id))) {
-			return false;
+		if (!can_reserve(node->edge[DIR_CURVED].dest, id)) {
+			return node->edge[DIR_CURVED].dest->index;
+		} else if (!can_reserve(node->edge[DIR_STRAIGHT].dest, id)) {
+			return node->edge[DIR_STRAIGHT].dest->index;
 		}
-		return true;
+		return -1;
+	};
+
+	// check all 4 branches !!!!
+	auto central_branch_safety = [&](int id) {
+		int result = -1;
+		result = branch_safety(&track[116], id);
+		if (result != -1) {
+			return result;
+		}
+		result = branch_safety(&track[118], id);
+		if (result != -1) {
+			return result;
+		}
+		result = branch_safety(&track[120], id);
+		if (result != -1) {
+			return result;
+		}
+		result = branch_safety(&track[122], id);
+		if (result != -1) {
+			return result;
+		}
+		return -1;
 	};
 
 	auto detect_deadlock = [&](track_node* node, int id) {
@@ -166,20 +190,72 @@ void Track::track_server() {
 			_KernelCrash("A node reserve by no one is causing deadlock %s", node->name);
 		}
 		int current_owner = node->reserved_by;
-		debug_print(addr.term_trans_tid, "trying to detect deadlock for %d, current_owner is %d ", id, current_owner);
+		debug_print(addr.term_trans_tid, "trying to detect deadlock for %d, current_owener %d", id, current_owner);
 
 		for (auto it = train_wanted_nodes[Train::train_num_to_index(current_owner)].begin();
 			 it != train_wanted_nodes[Train::train_num_to_index(current_owner)].end();
 			 it++) {
 			debug_print(addr.term_trans_tid, "%d ", track[*it].reserved_by);
-			if (track[*it].reserved_by == id) {
+		}
+		debug_print(addr.term_trans_tid, "\r\n");
+
+		for (auto it = train_wanted_nodes[Train::train_num_to_index(current_owner)].begin();
+			 it != train_wanted_nodes[Train::train_num_to_index(current_owner)].end();
+			 it++) {
+			if (track[*it].reserved_by == id || track[*it].reverse->reserved_by == id) {
 				debug_print(addr.term_trans_tid, "\r\n");
 				return current_owner;
 			}
 		}
-		debug_print(addr.term_trans_tid, "\r\n");
-
 		return -1;
+	};
+
+	auto evaluate_robustness_failed = [&](ReservationStatus& res, track_node* node, int id) {
+		train_wanted_nodes[Train::train_num_to_index(id)].insert(node->index);
+		if (!can_reserve(node, id)) {
+			int deadlock_other_id = detect_deadlock(node, id);
+			if (deadlock_other_id != -1) {
+				res.dead_lock_detected = true;
+			}
+			res.successful = false;
+			return true;
+		}
+		int node_index = -1;
+		// in the case of branching, you need to check both branch as well, yes, you will have one more redundent check, but that is fine
+		if (node->type == node_type::NODE_BRANCH) {
+			node_index = branch_safety(node, id);
+		}
+		// similarly, if it is a merge, it need to check if the reverse is fine
+		else if (node->type == node_type::NODE_MERGE) {
+			node_index = branch_safety(node->reverse, id);
+		}
+
+		if (node_index != -1) {
+			int deadlock_other_id = detect_deadlock(&track[node_index], id);
+			if (deadlock_other_id != -1) {
+				res.dead_lock_detected = true;
+			}
+			res.successful = false;
+			return true;
+		}
+		// robustness, central rail must be all clear (too much edge cases, so easy solution is only let 1 train go through)
+		if (node->num == 154 || node->num == 153 || node->num == 155 || node->num == 156) {
+			node_index = central_branch_safety(id);
+			if (node_index != -1) {
+				train_wanted_nodes[Train::train_num_to_index(id)].insert(116);
+				train_wanted_nodes[Train::train_num_to_index(id)].insert(118);
+				train_wanted_nodes[Train::train_num_to_index(id)].insert(120);
+				train_wanted_nodes[Train::train_num_to_index(id)].insert(122);
+
+				int deadlock_other_id = detect_deadlock(&track[node_index], id);
+				if (deadlock_other_id != -1) {
+					res.dead_lock_detected = true;
+				}
+				res.successful = false;
+				return true;
+			}
+		}
+		return false;
 	};
 
 	int from;
@@ -238,8 +314,6 @@ void Track::track_server() {
 				res.path_len = dijkstra.get_dist(dest);
 				res.source = source;
 				res.dest = dest;
-				debug_print(
-					addr.term_trans_tid, "get path %d %d %d %d %d %d \r\n", res.reverse, res.successful, res.path_len, res.source, res.dest, dest);
 				Reply::Reply(from, (const char*)&res, sizeof(res));
 			} else {
 				PathRespond res;
@@ -269,7 +343,6 @@ void Track::track_server() {
 		}
 
 		case RequestHeader::TRACK_TRY_RESERVE: {
-
 			int len = req.body.reservation.len;
 			int* path = req.body.reservation.path;
 			int id = req.body.reservation.train_id;
@@ -278,67 +351,49 @@ void Track::track_server() {
 			res.dead_lock_detected = false;
 			res.res_dist = 0;
 			// try to reserve
+			train_wanted_nodes[Train::train_num_to_index(id)].clear();
 			debug_print(addr.term_trans_tid, "%d trying to reserve: ", id);
 			for (int i = 0; i < len; i++) {
-				track_node* node = &track[path[i]];
-				debug_print(addr.term_trans_tid, "%s ", node->name);
-				train_wanted_nodes[Train::train_num_to_index(id)].insert(path[i]);
-				if (!can_reserve(&track[path[i]], id)) {
-					debug_print(addr.term_trans_tid, "\r\n");
-					int deadlock_other_id = detect_deadlock(&track[path[i]], id);
-					if (deadlock_other_id != -1) {
-						debug_print(addr.term_trans_tid, "deadlock detected for %d\r\n", id);
-						res.dead_lock_detected = true;
-						res.dead_lock_other_id = deadlock_other_id;
-					}
-					res.successful = false;
-				}
-				// in the case of branching, you need to check both branch as well, yes, you will have one more redundent check, but that is fine
-				if (node->type == node_type::NODE_BRANCH) {
-					if (!branch_safety(node, id)) {
-						res.successful = false;
-					}
-				}
-				// similarly, if it is a merge, it need to check if the reverse is fine
-				else if (node->type == node_type::NODE_MERGE) {
-					if (!branch_safety(node->reverse, id)) {
-						res.successful = false;
-					}
-				}
+				debug_print(addr.term_trans_tid, "%s ", track[path[i]].name);
+			}
+			debug_print(addr.term_trans_tid, "\r\n");
+
+			for (int i = 0; i < len; i++) {
+				if (evaluate_robustness_failed(res, &track[path[i]], id))
+					break;
 			}
 			debug_print(addr.term_trans_tid, "\r\n");
 
 			// also check safe distance ahead
-			// uint64_t safety_distance = 0;
-			// track_node* next_node = &track[path[len - 1]];
+			uint64_t safety_distance = 0;
+			track_node* next_node = &track[path[len - 1]];
 
-			// while (res.successful && safety_distance < SAFETY_DISTANCE) {
-			// 	if (next_node->type == node_type::NODE_MERGE || next_node->type == node_type::NODE_SENSOR) {
-			// 		// merge node simply ignore and add the length
-			// 		safety_distance += next_node->edge[DIR_AHEAD].dist;
-			// 		next_node = next_node->edge[DIR_AHEAD].dest;
-			// 	} else if (next_node->type == node_type::NODE_BRANCH) {
-			// 		int switch_index = get_switch_id_to_index(next_node->num);
-			// 		if (switch_state[switch_index] == 's') {
-			// 			safety_distance += next_node->edge[DIR_STRAIGHT].dist;
-			// 			next_node = next_node->edge[DIR_STRAIGHT].dest;
-			// 		} else if (switch_state[switch_index] == 'c') {
-			// 			safety_distance += next_node->edge[DIR_CURVED].dist;
-			// 			next_node = next_node->edge[DIR_CURVED].dest;
-			// 		} else {
-			// 			Task::_KernelCrash(
-			// 				"impossible path passed from try reserve%d %s %d\r\n", switch_index, next_node->name, switch_state[switch_index]);
-			// 		}
-			// 	} else {
-			// 		// you have to be node end, break
-			// 		break;
-			// 	}
-			// 	train_wanted_nodes[Train::train_num_to_index(id)].insert(path[i]);
+			while (res.successful && safety_distance < SAFETY_DISTANCE) {
 
-			// 	if (!can_reserve(next_node, id)) {
-			// 		res.successful = false;
-			// 	}
-			// }
+				if (next_node->type == node_type::NODE_MERGE || next_node->type == node_type::NODE_SENSOR) {
+					// merge node simply ignore and add the length
+					safety_distance += next_node->edge[DIR_AHEAD].dist;
+					next_node = next_node->edge[DIR_AHEAD].dest;
+				} else if (next_node->type == node_type::NODE_BRANCH) {
+					int switch_index = get_switch_id_to_index(next_node->num);
+					if (switch_state[switch_index] == 's') {
+						safety_distance += next_node->edge[DIR_STRAIGHT].dist;
+						next_node = next_node->edge[DIR_STRAIGHT].dest;
+					} else if (switch_state[switch_index] == 'c') {
+						safety_distance += next_node->edge[DIR_CURVED].dist;
+						next_node = next_node->edge[DIR_CURVED].dest;
+					} else {
+						Task::_KernelCrash(
+							"impossible path passed from try reserve%d %s %d\r\n", switch_index, next_node->name, switch_state[switch_index]);
+					}
+				} else {
+					// you have to be node end, break
+					break;
+				}
+
+				if (evaluate_robustness_failed(res, next_node, id))
+					break;
+			}
 
 			debug_print(addr.term_trans_tid, "%d reserve is successful: %d\r\n", id, res.successful);
 			// if you can reserve, then reserve
@@ -363,6 +418,9 @@ void Track::track_server() {
 					}
 				}
 				reply_to_switch_subs();
+			}
+			if (res.dead_lock_detected) {
+				debug_print(addr.term_trans_tid, "detected deadlock for train %d ! \r\n", id);
 			}
 			// return the reservation result
 			Reply::Reply(from, (const char*)&res, sizeof(res));

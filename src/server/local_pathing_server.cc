@@ -187,7 +187,6 @@ void LocalPathing::local_pathing_worker() {
 
 			// then start calibration
 			calibrate_starting(SPEED_1, true, LONG_DELAY);
-			debug_print(addr.term_trans_tid, "Cali starting accel for train %d finished\r\n", internal_train_num);
 
 			// send yourself to sensor 16
 			send_to_b1(SPEED_1, LONG_DELAY);

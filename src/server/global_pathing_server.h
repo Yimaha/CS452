@@ -35,7 +35,6 @@ constexpr int DEST_LIMIT = 64;
 constexpr int NUM_TRAIN_SUBS = 16;
 constexpr int64_t MULTI_ERROR_MARGIN_STRAIGHT = 40;
 constexpr int64_t MULTI_ERROR_MARGIN_REVERSE = 190;
-constexpr int64_t MIN_STABLE_DIST_MARGIN = 20000;
 
 const int FAST_CALIBRATION_SPEED = 13;
 const int RESERVE_AHEAD_MIN_SENSOR = 2;
@@ -77,6 +76,7 @@ enum class TrainState : uint32_t {
 	MULTI_WAITING, // state where you are not given the right to go ahead, come back after like 3 seconds to see if you can go
 	MULTI_STOPPING,
 	MULTI_BUNNY_HOP,
+	MULTI_RELOCATE,
 	REVERSING,
 	// calibration based state will never be used in real system.
 	CALIBRATE_VELOCITY,
@@ -96,6 +96,7 @@ struct Command {
 struct StoppingRequset {
 	char id;
 	uint64_t delay;
+	bool need_reverse;
 };
 
 struct PeddingRequest {
@@ -172,6 +173,7 @@ public:
 		SpeedLevel target_speed;
 		int64_t bunny_ped = 0;
 		int64_t expected_sensor_hit = 0;
+		int64_t min_stable_dist_margin = 0;
 	};
 
 	struct LocalizationInfo {
@@ -200,10 +202,11 @@ public:
 		bool reverse_after = false;
 		int reverse_offset = 0;
 		bool deadlocked = false;
-		int deadlocked_other_id = -1;
 	};
 
 	TrainStatus() {};
+
+	bool is_next_branch();
 	// initialization related functions
 	void seedSpeedInfo(uint64_t velocity_1, uint64_t velocity_1_from_up, uint64_t velocity_max);
 	bool isAccelerating(int current_time);
@@ -249,7 +252,6 @@ public:
 
 	void add_path(int landmark);
 	bool try_reserve(Track::TrackServerReq* reservation_request);
-	bool try_reserve(Track::TrackServerReq* reservation_request, bool& deadlock_detected);
 	void cancel_reservation(Track::TrackServerReq* reservation_request);
 	void update_switch_state();
 
@@ -264,18 +266,21 @@ public:
 
 	void clear_traveled_sensor(int sensor_index, bool cancel_reservation = false);
 	void clear_traveled_sensor_until(int sensor_index, bool cancel_reservation = false);
+	void path_end_relocate();
+	void relocate_complete(bool need_reverse = false);
+	void relocate_transition(bool need_reverse = false);
 
 	void handle_train_goto(int sensor_index);
 	void schedule_next_multi();
 	void handle_train_multi_pathing(int sensor_index);
 	void handle_train_multi_waiting(bool should_reverse = false);
+	void handle_train_multi_stopping(int sensor_index);
+
 	void unblock_other_train(int other_id);
 	bool handle_deadlock();
-	void handle_train_multi_bunny_hop();
 
 	// void handle_train_multi_stopping(int sensor_index);
 	void multi_stopping_begins();
-	void multi_stopping_end();
 
 	void handle_train_calibrate_velocity(int sensor_index);
 	void handle_train_locate(int sensor_index);
@@ -287,6 +292,7 @@ public:
 	void handle_train_calibrate_stopping_distance_phase_2(int sensor_index);
 	void handle_train_loop(int sensor_index);
 	void handle_train_exit_loop(int sensor_index, int sub_sensor);
+	void handle_train_bunny_hopping(int sensor_index);
 	void manual_subscription();
 
 	void clear_calibration();

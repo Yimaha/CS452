@@ -8,7 +8,7 @@ namespace Train
 
 constexpr char TRAIN_SERVER_NAME[] = "TRAIN_ADMIN";
 constexpr int TRAIN_UART_CHANNEL = 1;
-constexpr char REV_COMMAND = 15;
+constexpr char REV_COMMAND = 15 + 16;
 constexpr int NUM_TRAINS = 6;
 constexpr int NUM_SWITCHES = 22;
 constexpr int TRAIN_NUMBERS[NUM_TRAINS] = { 1, 2, 24, 58, 74, 78 };
