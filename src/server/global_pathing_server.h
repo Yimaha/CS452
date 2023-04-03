@@ -54,6 +54,13 @@ const int SENSOR_E[SENSORS_PER_LETTER] = { 64, 65, 66, 67, 68, 69, 70, 71, 72, 7
 const int TRACK_BRANCHES[NUM_SWITCHES] = { 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122 };
 const int TRACK_MERGES[NUM_SWITCHES] = { 81, 83, 85, 87, 89, 91, 93, 95, 97, 99, 101, 103, 105, 107, 109, 111, 113, 115, 117, 119, 121, 123 };
 
+// NOTE: Track B does not have EN/EX 6 and EN/EX 8
+const int NUM_ENTER_EXIT = 10;
+const int TRACK_ENTRANCES[NUM_ENTER_EXIT] = { 124, 126, 128, 130, 132, 134, 136, 138, 140, 142 };
+const int TRACK_EXITS[NUM_ENTER_EXIT] = { 125, 127, 129, 131, 133, 135, 137, 139, 141, 143 };
+const int TRACK_B_MISSING[] = { 6, 8 };
+const size_t TRACK_B_MISSING_SIZE = sizeof(TRACK_B_MISSING) / sizeof(TRACK_B_MISSING[0]);
+
 const int NO_PATH = -1;
 const int NO_SENSOR = -1;
 

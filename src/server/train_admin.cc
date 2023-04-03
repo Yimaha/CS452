@@ -12,7 +12,7 @@ int Train::get_switch_id(int id) {
 	} else if (153 <= id && id <= 156) {
 		return id - 153 + 18;
 	} else {
-		return 0;
+		return NO_SWITCH;
 	}
 }
 

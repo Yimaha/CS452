@@ -24,6 +24,7 @@ public:
 };
 
 const int NO_TRAIN = -1;
+const int NO_SWITCH = -1;
 int train_num_to_index(int train_num);
 void train_admin();
 void train_courier();
