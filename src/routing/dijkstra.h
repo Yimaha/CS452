@@ -27,7 +27,7 @@ const int MIN_RANDOM_DEST_DIST = 750;
 const int MAX_RANDOM_DEST_DIST = 2000;
 const int RNG_SEED = 314159;
 // 55, 37 landed wayy to often on a dead zone, dismissed
-const int BANNED_SENSORS[] = { 38, 40, 55, 37};
+const int BANNED_SENSORS[] = { 38, 40, 55, 37 };
 const int NUM_BANNED_SENSORS = sizeof(BANNED_SENSORS) / sizeof(int);
 
 struct WeightedPath {
@@ -52,8 +52,18 @@ public:
 	// This has a complicated type because I need to have two pieces of extra information:
 	// 1. Whether the path requires reversing
 	// 2. How much of an offset the end of the path requires (may be necessary to move past merges)
+
 	bool weighted_path(WeightedPath* q, const int source, const int dest);
-	bool weighted_path(int wpath[], bool* has_reverse, int* rev_offset, int* new_dest, const int source, const int dest);
+	
+	bool weighted_path_with_ban(WeightedPath* q, etl::unordered_set<int, TRACK_MAX>& banned_node, const int source, const int dest);
+
+	bool weighted_path_with_ban(int wpath[],
+								etl::unordered_set<int, TRACK_MAX>& banned_node,
+								bool* has_reverse,
+								int* rev_offset,
+								int* new_dest,
+								const int source,
+								const int dest);
 	bool is_path_possible(const int source, const int dest);
 
 	// How many sensors are within a certain distance of a source?
@@ -71,7 +81,12 @@ private:
 	pq_t pq = etl::priority_queue<etl::pair<int, int>, TRACK_MAX>();
 	etl::stack<int, TRACK_MAX> stack = etl::stack<int, TRACK_MAX>();
 	void dijkstra(const int source, const bool enable_reverse = false, const bool use_reservations = false);
-	void dijkstra_update(const int curr, const bool enable_reverse, const bool use_reservations);
+
+	void dijkstra(const int source,
+				  etl::unordered_set<int, TRACK_MAX>& banned_node,
+				  const bool enable_reverse = false,
+				  const bool use_reservations = false);
+	void dijkstra_update(const int curr, etl::unordered_set<int, TRACK_MAX>& banned_node, const bool enable_reverse, const bool use_reservations);
 
 	etl::unordered_set<int, TRACK_MAX> banned_sensors = etl::unordered_set<int, TRACK_MAX>();
 

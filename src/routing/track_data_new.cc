@@ -1224,7 +1224,7 @@ void init_tracka(track_node* track) {
 			track[i].edge[DIR_CURVED].broken = false;
 		}
 	}
-
+	track[120].edge[DIR_CURVED].broken = true;
 	track[122].edge[DIR_STRAIGHT].broken = true;
 
 	// Reverse costs

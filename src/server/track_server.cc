@@ -190,12 +190,12 @@ void Track::track_server() {
 			_KernelCrash("A node reserve by no one is causing deadlock %s", node->name);
 		}
 		int current_owner = node->reserved_by;
-		debug_print(addr.term_trans_tid, "trying to detect deadlock for %d, current_owener %d", id, current_owner);
+		debug_print(addr.term_trans_tid, "trying to detect deadlock for %d, current_owener %d ", id, current_owner);
 
 		for (auto it = train_wanted_nodes[Train::train_num_to_index(current_owner)].begin();
 			 it != train_wanted_nodes[Train::train_num_to_index(current_owner)].end();
 			 it++) {
-			debug_print(addr.term_trans_tid, "%d ", track[*it].reserved_by);
+			debug_print(addr.term_trans_tid, "%s : %d, ",track[*it].name, track[*it].reserved_by);
 		}
 		debug_print(addr.term_trans_tid, "\r\n");
 
@@ -307,10 +307,15 @@ void Track::track_server() {
 			int source = req.body.start_and_end.start;
 			int dest = req.body.start_and_end.end;
 			bool reverse_allowed = req.body.start_and_end.allow_reverse;
+			etl::unordered_set<int, TRACK_MAX> banned_node;
+			for (int i = 0; i < req.body.start_and_end.banned_len; i++) {
+				banned_node.insert(req.body.start_and_end.banned[i]);
+			}
+
 			if (reverse_allowed) {
 				PathRespond res;
 				res.reverse = false;
-				res.successful = dijkstra.weighted_path(res.path, &res.reverse, &res.rev_offset, &dest, source, dest);
+				res.successful = dijkstra.weighted_path_with_ban(res.path, banned_node, &res.reverse, &res.rev_offset, &dest, source, dest);
 				res.path_len = dijkstra.get_dist(dest);
 				res.source = source;
 				res.dest = dest;
@@ -384,7 +389,7 @@ void Track::track_server() {
 						next_node = next_node->edge[DIR_CURVED].dest;
 					} else {
 						Task::_KernelCrash(
-							"impossible path passed from try reserve%d %s %d\r\n", switch_index, next_node->name, switch_state[switch_index]);
+							"impossible path passed from try reserve %d %s %d\r\n", switch_index, next_node->name, switch_state[switch_index]);
 					}
 				} else {
 					// you have to be node end, break

@@ -57,14 +57,6 @@ void Planning::TrainStatus::reverse() {
 	Track::TrackServerReq req_to_track;
 	req_to_track.body.reservation.len = 1;
 	req_to_track.body.reservation.path[0] = localization.last_reserved_node;
-	// if (!try_reserve(&req_to_track)) {
-	// 	req_to_courier.header = RequestHeader::GLOBAL_COUR_BUSY_WAITING_BUNNY_HOPPING;
-	// 	req_to_courier.body.command.id = my_id;
-	// 	courier_pool->request(&req_to_courier);
-	// } else {
-	// 	if (localization.deadlocked) {
-	// 		Task::_KernelCrash("%d reverse failed due to lack of ability ", my_id);
-	// 	}
 	int ticks = 10000 * TWO_DECIMAL_PLACE / cali_state.slow_calibration_mm;
 	pipe_tr(localization.stopping_speed);
 	localization.direction = !localization.direction;
@@ -76,14 +68,7 @@ void Planning::TrainStatus::reverse() {
 	req_to_courier.body.stopping_request.delay = ticks;
 	req_to_courier.body.stopping_request.need_reverse = true;
 	courier_pool->request(&req_to_courier);
-	// }
 }
-
-void Planning::TrainStatus::reverse_stopping() {
-	toSpeed(SPEED_STOP);
-	pipe_tr();
-}
-
 void Planning::TrainStatus::add_path(int landmark) {
 	localization.path.push_back(landmark);
 }
@@ -324,7 +309,6 @@ void Planning::TrainStatus::handle_train_bunny_hopping(int sensor_index) {
 		pipe_tr(); // actually pipe tr to stop, maybe?
 		path_end_relocate();
 	}
-	
 }
 
 bool Planning::TrainStatus::is_next_branch() {
@@ -361,16 +345,15 @@ void Planning::TrainStatus::path_end_relocate() {
 			pipe_rv(); // pipe_rv doesn't actually change the state, but rather just change direction directly
 			req_to_courier.body.stopping_request.need_reverse = true;
 			if (localization.direction) {
-				req_to_courier.body.stopping_request.delay = 5000 * TWO_DECIMAL_PLACE / cali_state.slow_calibration_mm;
+				req_to_courier.body.stopping_request.delay = 8000 * TWO_DECIMAL_PLACE / cali_state.slow_calibration_mm;
 			} else {
 				// if we are in the reverse configuration, then move forward by 5 cm
-				req_to_courier.body.stopping_request.delay = 13000 * TWO_DECIMAL_PLACE / cali_state.slow_calibration_mm;
+				req_to_courier.body.stopping_request.delay = 14000 * TWO_DECIMAL_PLACE / cali_state.slow_calibration_mm;
 			}
 			pipe_tr(localization.stopping_speed); // actually pipe tr to stop, maybe?
 		}
 	}
 	courier_pool->request(&req_to_courier);
-
 }
 
 void Planning::TrainStatus::relocate_complete(bool need_reverse) {
@@ -388,7 +371,12 @@ void Planning::TrainStatus::relocate_transition(bool need_reverse) {
 	if (need_reverse) {
 		pipe_rv();
 	}
+
 	if (localization.path.size() == 1) {
+		if (localization.reverse_after) {
+			localization.reverse_after = false;
+			raw_reverse();
+		}
 		schedule_next_multi();
 	} else {
 		handle_train_multi_waiting();
@@ -570,19 +558,81 @@ bool Planning::TrainStatus::exit_loop(int dest, int offset) {
 	return true;
 }
 
+Track::PathRespond Planning::TrainStatus::validate_path(Track::PathRespond& res) {
+	// if (my_id == 24) {
+
+	// 	// special handling for train 24
+	// 	etl::unordered_set<int, 2> banned_MR155_BR153 = { 121, 116 };
+	// 	for (int i = 0; i < res.path_len; i++) {
+	// 		int node_index = res.path[i];
+	// 		if (banned_MR155_BR153.count(node_index) != 0) {
+	// 			banned_MR155_BR153.erase(node_index);
+	// 		}
+	// 	}
+	// 	if (banned_MR155_BR153.empty()) {
+	// 		res.successful = false;
+	// 	}
+	// }
+	return res;
+}
+
+Track::TrackServerReq Planning::TrainStatus::fill_default_banned_node(Track::TrackServerReq& res) {
+	if (*track_id == GLOBAL_PATHING_TRACK_A_ID) {
+		res.body.start_and_end.banned[res.body.start_and_end.banned_len++] = 78;
+	}
+	if (my_id == 24) {
+		res.body.start_and_end.banned[res.body.start_and_end.banned_len++] = 32;
+	}
+	return res;
+}
+
+Track::TrackServerReq Planning::TrainStatus::fill_random_banned_node(Track::TrackServerReq& res) {
+	for (int i = 0; i < 14; i++) {
+		int rand_idx = rngesus.range(0, TRACK_MAX - 1);
+		res.body.start_and_end.banned[res.body.start_and_end.banned_len++] = rand_idx;
+	}
+	return res;
+}
+
 Track::PathRespond Planning::TrainStatus::get_path(int source, int dest, bool allow_reverse) {
 	Track::TrackServerReq req_to_track;
 	req_to_track.header = RequestHeader::TRACK_GET_PATH;
 	req_to_track.body.start_and_end.start = source;
 	req_to_track.body.start_and_end.end = dest;
 	req_to_track.body.start_and_end.allow_reverse = allow_reverse;
+	req_to_track.body.start_and_end.banned_len = 0;
+	fill_default_banned_node(req_to_track);
 
 	Track::PathRespond res;
-	if (source == dest) {
+	if (source == dest || source == track[dest].reverse->num) {
 		res.successful = false;
 	} else {
 		Send::Send(addr.track_server_tid, (const char*)&req_to_track, sizeof(req_to_track), (char*)&res, sizeof(res));
 	}
+
+	validate_path(res);
+	return res;
+}
+
+Track::PathRespond Planning::TrainStatus::get_randomized_path(int source, int dest, bool allow_reverse) {
+
+	Track::TrackServerReq req_to_track;
+	req_to_track.header = RequestHeader::TRACK_GET_PATH;
+	req_to_track.body.start_and_end.start = source;
+	req_to_track.body.start_and_end.end = dest;
+	req_to_track.body.start_and_end.allow_reverse = allow_reverse;
+	req_to_track.body.start_and_end.banned_len = 0;
+	fill_default_banned_node(req_to_track);
+	fill_default_banned_node(req_to_track);
+
+	Track::PathRespond res;
+	if (source == dest || source == track[dest].reverse->num) {
+		res.successful = false;
+	} else {
+		Send::Send(addr.track_server_tid, (const char*)&req_to_track, sizeof(req_to_track), (char*)&res, sizeof(res));
+	}
+
+	validate_path(res);
 	return res;
 }
 
@@ -859,12 +909,12 @@ void Planning::TrainStatus::continuous_velocity_calibration() {
 				= ((localization.distance_traveled - cali_state.distance_traveled_since_last_calibration) * TWO_DECIMAL_PLACE * TWO_DECIMAL_PLACE)
 				  / (current_time - cali_state.last_trigger); // store as MM / 10 micro seconds
 			updateVelocity(speed);
-			// debug_print(addr.term_trans_tid,
-			// 			"time-diff %llu, total-distance %llu, new measurement %llu, actual speed %llu\r\n",
-			// 			(current_time - cali_state.last_trigger),
-			// 			localization.distance_traveled,
-			// 			speed,
-			// 			getVelocity());
+			debug_print(addr.term_trans_tid,
+						"time-diff %llu, total-distance %llu, new measurement %llu, actual speed %llu\r\n",
+						(current_time - cali_state.last_trigger),
+						localization.distance_traveled,
+						speed,
+						getVelocity());
 		}
 
 		// update and clear state
@@ -1201,12 +1251,21 @@ int Planning::TrainStatus::get_reverse(int node_id) {
 	return track[node_id].reverse->num;
 }
 
+bool Planning::TrainStatus::is_dest_banned(int node_id) {
+	if (*track_id == GLOBAL_PATHING_TRACK_A_ID) {
+		if (track_a_banned_nodes.count(node_id) == 1) {
+			return true;
+		}
+	} else if (*track_id == GLOBAL_PATHING_TRACK_B_ID) {
+		if (track_b_banned_nodes.count(node_id) == 1) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void Planning::TrainStatus::schedule_next_multi() {
 	localization.path.clear();
-	if (localization.reverse_after) {
-		localization.reverse_after = false;
-		raw_reverse();
-	}
 	if (localization.destinations.empty()) {
 		debug_print(addr.term_trans_tid, "empty\r\n");
 		toIdle();
@@ -1216,6 +1275,9 @@ void Planning::TrainStatus::schedule_next_multi() {
 		int should_reverse = false;
 		while (!path_res.successful && !localization.destinations.empty()) {
 			if (localization.last_reserved_node == localization.destinations.front()) {
+				localization.destinations.pop();
+				continue;
+			} else if (is_dest_banned(localization.destinations.front())) {
 				localization.destinations.pop();
 				continue;
 			}
@@ -1247,14 +1309,19 @@ void Planning::TrainStatus::schedule_next_multi() {
 			store_path(path_res);
 			if (path_res.reverse) {
 				debug_print(addr.term_trans_tid, "path_len, is it wrong? 2 %d %d \r\n", path_res.path_len, path_res.rev_offset);
-
 				localization.reverse_after = true;
 				localization.path_len = path_res.path_len - (localization.direction ? MULTI_ERROR_MARGIN_STRAIGHT : MULTI_ERROR_MARGIN_REVERSE);
 			} else {
 				debug_print(addr.term_trans_tid, "path_len, is it wrong? %d \r\n", path_res.path_len);
 				localization.path_len = path_res.path_len - (localization.direction ? MULTI_ERROR_MARGIN_STRAIGHT : MULTI_ERROR_MARGIN_REVERSE);
 			}
-			handle_train_multi_waiting(should_reverse);
+			if (localization.path.size() == 1) {
+				// very special case, it means not move
+				debug_print(addr.term_trans_tid, "receive path of size of 1, typically means just do a reverse\r\n");
+				path_end_relocate();
+			} else {
+				handle_train_multi_waiting(should_reverse);
+			}
 
 		} else {
 			debug_print(addr.term_trans_tid, "%d no path \r\n", my_id);
@@ -1268,7 +1335,7 @@ bool Planning::TrainStatus::handle_deadlock() {
 		Task::_KernelCrash("%d empty localization path passed \r\n", my_id);
 	}
 	debug_print(addr.term_trans_tid, "%d detected deadlock! resolving %d %d \r\n", my_id, localization.last_reserved_node, localization.path.back());
-	Track::PathRespond path_res = get_path(get_reverse(localization.last_reserved_node), localization.path.back(), true);
+	Track::PathRespond path_res = get_randomized_path(get_reverse(localization.last_reserved_node), localization.path.back(), true);
 	if (path_res.successful) {
 		localization.deadlocked = false;
 		clear_calibration();
@@ -1550,15 +1617,15 @@ void TrainStatus::handle_train_locate(int sensor_index) {
 	 * if you are locating and you hit a sensor you stop immediately and you set your last_node = desire node
 	 */
 
-	toIdle();
-	localization.last_node = &track[sensor_index];
 	// Track::TrackServerReq reservation_request;
+	toIdle();
 	Track::TrackServerReq req_to_track;
 	req_to_track.body.reservation.len = 1;
 	req_to_track.body.reservation.path[0] = sensor_index;
 	if (!try_reserve(&req_to_track)) {
-		debug_print(addr.term_trans_tid, "train %d cannot resereq_to_trackrve sensor %s!\r\n", my_id, localization.last_node->name);
+		debug_print(addr.term_trans_tid, "train %d cannot reserve sensor %s during locating! please relocate!\r\n", my_id, localization.last_node->name);
 	} else {
+		localization.last_node = &track[sensor_index];
 		debug_print(addr.term_trans_tid, "train %d is currently at sensor %s\r\n", my_id, localization.last_node->name);
 	}
 }
@@ -1670,8 +1737,9 @@ void TrainStatus::go_rng() {
 }
 
 void initialize_all_train(TrainStatus* trains,
-						  Courier::CourierPool<PlanningCourReq, 8>* couriers,
+						  Courier::CourierPool<PlanningCourReq, 32>* couriers,
 						  etl::list<etl::pair<int, int>, NUM_TRAINS>* sensors,
+						  int* track_id,
 						  track_node track[]) {
 	for (int i = 0; i < NUM_TRAINS; i++) {
 		trains[i].my_id = TRAIN_NUMBERS[i];
@@ -1680,6 +1748,7 @@ void initialize_all_train(TrainStatus* trains,
 		trains[i].sensor_subs = sensors;
 		trains[i].addr = getAddressBook();
 		trains[i].track = track;
+		trains[i].track_id = track_id;
 		if (TRAIN_NUMBERS[i] == 24) {
 			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
 			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
@@ -1748,8 +1817,8 @@ void initialize_all_train(TrainStatus* trains,
 			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 3, 30 };
 			trains[i].cali_state.slow_calibration_speed = 4;
 			trains[i].cali_state.slow_calibration_mm = 3205;
-			trains[i].localization.stopping_speed = 5; // will overshoot, but error is accetable
-			trains[i].cali_state.bunny_ped = -40;
+			trains[i].localization.stopping_speed = 3; // will overshoot, but error is accetable
+			trains[i].cali_state.bunny_ped = -60;
 			trains[i].cali_state.min_stable_dist_margin = -10000;
 
 			// 7946, 8322, 7924,
@@ -1769,22 +1838,32 @@ void initialize_all_train(TrainStatus* trains,
 			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
 			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
 
-			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 22300, 36000 };
-			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 22300, 36000 };
-			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 39000, 70000 };
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 33000, 47000 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 33000, 47000 };
+			// 73893, 71416
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 47000, 70000 };
 
 			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0, 16 };
-			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 3, 21 };
-			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 3, 30 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 1, 23 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 2, 30 };
 			trains[i].cali_state.slow_calibration_speed = 2;
+			trains[i].localization.stopping_speed = 3; // will overshoot, but error is accetable
 			trains[i].cali_state.slow_calibration_mm = 7600;
+			trains[i].cali_state.min_stable_dist_margin = -10000;
+			trains[i].cali_state.bunny_ped = -100;
 
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_1)] = 4715;
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 7360;
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 24500;
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -6907;
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_1)] = -5800;
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -10864;
+			// 7183, 7250,
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_1)] = 7183;
+			// 8004, 8182
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 8004;
+			// 38534, 37343
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 37343;
+			// -14897
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -11585;
+			// -9559, -10173
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_1)] = -9800;
+			// -15365
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -15365;
 		}
 	}
 }
@@ -1795,8 +1874,8 @@ void Planning::global_pathing_server() {
 	TrainStatus trains[NUM_TRAINS];
 	Terminal::GlobalTrainInfo global_info[NUM_TRAINS];
 
-	Courier::CourierPool<PlanningCourReq, 8> courier_pool
-		= Courier::CourierPool<PlanningCourReq, 8>(&global_pathing_courier, Priority::HIGH_PRIORITY);
+	Courier::CourierPool<PlanningCourReq, 32> courier_pool
+		= Courier::CourierPool<PlanningCourReq, 32>(&global_pathing_courier, Priority::HIGH_PRIORITY);
 	// first one tells who you are, second one tells you which sensor are you sub to
 	// -1 means sub to all sensor, only used during calibration
 	// (notice that it means you cannot have multiple trains calibrate at the same time)
@@ -1804,7 +1883,8 @@ void Planning::global_pathing_server() {
 
 	track_node track[TRACK_MAX]; // This is guaranteed to be big enough.
 	init_tracka(track);			 // default configuration is part a
-	initialize_all_train(trains, &courier_pool, &sensor_subs, track);
+	int track_id = GLOBAL_PATHING_TRACK_A_ID;
+	initialize_all_train(trains, &courier_pool, &sensor_subs, &track_id, track);
 	// ask to observe the state of the sensor
 	PlanningCourReq req_to_unblock = { RequestHeader::GLOBAL_COUR_AWAIT_SENSOR, { 0x0 } };
 	courier_pool.request(&req_to_unblock);
@@ -1966,8 +2046,10 @@ void Planning::global_pathing_server() {
 
 			if (req.body.info == Track::TRACK_A_ID) {
 				init_tracka(track);
+				track_id = GLOBAL_PATHING_TRACK_A_ID;
 			} else if (req.body.info == Track::TRACK_B_ID) {
 				init_trackb(track);
+				track_id = GLOBAL_PATHING_TRACK_B_ID;
 			} else {
 				Task::_KernelCrash("invalid configuration for tracks\r\n");
 			}

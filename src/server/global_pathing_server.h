@@ -226,7 +226,12 @@ public:
 	void calibrate_acceleration(int from, SpeedLevel start, SpeedLevel end);
 	void enter_loop(SpeedLevel speed);
 	bool exit_loop(int dest, int offset);
+	Track::PathRespond validate_path(Track::PathRespond& res);
+	Track::TrackServerReq fill_default_banned_node(Track::TrackServerReq& res);
+	Track::TrackServerReq fill_random_banned_node(Track::TrackServerReq& res);
+
 	Track::PathRespond get_path(int source, int dest, bool allow_reverse = false);
+	Track::PathRespond get_randomized_path(int source, int dest, bool allow_reverse = false);
 
 	void store_path(Track::PathRespond& res);
 
@@ -275,6 +280,7 @@ public:
 	void handle_train_multi_pathing(int sensor_index);
 	void handle_train_multi_waiting(bool should_reverse = false);
 	void handle_train_multi_stopping(int sensor_index);
+	void handle_train_reversing(int sensor_index);
 
 	void unblock_other_train(int other_id);
 	bool handle_deadlock();
@@ -313,12 +319,15 @@ public:
 
 	// shared attribute with main thread
 	AddressBook addr;
-	Courier::CourierPool<PlanningCourReq, 8>* courier_pool = nullptr;
+	Courier::CourierPool<PlanningCourReq, 32>* courier_pool = nullptr;
 	etl::list<etl::pair<int, int>, Train::NUM_TRAINS>* sensor_subs = nullptr;
 	etl::queue<int, NUM_TRAIN_SUBS> train_sub;
 	track_node* track;
+	int* track_id;
 	PlanningCourReq req_to_courier;
 	char switch_state[NUM_SWITCHES];
+	etl::unordered_set<int, TRACK_MAX> track_a_banned_nodes = { 10, 11, 22, 23, 26, 27, 24, 25 };
+	etl::unordered_set<int, TRACK_MAX> track_b_banned_nodes = { 22, 23, 26, 27, 24, 25 };
 
 	void toIdle();
 	void bunnyHopStopping();
@@ -333,11 +342,13 @@ private:
 	void toStopping(int64_t remaining_distance_NM);
 	void toMultiStopping(int64_t remaining_distance_NM);
 	void toMultiStoppingFromZero(int64_t remaining_distance_NM);
+	etl::random_xorshift rngesus = etl::random_xorshift(my_id);
 
 	uint64_t missing_distance();
 	bool should_subscribe();
 	bool should_stop(int64_t error_margin = 0); // simply tell you if you should stop
 	int get_reverse(int node_id);
+	bool is_dest_banned(int node_id);
 	void refill_loop_path();
 };
 

@@ -28,7 +28,15 @@ etl::list<int, SHORT_PATH_LIMIT> Dijkstra::path_to_next_sensor(const int src) co
 	return path;
 }
 
-void Dijkstra::dijkstra_update(const int curr, const bool enable_reverse, const bool use_reservations) {
+void Dijkstra::dijkstra(const int source, const bool enable_reverse, const bool use_reservations) {
+	etl::unordered_set<int, TRACK_MAX> empty;
+	dijkstra(source, empty, enable_reverse, use_reservations);
+}
+
+void Dijkstra::dijkstra_update(const int curr,
+							   etl::unordered_set<int, TRACK_MAX>& banned_node,
+							   const bool enable_reverse,
+							   const bool use_reservations) {
 	if (track[curr].type == NODE_EXIT)
 		return;
 
@@ -46,7 +54,7 @@ void Dijkstra::dijkstra_update(const int curr, const bool enable_reverse, const 
 		cw = 2 * cw + RESERVED_FLAT_COST;
 	}
 
-	if (cost[v] > cost[curr] + cw && !edge.broken) {
+	if (cost[v] > cost[curr] + cw && !edge.broken && banned_node.count(v) == 0) {
 		cost[v] = cost[curr] + cw;
 		dist[v] = dist[curr] + w;
 		prev[v] = curr;
@@ -68,7 +76,7 @@ void Dijkstra::dijkstra_update(const int curr, const bool enable_reverse, const 
 			cw = 2 * cw + RESERVED_FLAT_COST;
 		}
 
-		if (cost[v] > cost[curr] + cw && !edge.broken) {
+		if (cost[v] > cost[curr] + cw && !edge.broken && banned_node.count(v) == 0) {
 			cost[v] = cost[curr] + cw;
 			dist[v] = dist[curr] + w;
 			prev[v] = curr;
@@ -85,7 +93,7 @@ void Dijkstra::dijkstra_update(const int curr, const bool enable_reverse, const 
 		// By factoring in both the sensor distance and the offset, we obtain the real distance.
 		// Doubling the resulting amount produces the correct path distance.
 		int rdist = dist_to_next_sensor(track, curr) + track[curr].rev_offset;
-		if (cost[v] > cost[curr] + w) {
+		if (cost[v] > cost[curr] + w && banned_node.count(v) == 0) {
 			cost[v] = cost[curr] + w;
 			dist[v] = dist[curr] + 2 * rdist;
 			prev[v] = curr;
@@ -105,7 +113,31 @@ Dijkstra::Dijkstra(track_node* track, bool weight_brms)
 
 Dijkstra::~Dijkstra() { }
 
-void Routing::Dijkstra::dijkstra(const int source, const bool enable_reverse, const bool use_reservations) {
+// void Routing::Dijkstra::dijkstra(const int source, const bool enable_reverse, const bool use_reservations) {
+// 	for (int i = 0; i < TRACK_MAX; i++) {
+// 		for (int j = 0; j < TRACK_MAX; j++) {
+// 			cost[j] = INT_MAX;
+// 			dist[j] = INT_MAX;
+// 			prev[j] = NO_PREV;
+// 		}
+// 	}
+
+// 	cost[source] = 0;
+// 	dist[source] = 0;
+// 	pq.emplace(0, source);
+// 	while (!pq.empty()) {
+// 		etl::pair<int, int> p = pq.top();
+// 		pq.pop();
+
+// 		int u = p.second;
+// 		dijkstra_update(u, enable_reverse, use_reservations);
+// 	}
+// }
+
+void Routing::Dijkstra::dijkstra(const int source,
+								 etl::unordered_set<int, TRACK_MAX>& banned_node,
+								 const bool enable_reverse,
+								 const bool use_reservations) {
 	for (int i = 0; i < TRACK_MAX; i++) {
 		for (int j = 0; j < TRACK_MAX; j++) {
 			cost[j] = INT_MAX;
@@ -122,7 +154,9 @@ void Routing::Dijkstra::dijkstra(const int source, const bool enable_reverse, co
 		pq.pop();
 
 		int u = p.second;
-		dijkstra_update(u, enable_reverse, use_reservations);
+		if (banned_node.count(u) == 0) {
+			dijkstra_update(u, banned_node, enable_reverse, use_reservations);
+		}
 	}
 }
 
@@ -181,9 +215,13 @@ bool Dijkstra::path(int* q, const int source, const int dest) {
 
 	return true;
 }
+bool Dijkstra::weighted_path(WeightedPath* q,  const int source, const int dest) {
+	etl::unordered_set<int, TRACK_MAX> banned_node;
+	weighted_path_with_ban(q, banned_node, source, dest);
+}
 
-bool Dijkstra::weighted_path(WeightedPath* q, const int source, const int dest) {
-	dijkstra(source, true, true);
+bool Dijkstra::weighted_path_with_ban(WeightedPath* q, etl::unordered_set<int, TRACK_MAX>& banned_node, const int source, const int dest) {
+	dijkstra(source, banned_node, true, true);
 	int curr = dest;
 	if (prev[curr] == NO_PREV) {
 		return false; // nothing you can do, dead end
@@ -210,7 +248,6 @@ bool Dijkstra::weighted_path(WeightedPath* q, const int source, const int dest) 
 		// Reverse detected. Where do we actually need to go?
 		etl::list<int, SHORT_PATH_LIMIT> path_to_sensor = path_to_next_sensor(end);
 		int actual_end = path_to_sensor.back();
-
 		// Also modify the offset
 		q->rev_offset = track[end].rev_offset;
 
@@ -226,9 +263,15 @@ bool Dijkstra::weighted_path(WeightedPath* q, const int source, const int dest) 
 	}
 }
 
-bool Dijkstra::weighted_path(int wpath[], bool* has_reverse, int* rev_offset, int* new_dest, const int source, const int dest) {
+bool Dijkstra::weighted_path_with_ban(int wpath[],
+									  etl::unordered_set<int, TRACK_MAX>& banned_node,
+									  bool* has_reverse,
+									  int* rev_offset,
+									  int* new_dest,
+									  const int source,
+									  const int dest) {
 	WeightedPath wp;
-	bool res = weighted_path(&wp, source, dest);
+	bool res = weighted_path_with_ban(&wp, banned_node, source, dest);
 	if (!res) {
 		return false;
 	} else {

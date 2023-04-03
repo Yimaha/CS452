@@ -11,7 +11,7 @@ constexpr char TRACK_SERVER_NAME[] = "TRACK_SERVER";
 constexpr int NUM_SWITCHES = 22;
 constexpr uint64_t TRACK_A_ID = 1;
 constexpr uint64_t TRACK_B_ID = 2;
-constexpr int SAFETY_DISTANCE = 600; // 40 cm or 400 mm
+constexpr int SAFETY_DISTANCE = 400; // 40 cm or 400 mm
 
 constexpr int NUM_SWITCH_SUBS = 32;
 
@@ -27,6 +27,8 @@ struct StartAndDest {
 	int start;
 	int end;
 	bool allow_reverse;
+	int banned[TRACK_MAX] = { -1 };
+	int banned_len = 0;
 };
 
 struct Reserve {
