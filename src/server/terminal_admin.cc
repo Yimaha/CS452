@@ -33,6 +33,79 @@ void str_cpy(const char* source, char* target, int* index, int len, bool check_n
 	}
 }
 
+// Attempts to read the ID of a track node from the buffer
+// out_len is
+int scan_sensor_id(const char str[], int* out_len, const char track_id = 'a') {
+	using namespace Planning;
+
+	// Track ID should be lowercase a or b
+	if (lower(track_id) != 'a' && lower(track_id) != 'b') {
+		return READ_INT_FAIL;
+	}
+
+	// First character should be an alphabetic character, a-e or m
+	if (!is_alpha(str[0])) {
+		return READ_INT_FAIL;
+	}
+
+	// Now we work through a few cases
+	// 1. The first character is A-E, and the second character is a digit
+	// 2. The first character is B or M, the second character is R, and the third character is a digit
+	// 3. The first character is E, the second character is N or X, and the third character is a digit
+	if (lower(str[0]) >= 'a' && lower(str[0]) <= 'e' && is_digit(str[1])) {
+		// We have a sensor ID
+		int id = scan_int(str + 1, out_len, 2);
+		if (id == READ_INT_FAIL || id < 1 || id > SENSORS_PER_LETTER) {
+			return READ_INT_FAIL;
+		}
+
+		*out_len += 1;
+		return (lower(str[0]) - 'a') * SENSORS_PER_LETTER + (id - 1);
+	} else if (lower(str[0]) == 'b' || lower(str[0]) == 'm') {
+		if (lower(str[1]) != 'r' || !is_digit(str[2])) {
+			return READ_INT_FAIL;
+		}
+
+		int id = scan_int(str + 2, out_len, 3);
+		if (id == READ_INT_FAIL || get_switch_id(id) == Train::NO_SWITCH) {
+			return READ_INT_FAIL;
+		}
+
+		*out_len += 2;
+		int ind = Train::get_switch_id(id);
+		return (lower(str[0]) == 'b') ? TRACK_BRANCHES[ind] : TRACK_MERGES[ind];
+	} else if (lower(str[0]) == 'e') {
+		if ((lower(str[1]) != 'n' && lower(str[1]) != 'x') || !is_digit(str[2])) {
+			return READ_INT_FAIL;
+		}
+
+		int orig_out_len = *out_len;
+		int id = scan_int(str + 2, out_len, 3);
+		if (id == READ_INT_FAIL) {
+			return READ_INT_FAIL;
+		}
+
+		// Now we need to use the track data, because the entrances and exits are where tracks differ
+		if (id < 1 || id > Planning::NUM_ENTER_EXIT) {
+			*out_len = orig_out_len;
+			return READ_INT_FAIL;
+		} else if (lower(track_id) == 'b' && contains<int>(TRACK_B_MISSING, TRACK_B_MISSING_SIZE, id)) {
+			*out_len = orig_out_len;
+			return READ_INT_FAIL;
+		}
+
+		*out_len += 2;
+		if (lower(track_id) == 'b') {
+			id -= (id > TRACK_B_MISSING[1]);
+			id -= (id > TRACK_B_MISSING[0]);
+		}
+
+		return (lower(str[1]) == 'n') ? TRACK_ENTRANCES[id - 1] : TRACK_EXITS[id - 1];
+	} else {
+		return READ_INT_FAIL;
+	}
+}
+
 void log_time(char buf[], const uint32_t ticks) {
 	char to = '0' + ticks % 10;
 
@@ -179,12 +252,19 @@ int handle_global_pathing(Courier::CourierPool<TerminalCourierMessage>& pool, Ge
 		return HANDLE_FAIL;
 	}
 
-	int train = cmd.args.front();
+	int arg = cmd.args.front();
 	TerminalCourierMessage req;
 	req.header = header;
-	int index = Train::train_num_to_index(train);
-	if (index == Train::NO_TRAIN) {
-		return HANDLE_FAIL;
+
+	if (header == RequestHeader::TERM_COUR_LOCAL_INIT) {
+		if (arg != 1 && arg != 2) {
+			return HANDLE_FAIL;
+		}
+	} else {
+		int index = Train::train_num_to_index(arg);
+		if (index == Train::NO_TRAIN) {
+			return HANDLE_FAIL;
+		}
 	}
 
 	req.body.courier_body.num_args = cmd.args.size();
@@ -197,7 +277,7 @@ int handle_global_pathing(Courier::CourierPool<TerminalCourierMessage>& pool, Ge
 	return 0;
 }
 
-GenericCommand handle_generic(const char cmd[]) {
+GenericCommand handle_generic(const char cmd[], const char which_track = 'a') {
 	GenericCommand command = GenericCommand();
 	int i = 0;
 
@@ -218,7 +298,11 @@ GenericCommand handle_generic(const char cmd[]) {
 	while (cmd[i] != '\r') {
 		int arg = scan_int(cmd + i, &out_len);
 		if (arg == READ_INT_FAIL) {
-			return command;
+			// Try reading it as a sensor instead
+			arg = scan_sensor_id(cmd + i, &out_len, which_track);
+			if (arg == READ_INT_FAIL) {
+				return command;
+			}
 		}
 
 		command.args.push(arg);
@@ -286,6 +370,10 @@ void Terminal::terminal_admin() {
 	bool isTrainStateModified = false;
 	Train::TrainRaw train_state[Train::NUM_TRAINS];
 	GlobalTrainInfo global_train_info[Train::NUM_TRAINS];
+
+	char which_track = 'a';
+	track_node track[TRACK_MAX];
+	init_tracka(track);
 
 	// This is used to keep track of number of activated sensors
 
@@ -373,12 +461,12 @@ void Terminal::terminal_admin() {
 							int nnum = 0, pnum = 0;
 							if (next != Planning::NO_SENSOR && next > 0 && next < Planning::TOTAL_SENSORS) {
 								nc = SENSOR_LETTERS[next / Planning::SENSORS_PER_LETTER];
-								nnum = next % Planning::SENSORS_PER_LETTER;
+								nnum = (next % Planning::SENSORS_PER_LETTER) + 1;
 							}
 
 							if (prev != Planning::NO_SENSOR && prev > 0 && prev < Planning::TOTAL_SENSORS) {
 								pc = SENSOR_LETTERS[prev / Planning::SENSORS_PER_LETTER];
-								pnum = prev % Planning::SENSORS_PER_LETTER;
+								pnum = (prev % Planning::SENSORS_PER_LETTER) + 1;
 							}
 
 							sprintf(buf, TRAIN_PRINTOUT[j], nc, nnum, pc, pnum);
@@ -398,7 +486,12 @@ void Terminal::terminal_admin() {
 							src = (src == Planning::NO_SENSOR) ? 0 : src;
 							dst = (dst == Planning::NO_SENSOR) ? 0 : dst;
 
-							sprintf(buf, TRAIN_PRINTOUT[j], src, dst);
+							// This should never happen, but you never know
+							if (src < 0 || src > TRACK_MAX || dst < 0 || dst > TRACK_MAX) {
+								Task::_KernelCrash("TrainUI: Invalid src/dst");
+							}
+
+							sprintf(buf, TRAIN_PRINTOUT[j], track[src].name, track[dst].name);
 							break;
 						}
 						case TrainUIReq::TrainUIBarge: {
@@ -690,7 +783,17 @@ void Terminal::terminal_admin() {
 				} else if (strncmp(cmd_parsed.name, "exloop", MAX_COMMAND_LEN) == 0) {
 					result = handle_global_pathing(courier_pool, cmd_parsed, RequestHeader::TERM_COUR_LOCAL_EXLOOP);
 				} else if (strncmp(cmd_parsed.name, "init", MAX_COMMAND_LEN) == 0) {
+					if (cmd_parsed.args.size() > 0) {
+						which_track = 'a' + cmd_parsed.args.front() - 1;
+					}
+
 					result = handle_global_pathing(courier_pool, cmd_parsed, RequestHeader::TERM_COUR_LOCAL_INIT);
+					if (result != HANDLE_FAIL && which_track == 'a') {
+						init_tracka(track);
+					} else if (result != HANDLE_FAIL && which_track == 'b') {
+						init_trackb(track);
+					}
+
 				} else if (strncmp(cmd_parsed.name, "cali", MAX_COMMAND_LEN) == 0) {
 					result = handle_global_pathing(courier_pool, cmd_parsed, RequestHeader::TERM_COUR_LOCAL_CALI); // not working
 				} else if (strncmp(cmd_parsed.name, "base", MAX_COMMAND_LEN) == 0) {

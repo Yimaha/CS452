@@ -73,11 +73,11 @@ const char TRAIN_UI_L2[]
 	= "            (     NxS:     PrS:      |  NxS:     PrS:      |  NxS:      PrS:      |  NxS:     PrS:       |  NxS:     PrS:  "
 	  "     |  NxS:     PrS:          )\r\n";
 const char TRAIN_UI_L3[]
-	= "           _(     T:     t D:     mm |  T:     t D:     mm |  T:     t D:     mm  |  T:     t D:     mm  |  T:     t D:    "
-	  " mm  |  T:     t D:     mm    _)\r\n";
+	= "           _(     T:     t P:     mm |  T:     t P:     mm |  T:     t P:     mm  |  T:     t P:     mm  |  T:     t P:    "
+	  " mm  |  T:     t P:     mm    _)\r\n";
 const char TRAIN_UI_L4[]
-	= "           (_     Src:     Dst:      |  Src:     Dst:      |  Src:     Dst:       |  Src:     Dst:       |  Src:     Dst:  "
-	  "     |  Src:     Dst:        _)\r\n";
+	= "           (_     S:       D:        |  S:       D:        |  S:       D:         |  S:       D:         |  S:       D:    "
+	  "     |  S:       D:          _)\r\n";
 const char TRAIN_UI_L5[]
 	= "           OO(    BgC:     BgW:      |  BgC:     BgW:      |  BgC:     BgW:       |  BgC:     BgW:       |  BgC:     BgW:  "
 	  "     |  BgC:     BgW:        )_\r\n";
@@ -112,8 +112,8 @@ enum class TrainUIReq { TrainUISpeedDir = 0, TrainUINextPrev, TrainUITimeDist, T
 
 const char TRAIN_PRINTOUT_L0[] = ": %02d%c %03ld.%02ld";
 const char TRAIN_PRINTOUT_L1[] = "NxS: %c%02d PrS: %c%02d";
-const char TRAIN_PRINTOUT_L2[] = "T: %04dt D: %04dmm";
-const char TRAIN_PRINTOUT_L3[] = "Src: %03d Dst: %03d";
+const char TRAIN_PRINTOUT_L2[] = "T: %04dt P: %04dmm";
+const char TRAIN_PRINTOUT_L3[] = "S: %5s D: %5s";
 const char TRAIN_PRINTOUT_L4[] = "BgC: %03d BgW: %03d";
 const char* const TRAIN_PRINTOUT[] = { TRAIN_PRINTOUT_L0, TRAIN_PRINTOUT_L1, TRAIN_PRINTOUT_L2, TRAIN_PRINTOUT_L3, TRAIN_PRINTOUT_L4 };
 

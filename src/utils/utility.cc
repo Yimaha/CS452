@@ -10,10 +10,11 @@ bool is_digit(char c) {
 }
 
 char lower(char c) {
-	if (c >= 'A' && c <= 'Z') {
-		return c + 32;
-	}
-	return c;
+	return (c >= 'A' && c <= 'Z') ? c + 32 : c;
+}
+
+bool is_alpha(char c) {
+	return (lower(c) >= 'a' && lower(c) <= 'z');
 }
 
 int get_length(uint64_t val) {

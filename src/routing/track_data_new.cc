@@ -1225,7 +1225,6 @@ void init_tracka(track_node* track) {
 	}
 
 	track[122].edge[DIR_STRAIGHT].broken = true;
-	track[104].edge[DIR_CURVED].broken = true;
 
 	// Reverse costs
 	for (int i = 0; i < TRACK_MAX; ++i) {
