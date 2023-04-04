@@ -113,27 +113,6 @@ Dijkstra::Dijkstra(track_node* track, bool weight_brms)
 
 Dijkstra::~Dijkstra() { }
 
-// void Routing::Dijkstra::dijkstra(const int source, const bool enable_reverse, const bool use_reservations) {
-// 	for (int i = 0; i < TRACK_MAX; i++) {
-// 		for (int j = 0; j < TRACK_MAX; j++) {
-// 			cost[j] = INT_MAX;
-// 			dist[j] = INT_MAX;
-// 			prev[j] = NO_PREV;
-// 		}
-// 	}
-
-// 	cost[source] = 0;
-// 	dist[source] = 0;
-// 	pq.emplace(0, source);
-// 	while (!pq.empty()) {
-// 		etl::pair<int, int> p = pq.top();
-// 		pq.pop();
-
-// 		int u = p.second;
-// 		dijkstra_update(u, enable_reverse, use_reservations);
-// 	}
-// }
-
 void Routing::Dijkstra::dijkstra(const int source,
 								 etl::unordered_set<int, TRACK_MAX>& banned_node,
 								 const bool enable_reverse,
@@ -198,6 +177,28 @@ bool Dijkstra::path(etl::list<int, PATH_LIMIT>* q, const int source, const int d
 	return true;
 }
 
+
+bool Dijkstra::path_with_ban(etl::list<int, PATH_LIMIT>* q, etl::unordered_set<int, TRACK_MAX>& banned_node, const int source, const int dest, const bool enable_reverse, const bool using_weight) {
+	dijkstra(source, banned_node, enable_reverse, using_weight);
+	int curr = dest;
+	if (prev[curr] == NO_PREV) {
+		return false; // nothing you can do, dead end
+	}
+
+	while (curr != NO_PREV) {
+		stack.push(curr);
+		curr = prev[curr];
+	}
+
+	// Pop nodes off stack and push onto queue
+	while (!stack.empty()) {
+		q->push_back(stack.top());
+		stack.pop();
+	}
+
+	return true;
+}
+
 bool Dijkstra::path(int* q, const int source, const int dest) {
 	/* q is an int array with size at least PATH_LIMIT */
 	dijkstra(source);
@@ -215,12 +216,15 @@ bool Dijkstra::path(int* q, const int source, const int dest) {
 
 	return true;
 }
-bool Dijkstra::weighted_path(WeightedPath* q,  const int source, const int dest) {
-	etl::unordered_set<int, TRACK_MAX> banned_node;
-	weighted_path_with_ban(q, banned_node, source, dest);
+
+bool Dijkstra::weighted_path(WeightedPath* q, const int source, const int dest) {
+	etl::unordered_set<int, TRACK_MAX> banned_node = {};
+	return weighted_path_with_ban(q, banned_node, source, dest);
 }
 
 bool Dijkstra::weighted_path_with_ban(WeightedPath* q, etl::unordered_set<int, TRACK_MAX>& banned_node, const int source, const int dest) {
+	q->has_reverse = false;
+	q->rev_offset = 0;
 	dijkstra(source, banned_node, true, true);
 	int curr = dest;
 	if (prev[curr] == NO_PREV) {
@@ -242,8 +246,9 @@ bool Dijkstra::weighted_path_with_ban(WeightedPath* q, etl::unordered_set<int, T
 	// So now we build the path
 	if (!q->has_reverse) {
 		// No reverse detected
-		q->rev_offset = 0;
-		return path(&q->wpath, source, dest);
+		return path_with_ban(&q->wpath, banned_node, source, dest, false, true);
+
+		return true;
 	} else {
 		// Reverse detected. Where do we actually need to go?
 		etl::list<int, SHORT_PATH_LIMIT> path_to_sensor = path_to_next_sensor(end);
@@ -272,6 +277,7 @@ bool Dijkstra::weighted_path_with_ban(int wpath[],
 									  const int dest) {
 	WeightedPath wp;
 	bool res = weighted_path_with_ban(&wp, banned_node, source, dest);
+
 	if (!res) {
 		return false;
 	} else {

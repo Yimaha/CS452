@@ -163,6 +163,22 @@ void Track::track_server() {
 		return -1;
 	};
 
+	auto try_dijkstra = [&](PathRespond& res, int source, int dest, etl::unordered_set<int, TRACK_MAX>& banned_node, bool allow_reverse) {
+		if (allow_reverse) {
+			res.reverse = false;
+			res.successful = dijkstra.weighted_path_with_ban(res.path, banned_node, &res.reverse, &res.rev_offset, &dest, source, dest);
+			res.path_len = dijkstra.get_dist(dest);
+			res.source = source;
+			res.dest = dest;
+		} else {
+			res.reverse = false;
+			res.successful = dijkstra.path(res.path, source, dest);
+			res.path_len = dijkstra.get_dist(dest);
+			res.source = source;
+			res.dest = dest;
+		}
+	};
+
 	// check all 4 branches !!!!
 	auto central_branch_safety = [&](int id) {
 		int result = -1;
@@ -190,24 +206,37 @@ void Track::track_server() {
 			_KernelCrash("A node reserve by no one is causing deadlock %s", node->name);
 		}
 		int current_owner = node->reserved_by;
-		debug_print(addr.term_trans_tid, "trying to detect deadlock for %d, current_owener %d ", id, current_owner);
+		// debug_print(addr.term_trans_tid, "trying to detect deadlock for %d, current_owener %d ", id, current_owner);
 
-		for (auto it = train_wanted_nodes[Train::train_num_to_index(current_owner)].begin();
-			 it != train_wanted_nodes[Train::train_num_to_index(current_owner)].end();
-			 it++) {
-			debug_print(addr.term_trans_tid, "%s : %d, ",track[*it].name, track[*it].reserved_by);
-		}
-		debug_print(addr.term_trans_tid, "\r\n");
+		// for (auto it = train_wanted_nodes[Train::train_num_to_index(current_owner)].begin();
+		// 	 it != train_wanted_nodes[Train::train_num_to_index(current_owner)].end();
+		// 	 it++) {
+		// 	debug_print(addr.term_trans_tid, "%s : %d, ",track[*it].name, track[*it].reserved_by);
+		// }
+		// debug_print(addr.term_trans_tid, "\r\n");
 
 		for (auto it = train_wanted_nodes[Train::train_num_to_index(current_owner)].begin();
 			 it != train_wanted_nodes[Train::train_num_to_index(current_owner)].end();
 			 it++) {
 			if (track[*it].reserved_by == id || track[*it].reverse->reserved_by == id) {
-				debug_print(addr.term_trans_tid, "\r\n");
 				return current_owner;
 			}
 		}
 		return -1;
+	};
+
+	auto ban_reserved_node = [&](int id) {
+		etl::unordered_set<int, TRACK_MAX> banned_landmark;
+		for (int i = 0; i < TRACK_MAX; i++) {
+			if (track[i].reserved_by != RESERVED_BY_NO_ONE && track[i].reserved_by != id) {
+				banned_landmark.insert(i);
+			} else if (track[i].type == node_type::NODE_BRANCH && branch_safety(&track[i], id) != -1) {
+				banned_landmark.insert(i);
+			} else if (track[i].type == node_type::NODE_MERGE && branch_safety(track[i].reverse, id) != -1) {
+				banned_landmark.insert(i);
+			}
+		}
+		return banned_landmark;
 	};
 
 	auto evaluate_robustness_failed = [&](ReservationStatus& res, track_node* node, int id) {
@@ -256,6 +285,51 @@ void Track::track_server() {
 			}
 		}
 		return false;
+	};
+
+	auto try_reserve_path = [&](ReservationStatus& res, int id, int len, int total_len, int* path) {
+		res.successful = true;
+		res.dead_lock_detected = false;
+		res.res_dist = 0;
+		train_wanted_nodes[Train::train_num_to_index(id)].clear();
+
+		for (int i = 0; i < len; i++) {
+			if (evaluate_robustness_failed(res, &track[path[i]], id))
+				break;
+		}
+
+		// also check safe distance ahead
+		uint64_t safety_distance = 0;
+		track_node* node = &track[path[len - 1]];
+		
+		for (;res.successful && len < total_len && safety_distance < SAFETY_DISTANCE; len++) {
+			if (node->type == node_type::NODE_MERGE || node->type == node_type::NODE_SENSOR) {
+				// merge node simply ignore and add the length
+				safety_distance += node->edge[DIR_AHEAD].dist;
+				node = node->edge[DIR_AHEAD].dest;
+			} else if (node->type == node_type::NODE_BRANCH) {
+				if((len >= total_len)) {
+					Task::_KernelCrash("invalid path passed");
+				}
+				track_node* next_node = &track[path[len]];
+				if (node->edge[DIR_STRAIGHT].dest == next_node) {
+					safety_distance += node->edge[DIR_STRAIGHT].dist;
+					node = node->edge[DIR_STRAIGHT].dest;
+				} else if (node->edge[DIR_CURVED].dest == next_node) {
+					safety_distance += node->edge[DIR_CURVED].dist;
+					node = node->edge[DIR_CURVED].dest;
+				} else {
+					Task::_KernelCrash(
+						"impossible path passed from try reserve %s\r\n", node->name);
+				}
+			} else {
+				// you have to be node end, break
+				break;
+			}
+
+			if (evaluate_robustness_failed(res, node, id))
+				break;
+		}
 	};
 
 	int from;
@@ -311,96 +385,41 @@ void Track::track_server() {
 			for (int i = 0; i < req.body.start_and_end.banned_len; i++) {
 				banned_node.insert(req.body.start_and_end.banned[i]);
 			}
+			PathRespond res;
+			try_dijkstra(res, source, dest, banned_node, reverse_allowed);
+			Reply::Reply(from, (const char*)&res, sizeof(res));
 
-			if (reverse_allowed) {
-				PathRespond res;
-				res.reverse = false;
-				res.successful = dijkstra.weighted_path_with_ban(res.path, banned_node, &res.reverse, &res.rev_offset, &dest, source, dest);
-				res.path_len = dijkstra.get_dist(dest);
-				res.source = source;
-				res.dest = dest;
-				Reply::Reply(from, (const char*)&res, sizeof(res));
-			} else {
-				PathRespond res;
-				res.reverse = false;
-				res.successful = dijkstra.path(res.path, source, dest);
-				res.path_len = dijkstra.get_dist(dest);
-				res.source = source;
-				res.dest = dest;
-				Reply::Reply(from, (const char*)&res, sizeof(res));
-			}
 			break;
 		}
 
 		case RequestHeader::TRACK_UNRESERVE: {
-			int len = req.body.reservation.len;
+			int len = req.body.reservation.len_until_reservation;
 			int* path = req.body.reservation.path;
 			int id = req.body.reservation.train_id;
-			debug_print(addr.term_trans_tid, "%d trying to unreserve: ", id);
+			// debug_print(addr.term_trans_tid, "%d trying to unreserve: ", id);
+			// for (int i = 0; i < len; i++) {
+			// 	debug_print(addr.term_trans_tid, "%s ", track[path[i]].name);
+			// }
+			// debug_print(addr.term_trans_tid, "\r\n");
 			for (int i = 0; i < len; i++) {
 				cancel_reserve(track[path[i]], id);
-				debug_print(addr.term_trans_tid, "%s ", track[path[i]].name);
 			}
-			debug_print(addr.term_trans_tid, "\r\n");
-
 			Reply::EmptyReply(from);
 			break;
 		}
 
 		case RequestHeader::TRACK_TRY_RESERVE: {
-			int len = req.body.reservation.len;
+			int len = req.body.reservation.len_until_reservation;
+			int total_len = req.body.reservation.total_len;
 			int* path = req.body.reservation.path;
 			int id = req.body.reservation.train_id;
 			ReservationStatus res;
-			res.successful = true;
-			res.dead_lock_detected = false;
-			res.res_dist = 0;
-			// try to reserve
-			train_wanted_nodes[Train::train_num_to_index(id)].clear();
-			debug_print(addr.term_trans_tid, "%d trying to reserve: ", id);
+			try_reserve_path(res, id, len, total_len, path);
+			debug_print(addr.term_trans_tid, "%d reserving successful %d : ", id, res.successful);
 			for (int i = 0; i < len; i++) {
 				debug_print(addr.term_trans_tid, "%s ", track[path[i]].name);
 			}
-			debug_print(addr.term_trans_tid, "\r\n");
-
-			for (int i = 0; i < len; i++) {
-				if (evaluate_robustness_failed(res, &track[path[i]], id))
-					break;
-			}
-			debug_print(addr.term_trans_tid, "\r\n");
-
-			// also check safe distance ahead
-			uint64_t safety_distance = 0;
-			track_node* next_node = &track[path[len - 1]];
-
-			while (res.successful && safety_distance < SAFETY_DISTANCE) {
-
-				if (next_node->type == node_type::NODE_MERGE || next_node->type == node_type::NODE_SENSOR) {
-					// merge node simply ignore and add the length
-					safety_distance += next_node->edge[DIR_AHEAD].dist;
-					next_node = next_node->edge[DIR_AHEAD].dest;
-				} else if (next_node->type == node_type::NODE_BRANCH) {
-					int switch_index = get_switch_id_to_index(next_node->num);
-					if (switch_state[switch_index] == 's') {
-						safety_distance += next_node->edge[DIR_STRAIGHT].dist;
-						next_node = next_node->edge[DIR_STRAIGHT].dest;
-					} else if (switch_state[switch_index] == 'c') {
-						safety_distance += next_node->edge[DIR_CURVED].dist;
-						next_node = next_node->edge[DIR_CURVED].dest;
-					} else {
-						Task::_KernelCrash(
-							"impossible path passed from try reserve %d %s %d\r\n", switch_index, next_node->name, switch_state[switch_index]);
-					}
-				} else {
-					// you have to be node end, break
-					break;
-				}
-
-				if (evaluate_robustness_failed(res, next_node, id))
-					break;
-			}
-
-			debug_print(addr.term_trans_tid, "%d reserve is successful: %d\r\n", id, res.successful);
+			debug_print(addr.term_trans_tid, "\r\n", id, res.successful);
 			// if you can reserve, then reserve
 			if (res.successful) {
 				train_wanted_nodes[Train::train_num_to_index(id)].clear();
@@ -424,10 +443,29 @@ void Track::track_server() {
 				}
 				reply_to_switch_subs();
 			}
-			if (res.dead_lock_detected) {
-				debug_print(addr.term_trans_tid, "detected deadlock for train %d ! \r\n", id);
-			}
 			// return the reservation result
+			Reply::Reply(from, (const char*)&res, sizeof(res));
+			break;
+		}
+		case RequestHeader::TRACK_GET_HOT_PATH: {
+			int id = req.body.start_and_end.train_id;
+			int source = req.body.start_and_end.start;
+			int dest = req.body.start_and_end.end;
+			etl::unordered_set<int, TRACK_MAX> banned_node = ban_reserved_node(id);
+			for (int i = 0; i < req.body.start_and_end.banned_len; i++) {
+				banned_node.insert(req.body.start_and_end.banned[i]);
+			}
+			for (auto it = banned_node.begin(); it != banned_node.end(); it++) {
+				debug_print(addr.term_trans_tid, "%d ", *it);
+			}
+			debug_print(addr.term_trans_tid, "\r\n");
+
+			PathRespond res;
+			try_dijkstra(res, source, dest, banned_node, true);
+			for (int i = 0; i < PATH_LIMIT && res.path[i] != res.dest; i++) {
+				debug_print(addr.term_trans_tid, "%s ", track[res.path[i]].name);
+			}
+			debug_print(addr.term_trans_tid, "%s \r\n", track[res.dest].name);
 			Reply::Reply(from, (const char*)&res, sizeof(res));
 			break;
 		}

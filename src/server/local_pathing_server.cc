@@ -89,39 +89,6 @@ void LocalPathing::local_pathing_worker() {
 			break;
 		}
 
-		case RequestHeader::LOCAL_PATH_LOOP: {
-			// first locate
-			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_LOCATE, Planning::RequestBody { 0x0 } };
-			req_to_global.body.command.id = internal_train_num;
-			Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
-
-			// send yourself to sensor 16, aka B1
-			send_to_b1(SPEED_MAX);
-
-			// then loop
-			req_to_global = { RequestHeader::GLOBAL_LOOP, Planning::RequestBody { 0x0 } };
-			req_to_global.body.routing_request.id = internal_train_num;
-			SpeedLevel speed = (req.body.command.num_args == 0) ? SPEED_MAX : static_cast<SpeedLevel>(req.body.command.args[0]);
-			req_to_global.body.routing_request.speed = speed;
-
-			Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
-			Reply::EmptyReply(from);
-			break;
-		}
-
-		case RequestHeader::LOCAL_PATH_EXLOOP: {
-			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_EXIT_LOOP, Planning::RequestBody { 0x0 } };
-			req_to_global.body.routing_request.id = internal_train_num;
-			req_to_global.body.routing_request.dest = req.body.command.args[0];
-
-			int offset = (req.body.command.num_args >= 2) ? req.body.command.args[1] : 0;
-			req_to_global.body.routing_request.offset = offset;
-
-			Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
-			Reply::EmptyReply(from);
-			break;
-		}
-
 		case RequestHeader::LOCAL_PATH_DEST: {
 			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_MULTI_PATH, Planning::RequestBody { 0x0 } };
 			req_to_global.body.routing_request.id = internal_train_num;

@@ -29,12 +29,14 @@ struct StartAndDest {
 	bool allow_reverse;
 	int banned[TRACK_MAX] = { -1 };
 	int banned_len = 0;
+	int train_id;
 };
 
 struct Reserve {
 	int path[Routing::PATH_LIMIT] = { -1 };
-	int len = 0;
-	int train_id = 0;
+	int len_until_reservation = 0;
+	int total_len = 0;
+	int train_id = 0; 
 };
 
 union RequestBody
@@ -63,6 +65,7 @@ struct ReservationStatus {
 	bool successful;
 	bool dead_lock_detected;
 	int64_t res_dist;
+	PathRespond hot_re_route;
 };
 
 struct TrackServerReq {

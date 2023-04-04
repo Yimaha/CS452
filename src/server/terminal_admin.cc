@@ -780,10 +780,6 @@ void Terminal::terminal_admin() {
 					result = handle_global_pathing(courier_pool, cmd_parsed, RequestHeader::TERM_COUR_LOCAL_GO);
 				} else if (strncmp(cmd_parsed.name, "locate", MAX_COMMAND_LEN) == 0) {
 					result = handle_global_pathing(courier_pool, cmd_parsed, RequestHeader::TERM_COUR_LOCAL_LOCATE);
-				} else if (strncmp(cmd_parsed.name, "loop", MAX_COMMAND_LEN) == 0) {
-					result = handle_global_pathing(courier_pool, cmd_parsed, RequestHeader::TERM_COUR_LOCAL_LOOP);
-				} else if (strncmp(cmd_parsed.name, "exloop", MAX_COMMAND_LEN) == 0) {
-					result = handle_global_pathing(courier_pool, cmd_parsed, RequestHeader::TERM_COUR_LOCAL_EXLOOP);
 				} else if (strncmp(cmd_parsed.name, "init", MAX_COMMAND_LEN) == 0) {
 					if (cmd_parsed.args.size() > 0) {
 						which_track = 'a' + cmd_parsed.args.front() - 1;
@@ -904,14 +900,6 @@ void Terminal::terminal_courier() {
 		}
 		case RequestHeader::TERM_COUR_LOCAL_LOCATE: {
 			local_server_redirect(RequestHeader::LOCAL_PATH_LOCATE);
-			break;
-		}
-		case RequestHeader::TERM_COUR_LOCAL_LOOP: {
-			local_server_redirect(RequestHeader::LOCAL_PATH_LOOP);
-			break;
-		}
-		case RequestHeader::TERM_COUR_LOCAL_EXLOOP: {
-			local_server_redirect(RequestHeader::LOCAL_PATH_EXLOOP);
 			break;
 		}
 		case RequestHeader::TERM_COUR_LOCAL_INIT: {

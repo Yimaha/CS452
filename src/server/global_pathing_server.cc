@@ -55,9 +55,10 @@ void Planning::TrainStatus::reverse() {
 	}
 	localization.state = TrainState::REVERSING;
 	Track::TrackServerReq req_to_track;
-	req_to_track.body.reservation.len = 1;
+	req_to_track.body.reservation.len_until_reservation = 1;
+	req_to_track.body.reservation.total_len = 1;
 	req_to_track.body.reservation.path[0] = localization.last_reserved_node;
-	int ticks = 10000 * TWO_DECIMAL_PLACE / cali_state.slow_calibration_mm;
+	int ticks = (localization.direction ? 7000 : 1000) * TWO_DECIMAL_PLACE / cali_state.slow_calibration_mm;
 	pipe_tr(localization.stopping_speed);
 	localization.direction = !localization.direction;
 	localization.last_node = localization.last_node->reverse;
@@ -74,15 +75,31 @@ void Planning::TrainStatus::add_path(int landmark) {
 }
 
 bool Planning::TrainStatus::try_reserve(Track::TrackServerReq* reservation_request) {
+	reservation_request->body.reservation.total_len = 0;
+	for (auto it = localization.path.begin(); it != localization.path.end(); it++) {
+		reservation_request->body.reservation.path[reservation_request->body.reservation.total_len++] = *it;
+	}
 	reservation_request->header = RequestHeader::TRACK_TRY_RESERVE;
 	reservation_request->body.reservation.train_id = my_id;
 	Track::ReservationStatus status;
 	Send::Send(addr.track_server_tid, (const char*)reservation_request, sizeof(Track::TrackServerReq), (char*)&status, sizeof(status));
-	if (status.successful && reservation_request->body.reservation.len >= 1) {
-		localization.last_reserved_node = reservation_request->body.reservation.path[reservation_request->body.reservation.len - 1];
+	if (status.successful && reservation_request->body.reservation.len_until_reservation >= 1) {
+		localization.last_reserved_node = reservation_request->body.reservation.path[reservation_request->body.reservation.len_until_reservation - 1];
 	}
 	localization.deadlocked = status.dead_lock_detected;
-	// debug_print(addr.term_trans_tid, "try_reserve: is successful? %d\r\n", status.successful);
+	return status.successful;
+}
+
+bool Planning::TrainStatus::try_reserve(Track::TrackServerReq* reservation_request, int total_len) {
+	reservation_request->body.reservation.total_len = total_len;
+	reservation_request->header = RequestHeader::TRACK_TRY_RESERVE;
+	reservation_request->body.reservation.train_id = my_id;
+	Track::ReservationStatus status;
+	Send::Send(addr.track_server_tid, (const char*)reservation_request, sizeof(Track::TrackServerReq), (char*)&status, sizeof(status));
+	if (status.successful && reservation_request->body.reservation.len_until_reservation >= 1) {
+		localization.last_reserved_node = reservation_request->body.reservation.path[reservation_request->body.reservation.len_until_reservation - 1];
+	}
+	localization.deadlocked = status.dead_lock_detected;
 	return status.successful;
 }
 
@@ -123,12 +140,6 @@ int64_t Planning::TrainStatus::getMinStableDist() {
 	int64_t terminal_velocity = getVelocity();
 	int64_t A_1 = accelerations[SPEED_STOP][static_cast<int>(localization.speed)];
 	int64_t A_2 = accelerations[static_cast<int>(localization.speed)][SPEED_STOP];
-	// debug_print(addr.term_trans_tid,
-	// 			"what is going on? %llu, %llu, %lld, %lld \r\n",
-	// 			terminal_velocity,
-	// 			A_1,
-	// 			A_2,
-	// 			Kinematic::calculate_traversal_min_dist(A_1, A_2, terminal_velocity));
 	return Kinematic::calculate_traversal_min_dist(A_1, A_2, terminal_velocity) + cali_state.min_stable_dist_margin;
 }
 
@@ -180,8 +191,8 @@ void Planning::TrainStatus::toIdle() {
 void Planning::TrainStatus::toStopping(int64_t remaining_distance_mm) {
 	localization.state = TrainState::STOPPING;
 	int64_t ticks_delay = remaining_distance_mm * TWO_DECIMAL_PLACE / getVelocity();
-	debug_print(
-		addr.term_trans_tid, "trying to stop remain_dist %llu, velocity %llu, ticks %d\r\n", remaining_distance_mm, getVelocity(), ticks_delay);
+	// debug_print(
+	// 	addr.term_trans_tid, "trying to stop remain_dist %llu, velocity %llu, ticks %d\r\n", remaining_distance_mm, getVelocity(), ticks_delay);
 
 	PlanningCourReq req_to_courier;
 	req_to_courier.header = RequestHeader::GLOBAL_COUR_STOPPING;
@@ -193,12 +204,12 @@ void Planning::TrainStatus::toStopping(int64_t remaining_distance_mm) {
 void Planning::TrainStatus::toMultiStopping(int64_t remaining_distance_mm) {
 	localization.state = TrainState::MULTI_STOPPING;
 	int64_t ticks_delay = remaining_distance_mm * TWO_DECIMAL_PLACE / getVelocity();
-	debug_print(addr.term_trans_tid,
-				"%d trying to multi stop remain_dist %lld, velocity %llu, ticks %d\r\n",
-				my_id,
-				remaining_distance_mm,
-				getVelocity(),
-				ticks_delay);
+	// debug_print(addr.term_trans_tid,
+	// 			"%d trying to multi stop remain_dist %lld, velocity %llu, ticks %d\r\n",
+	// 			my_id,
+	// 			remaining_distance_mm,
+	// 			getVelocity(),
+	// 			ticks_delay);
 
 	PlanningCourReq req_to_courier;
 	req_to_courier.header = RequestHeader::GLOBAL_COUR_MULTI_STOPPING;
@@ -213,14 +224,14 @@ void Planning::TrainStatus::toMultiStoppingFromZero(int64_t remaining_distance_m
 	int64_t time = getVelocity() * TWO_DECIMAL_PLACE / accelerations[SPEED_STOP][localization.speed];
 	remaining_distance_mm -= V_a * time / TWO_DECIMAL_PLACE;
 	int64_t ticks_delay = time + remaining_distance_mm * TWO_DECIMAL_PLACE / getVelocity();
-	debug_print(addr.term_trans_tid,
-				"%d trying to multi stop from zero remain_dist %lld, velocity %llu, ticks %d, acceleration_dist %lld, acceleration_time %lld\r\n",
-				my_id,
-				remaining_distance_mm,
-				getVelocity(),
-				ticks_delay,
-				V_a * time / TWO_DECIMAL_PLACE,
-				time);
+	// debug_print(addr.term_trans_tid,
+	// 			"%d trying to multi stop from zero remain_dist %lld, velocity %llu, ticks %d, acceleration_dist %lld, acceleration_time %lld\r\n",
+	// 			my_id,
+	// 			remaining_distance_mm,
+	// 			getVelocity(),
+	// 			ticks_delay,
+	// 			V_a * time / TWO_DECIMAL_PLACE,
+	// 			time);
 
 	PlanningCourReq req_to_courier;
 	req_to_courier.header = RequestHeader::GLOBAL_COUR_MULTI_STOPPING;
@@ -232,18 +243,16 @@ void Planning::TrainStatus::toMultiStoppingFromZero(int64_t remaining_distance_m
  * bunny hop should only trigger in the should stop case of multi_waiting
  */
 void Planning::TrainStatus::tryBunnyHopping() {
-	debug_print(addr.term_trans_tid, "%d in bunny hopping \r\n", my_id);
 	if (localization.path.empty()) {
 		Task::_KernelCrash("%d trying to reserve ahead on an empty queue", my_id);
 	}
 	Track::TrackServerReq reservation_request = {};
-	reservation_request.body.reservation.len = 0;
+	reservation_request.body.reservation.len_until_reservation = 0;
 	uint64_t D_t = 0;
 
 	for (auto it = localization.path.begin(); it != localization.path.end();) {
 		track_node* node = &track[*it];
-		reservation_request.body.reservation.path[reservation_request.body.reservation.len++] = *it;
-
+		reservation_request.body.reservation.len_until_reservation++;
 		it++;
 		if (it == localization.path.end()) {
 			break;
@@ -303,7 +312,6 @@ void Planning::TrainStatus::handle_train_bunny_hopping(int sensor_index) {
 	if (localization.path.empty()) {
 		Task::_KernelCrash("empty path given to bunny hop");
 	}
-	debug_print(addr.term_trans_tid, "we reached here with sensor %d and expected %d \r\n", sensor_index, localization.path.back());
 	if (sensor_index == localization.path.back()) { // found the last sensor
 		toSpeed(SPEED_STOP);
 		pipe_tr(); // actually pipe tr to stop, maybe?
@@ -424,10 +432,10 @@ void Planning::TrainStatus::pre_compute_path(bool early_bird_reservation) {
 	int sensors_landmark = 0;
 	track_node* node;
 	Track::TrackServerReq reservation_request = {};
-	reservation_request.body.reservation.len = 0;
+	reservation_request.body.reservation.len_until_reservation = 0;
 	for (auto it = localization.path.begin(); it != localization.path.end();) {
 		node = &track[*it];
-		reservation_request.body.reservation.path[reservation_request.body.reservation.len++] = *it;
+		reservation_request.body.reservation.len_until_reservation++;
 		it++;
 		if (node->type == node_type::NODE_SENSOR) {
 			sensors_landmark += 1;
@@ -452,11 +460,8 @@ void Planning::TrainStatus::simple_pre_compute_path() {
 
 	int sensors_landmark = 0;
 	track_node* node;
-	Track::TrackServerReq reservation_request = {};
-	reservation_request.body.reservation.len = 0;
 	for (auto it = localization.path.begin(); it != localization.path.end();) {
 		node = &track[*it];
-		reservation_request.body.reservation.path[reservation_request.body.reservation.len++] = *it;
 		it++;
 		if (node->type == node_type::NODE_SENSOR) {
 			sensors_landmark += 1;
@@ -503,61 +508,6 @@ void Planning::TrainStatus::multi_path(int dest) {
 	}
 }
 
-bool Planning::TrainStatus::exit_loop(int dest, int offset) {
-	int sub_sensor = SENSOR_B[0];
-	Track::PathRespond path_res = get_path(SENSOR_B[0], dest);
-	if (dest == SENSOR_B[0]) {
-		refill_loop_path();
-	} else if (!path_res.successful) {
-		return false;
-	}
-
-	localization.path_len = path_res.path_len;
-	if (localization.path_len * TWO_DECIMAL_PLACE < getStoppingDistance()) {
-		path_res = get_path(SENSOR_D[3], dest);
-		if (!path_res.successful) {
-			return false;
-		} else {
-			localization.path_len = path_res.path_len;
-			sub_sensor = SENSOR_D[3];
-		}
-	}
-
-	// Offset error checking
-	localization.path_len += offset;
-	debug_print(addr.term_trans_tid, "Offset of %d, new path length %d\r\n", offset, localization.path_len);
-	if (-offset * TWO_DECIMAL_PLACE > localization.path_len * TWO_DECIMAL_PLACE - getStoppingDistance()) {
-		debug_print(addr.term_trans_tid,
-					"Negative offset of %d too large for path length %d, stopping distance %d. Ignoring\r\n",
-					offset,
-					localization.path_len,
-					getStoppingDistance());
-		return false;
-	} else if (offset > OFFSET_BOUND || -offset > OFFSET_BOUND) {
-		debug_print(addr.term_trans_tid, "Offset of %d too large! Ignoring\r\n", offset);
-		return false;
-	} else if (offset > 0) {
-		// Positive offset. Create more path, I guess?
-		int next_dist = track[dest].edge[DIR_AHEAD].dist;
-		while (offset > next_dist) {
-			offset -= next_dist;
-			dest = track[dest].edge[DIR_AHEAD].dest - track;
-			next_dist = track[dest].edge[DIR_AHEAD].dist;
-			localization.path.push_back(dest);
-		}
-	}
-
-	localization.path.clear();
-	store_path(path_res);
-
-	// let train subscribe to it
-	pre_compute_path();
-	sub_to_sensor(sub_sensor);
-	localization.state = (sub_sensor == SENSOR_B[0]) ? TrainState::LOOP_EXIT_B1 : TrainState::LOOP_EXIT_D4;
-	init_calibration();
-	return true;
-}
-
 Track::PathRespond Planning::TrainStatus::validate_path(Track::PathRespond& res) {
 	// if (my_id == 24) {
 
@@ -577,12 +527,15 @@ Track::PathRespond Planning::TrainStatus::validate_path(Track::PathRespond& res)
 }
 
 Track::TrackServerReq Planning::TrainStatus::fill_default_banned_node(Track::TrackServerReq& res) {
+	res.body.start_and_end.banned_len = 0;
 	if (*track_id == GLOBAL_PATHING_TRACK_A_ID) {
-		res.body.start_and_end.banned[res.body.start_and_end.banned_len++] = 78;
+		// res.body.start_and_end.banned[res.body.start_and_end.banned_len++] = 78;
+	} else if (*track_id == GLOBAL_PATHING_TRACK_B_ID) {
+		if (my_id == 24) {
+			res.body.start_and_end.banned[res.body.start_and_end.banned_len++] = 32;
+		}
 	}
-	if (my_id == 24) {
-		res.body.start_and_end.banned[res.body.start_and_end.banned_len++] = 32;
-	}
+
 	return res;
 }
 
@@ -600,7 +553,6 @@ Track::PathRespond Planning::TrainStatus::get_path(int source, int dest, bool al
 	req_to_track.body.start_and_end.start = source;
 	req_to_track.body.start_and_end.end = dest;
 	req_to_track.body.start_and_end.allow_reverse = allow_reverse;
-	req_to_track.body.start_and_end.banned_len = 0;
 	fill_default_banned_node(req_to_track);
 
 	Track::PathRespond res;
@@ -621,9 +573,8 @@ Track::PathRespond Planning::TrainStatus::get_randomized_path(int source, int de
 	req_to_track.body.start_and_end.start = source;
 	req_to_track.body.start_and_end.end = dest;
 	req_to_track.body.start_and_end.allow_reverse = allow_reverse;
-	req_to_track.body.start_and_end.banned_len = 0;
 	fill_default_banned_node(req_to_track);
-	fill_default_banned_node(req_to_track);
+	fill_random_banned_node(req_to_track);
 
 	Track::PathRespond res;
 	if (source == dest || source == track[dest].reverse->num) {
@@ -644,6 +595,34 @@ void Planning::TrainStatus::store_path(Track::PathRespond& res) {
 		localization.path.push_back(res.path[i]);
 	}
 	localization.path.push_back(res.dest);
+	if (res.reverse) {
+		debug_print(addr.term_trans_tid, "path_len, is it wrong? case 2 %d %d \r\n", res.path_len, res.rev_offset);
+		localization.reverse_after = true;
+	} else {
+		debug_print(addr.term_trans_tid, "path_len, is it wrong? case 1 %d \r\n", res.path_len);
+	}
+	localization.path_len = res.path_len - (localization.direction ? MULTI_ERROR_MARGIN_STRAIGHT : MULTI_ERROR_MARGIN_REVERSE);
+}
+
+void Planning::TrainStatus::store_path_from(Track::PathRespond& res, etl::list<int, PATH_LIMIT>::iterator begin, int64_t missing_dist) {
+	if (!res.successful) {
+		Task::_KernelCrash("try to filled from a unsuccessful res\r\n");
+	}
+	localization.path.erase(begin, localization.path.end());
+	for (int i = 0; i < PATH_LIMIT && res.path[i] != res.dest; i++) {
+		localization.path.push_back(res.path[i]);
+	}
+	localization.path.push_back(res.dest);
+
+	if (res.reverse) {
+		debug_print(addr.term_trans_tid, "path_len, is it wrong? case 2 %d %d \r\n", res.path_len, res.rev_offset);
+		localization.reverse_after = true;
+	} else {
+		debug_print(addr.term_trans_tid, "path_len, is it wrong? case 1 %d \r\n", res.path_len);
+	}
+	// distance you have travled + distance until you re-route + rest of the route;
+	localization.path_len = localization.distance_traveled + missing_dist + res.path_len
+							- (localization.direction ? MULTI_ERROR_MARGIN_STRAIGHT : MULTI_ERROR_MARGIN_REVERSE);
 }
 
 bool Planning::TrainStatus::calibrate_base_velocity(int from) {
@@ -729,38 +708,6 @@ bool Planning::TrainStatus::calibrate_velocity(bool from_up, int from, SpeedLeve
 	}
 	pipe_tr();
 	return true;
-}
-
-void Planning::TrainStatus::enter_loop(SpeedLevel speed) {
-	toSpeed(speed);
-	refill_loop_path();
-	localization.path_len = INT_MAX; // we do not need pre-stop for velocity calibration.
-
-	init_calibration();
-	pre_compute_path();
-	localization.state = TrainState::LOOP;
-	debug_print(addr.term_trans_tid, "Entering loop\r\n");
-	pipe_tr();
-}
-
-// Basically, progress in the loop and restore the loop if it is about to run out
-void Planning::TrainStatus::handle_train_loop(int sensor_index) {
-	clear_traveled_sensor(sensor_index);
-	continuous_velocity_calibration();
-	if (localization.path.size() == 1) {
-		// about to run out of stuff to do, refill the path
-		refill_loop_path();
-	}
-}
-
-// Progress aint64_t the path
-void Planning::TrainStatus::handle_train_exit_loop(int sensor_index, int sub_sensor) {
-	if (sensor_index != sub_sensor) {
-		clear_traveled_sensor(sensor_index);
-		continuous_velocity_calibration();
-	}
-
-	look_ahead();
 }
 
 void TrainStatus::calibrate_starting(int from, SpeedLevel speed) {
@@ -1046,12 +993,6 @@ SpeedLevel Planning::TrainStatus::get_viable_speed() {
 	for (int i = SPEED_1; i > 0; i--) {
 		toSpeed(SpeedLevel(i));
 		if (remaining_distance_MM > (getMinStableDist() / 100)) {
-			debug_print(addr.term_trans_tid,
-						"%d picked speed %d with res_dist %lld and min_dist %lld\r\n",
-						my_id,
-						i,
-						remaining_distance_MM,
-						getMinStableDist() / 100);
 			return SpeedLevel(i);
 		}
 	}
@@ -1070,7 +1011,7 @@ bool Planning::TrainStatus::reserve_ahead() {
 	int64_t stopping_disance = 0;
 	int min_sensor = 0;
 	Track::TrackServerReq reservation_request = {};
-	reservation_request.body.reservation.len = 0;
+	reservation_request.body.reservation.len_until_reservation = 0;
 	auto it = localization.path.begin();
 
 	// at least book 1 sensor
@@ -1078,7 +1019,7 @@ bool Planning::TrainStatus::reserve_ahead() {
 
 	for (; it != localization.path.end(); it++) {
 		node = &track[*it];
-		reservation_request.body.reservation.path[reservation_request.body.reservation.len++] = *it;
+		reservation_request.body.reservation.len_until_reservation++;
 		if (node->type == node_type::NODE_SENSOR) {
 			min_sensor += 1;
 			if (min_sensor == RESERVE_AHEAD_MIN_SENSOR) {
@@ -1089,10 +1030,6 @@ bool Planning::TrainStatus::reserve_ahead() {
 			}
 		}
 	}
-	// for (int i = 0; i < reservation_request.body.reservation.len; i++) {
-	// 	debug_print(addr.term_trans_tid, "%d ", reservation_request.body.reservation.path[i]);
-	// }
-	// debug_print(addr.term_trans_tid, "\r\n");
 
 	if (it == localization.path.end()) {
 		return try_reserve(&reservation_request);
@@ -1116,27 +1053,19 @@ bool Planning::TrainStatus::reserve_ahead() {
 			break;
 		}
 		node = &track[*it];
-		reservation_request.body.reservation.path[reservation_request.body.reservation.len++] = *it;
+		// reservation_request.body.reservation.path[reservation_request.body.reservation.len_until_reservation++] = *it;
+		reservation_request.body.reservation.len_until_reservation++;
 	}
-	// for (int i = 0; i < reservation_request.body.reservation.len; i++) {
-	// 	debug_print(addr.term_trans_tid, "%d ", reservation_request.body.reservation.path[i]);
-	// }
-	// debug_print(addr.term_trans_tid, "\r\n");
+
 	if (it != localization.path.end()) {
 		it++;
 	}
 	// at least book until a sensor
 	for (; it != localization.path.end()
-		   && track[reservation_request.body.reservation.path[reservation_request.body.reservation.len - 1]].type != NODE_SENSOR;
+		   && track[reservation_request.body.reservation.path[reservation_request.body.reservation.len_until_reservation - 1]].type != NODE_SENSOR;
 		 it++) {
-		reservation_request.body.reservation.path[reservation_request.body.reservation.len++] = *it;
+		reservation_request.body.reservation.len_until_reservation++;
 	}
-
-	// for (int i = 0; i < reservation_request.body.reservation.len; i++) {
-	// 	debug_print(addr.term_trans_tid, "%d ", reservation_request.body.reservation.path[i]);
-	// }
-	// debug_print(addr.term_trans_tid, "\r\n");
-
 	return try_reserve(&reservation_request);
 }
 
@@ -1145,15 +1074,15 @@ void Planning::TrainStatus::clear_traveled_sensor(int sensor_index, bool clear_r
 		Task::_KernelCrash("you are not suppose to be here \r\n");
 	} else {
 		Track::TrackServerReq reservation_request;
-		reservation_request.body.reservation.len = 0;
+		reservation_request.body.reservation.len_until_reservation = 0;
 
 		auto it = localization.path.begin();
-		reservation_request.body.reservation.path[reservation_request.body.reservation.len++] = *it;
+		reservation_request.body.reservation.path[reservation_request.body.reservation.len_until_reservation++] = *it;
 		track_node* node = &track[*it];
 		it = localization.path.erase(it);
 		localization.distance_traveled += node->edge[DIR_AHEAD].dist;
 		while (!localization.path.empty() && *it != sensor_index) {
-			reservation_request.body.reservation.path[reservation_request.body.reservation.len++] = *it;
+			reservation_request.body.reservation.path[reservation_request.body.reservation.len_until_reservation++] = *it;
 			node = &track[*it];
 			if (node->type == node_type::NODE_MERGE) {
 				// merge node simply ignore and add the length
@@ -1190,15 +1119,15 @@ void Planning::TrainStatus::clear_traveled_sensor_until(int sensor_index, bool c
 		Task::_KernelCrash("you are not suppose to be here \r\n");
 	} else {
 		Track::TrackServerReq reservation_request;
-		reservation_request.body.reservation.len = 0;
+		reservation_request.body.reservation.len_until_reservation = 0;
 
 		auto it = localization.path.begin();
-		reservation_request.body.reservation.path[reservation_request.body.reservation.len++] = *it;
+		reservation_request.body.reservation.path[reservation_request.body.reservation.len_until_reservation++] = *it;
 		track_node* node = &track[*it];
 		it = localization.path.erase(it);
 		localization.distance_traveled += node->edge[DIR_AHEAD].dist;
 		while (!localization.path.empty() && *it != sensor_index) {
-			reservation_request.body.reservation.path[reservation_request.body.reservation.len++] = *it;
+			reservation_request.body.reservation.path[reservation_request.body.reservation.len_until_reservation++] = *it;
 			node = &track[*it];
 			if (node->type == node_type::NODE_MERGE || node->type == node_type::NODE_SENSOR) {
 				// merge node simply ignore and add the length
@@ -1267,7 +1196,6 @@ bool Planning::TrainStatus::is_dest_banned(int node_id) {
 void Planning::TrainStatus::schedule_next_multi() {
 	localization.path.clear();
 	if (localization.destinations.empty()) {
-		debug_print(addr.term_trans_tid, "empty\r\n");
 		toIdle();
 	} else {
 		Track::PathRespond path_res;
@@ -1307,14 +1235,6 @@ void Planning::TrainStatus::schedule_next_multi() {
 		if (path_res.successful) {
 			init_calibration();
 			store_path(path_res);
-			if (path_res.reverse) {
-				debug_print(addr.term_trans_tid, "path_len, is it wrong? 2 %d %d \r\n", path_res.path_len, path_res.rev_offset);
-				localization.reverse_after = true;
-				localization.path_len = path_res.path_len - (localization.direction ? MULTI_ERROR_MARGIN_STRAIGHT : MULTI_ERROR_MARGIN_REVERSE);
-			} else {
-				debug_print(addr.term_trans_tid, "path_len, is it wrong? %d \r\n", path_res.path_len);
-				localization.path_len = path_res.path_len - (localization.direction ? MULTI_ERROR_MARGIN_STRAIGHT : MULTI_ERROR_MARGIN_REVERSE);
-			}
 			if (localization.path.size() == 1) {
 				// very special case, it means not move
 				debug_print(addr.term_trans_tid, "receive path of size of 1, typically means just do a reverse\r\n");
@@ -1334,33 +1254,96 @@ bool Planning::TrainStatus::handle_deadlock() {
 	if (localization.path.empty()) {
 		Task::_KernelCrash("%d empty localization path passed \r\n", my_id);
 	}
-	debug_print(addr.term_trans_tid, "%d detected deadlock! resolving %d %d \r\n", my_id, localization.last_reserved_node, localization.path.back());
 	Track::PathRespond path_res = get_randomized_path(get_reverse(localization.last_reserved_node), localization.path.back(), true);
 	if (path_res.successful) {
+		debug_print(
+			addr.term_trans_tid, "%d detected deadlock! resolving %d %d \r\n", my_id, localization.last_reserved_node, localization.path.back());
 		localization.deadlocked = false;
-		clear_calibration();
+		init_calibration();
 		localization.path.clear();
 		store_path(path_res);
-		if (path_res.reverse) {
-			localization.reverse_after = true;
-			localization.reverse_offset = path_res.rev_offset;
-			localization.path_len
-				= path_res.path_len - (localization.direction ? MULTI_ERROR_MARGIN_STRAIGHT : MULTI_ERROR_MARGIN_REVERSE) + path_res.rev_offset;
-		} else {
-			localization.path_len = path_res.path_len - (localization.direction ? MULTI_ERROR_MARGIN_STRAIGHT : MULTI_ERROR_MARGIN_REVERSE);
-		}
 		return true;
 	} else {
-		debug_print(addr.term_trans_tid, "%d deadlock cannot be resolved! routing to random dest nearby to resolve it\r\n", my_id);
-		// which is not done at the moment lol
-
 		return false;
+	}
+}
+
+bool Planning::TrainStatus::hot_reroute() {
+	if (localization.hot_reroute_count == 3) {
+		return false;
+	}
+	int64_t accumulated_dist = 0;
+	int64_t hot_reroute_start_dist = getVelocity() / 100;
+	auto it = localization.path.begin();
+	for (; it != localization.path.end() && accumulated_dist < hot_reroute_start_dist; it++) {
+		track_node* node = &track[*it];
+		if (node->type == node_type::NODE_BRANCH) {
+			track_node* next_node = &track[*etl::next(it)];
+			if (next_node == node->edge[DIR_STRAIGHT].dest) {
+				accumulated_dist += node->edge[DIR_STRAIGHT].dist;
+			} else if (next_node == node->edge[DIR_CURVED].dest) {
+				accumulated_dist += node->edge[DIR_CURVED].dist;
+			} else {
+				Task::_KernelCrash("impossible condition met, somehow there is no next node to inspect in track_server\r\n");
+			}
+		} else if (etl::next(it) != localization.path.end()) {
+			accumulated_dist += node->edge[DIR_AHEAD].dist;
+		}
+		debug_print(addr.term_trans_tid, "in hot_reroute, %s\r\n", track[*it].name);
+	}
+	// try to hot route from here
+	if (it != localization.path.end()) {
+
+		Track::TrackServerReq req_to_track;
+		req_to_track.header = RequestHeader::TRACK_GET_HOT_PATH;
+		req_to_track.body.start_and_end.start = *it;
+		req_to_track.body.start_and_end.end = localization.path.back();
+		req_to_track.body.start_and_end.train_id = my_id;
+
+		fill_default_banned_node(req_to_track);
+
+		Track::PathRespond res;
+		if (req_to_track.body.start_and_end.end == *it) {
+			res.successful = false;
+		} else {
+			Send::Send(addr.track_server_tid, (const char*)&req_to_track, sizeof(req_to_track), (char*)&res, sizeof(res));
+		}
+		if (res.successful) {
+			validate_path(res);
+			store_path_from(res, it, accumulated_dist);
+			debug_print(addr.term_trans_tid, "hot reroute worked, path_len: %d, dist %d path: \r\n", localization.path_len, hot_reroute_start_dist);
+			for (auto it = localization.path.begin(); it != localization.path.end(); it++) {
+				debug_print(addr.term_trans_tid, "%s ", track[*it].name);
+			}
+			debug_print(addr.term_trans_tid, "\r\n", *it);
+
+			if (reserve_ahead()) {
+				localization.hot_reroute_count += 1;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void Planning::TrainStatus::train_multi_start() {
+	localization.deadlocked = false;
+	simple_look_ahead();
+	if (should_stop()) {
+		pipe_tr();
+		toMultiStoppingFromZero((localization.path_len - localization.distance_traveled
+								 + (localization.direction ? MULTI_ERROR_MARGIN_STRAIGHT : MULTI_ERROR_MARGIN_REVERSE))
+									* TWO_DECIMAL_PLACE
+								- getStoppingDistance());
+	} else {
+		cali_state.ignore_first = true;
+		localization.state = TrainState::MULTI_PATHING;
+		pipe_tr();
 	}
 }
 
 void Planning::TrainStatus::handle_train_multi_waiting(bool should_reverse) {
 	localization.state = TrainState::MULTI_WAITING;
-	debug_print(addr.term_trans_tid, "%d in multi_waiting \r\n", my_id);
 	if (localization.deadlocked) {
 		// if you are in deadlock, do a reverse and update your path
 		if (handle_deadlock()) {
@@ -1371,25 +1354,16 @@ void Planning::TrainStatus::handle_train_multi_waiting(bool should_reverse) {
 		reverse();
 	} else {
 		if (get_viable_speed() != SPEED_STOP) {
-			if (!reserve_ahead()) {
+			/**
+			 * if you cannot reserve and cannot hot_reroute, then you stay.
+			 */
+			if (!reserve_ahead() && !hot_reroute()) {
+				// if not successful, try to hot_reroute
 				req_to_courier.header = RequestHeader::GLOBAL_COUR_BUSY_WAITING_AVAILABILITY;
 				req_to_courier.body.command.id = my_id;
 				courier_pool->request(&req_to_courier);
 			} else {
-				// instead of this, we should check if the first guy is a branch, if a first
-				localization.deadlocked = false;
-				simple_look_ahead();
-				if (should_stop()) {
-					pipe_tr();
-					toMultiStoppingFromZero((localization.path_len - localization.distance_traveled
-											 + (localization.direction ? MULTI_ERROR_MARGIN_STRAIGHT : MULTI_ERROR_MARGIN_REVERSE))
-												* TWO_DECIMAL_PLACE
-											- getStoppingDistance());
-				} else {
-					cali_state.ignore_first = true;
-					localization.state = TrainState::MULTI_PATHING;
-					pipe_tr();
-				}
+				train_multi_start();
 			}
 		} else {
 			tryBunnyHopping();
@@ -1430,10 +1404,9 @@ uint64_t Planning::TrainStatus::missing_distance() {
 }
 
 void Planning::TrainStatus::handle_train_multi_pathing(int sensor_index) {
-	debug_print(addr.term_trans_tid, "%d in multi_pathing \r\n", my_id);
 	clear_traveled_sensor(sensor_index, true);
 	simple_look_ahead();
-	if (!reserve_ahead()) {
+	if (!reserve_ahead() && !hot_reroute()) {
 		// need to see if lower speed helps
 		toMultiStopping((localization.path_len - localization.distance_traveled - missing_distance()) * TWO_DECIMAL_PLACE - getStoppingDistance());
 	} else if (should_stop()) {
@@ -1445,7 +1418,6 @@ void Planning::TrainStatus::multi_stopping_begins() {
 	if (localization.last_reserved_node == -1) {
 		Task::_KernelCrash("no reserved node, shouldn't be here \r\n");
 	}
-	debug_print(addr.term_trans_tid, "train %d in multi_stopping %d!\r\n", my_id, localization.last_reserved_node);
 	pipe_tr(localization.stopping_speed);
 }
 
@@ -1620,10 +1592,11 @@ void TrainStatus::handle_train_locate(int sensor_index) {
 	// Track::TrackServerReq reservation_request;
 	toIdle();
 	Track::TrackServerReq req_to_track;
-	req_to_track.body.reservation.len = 1;
+	req_to_track.body.reservation.len_until_reservation = 1;
 	req_to_track.body.reservation.path[0] = sensor_index;
-	if (!try_reserve(&req_to_track)) {
-		debug_print(addr.term_trans_tid, "train %d cannot reserve sensor %s during locating! please relocate!\r\n", my_id, localization.last_node->name);
+	if (!try_reserve(&req_to_track, 1)) {
+		debug_print(
+			addr.term_trans_tid, "train %d cannot reserve sensor %s during locating! please relocate!\r\n", my_id, localization.last_node->name);
 	} else {
 		localization.last_node = &track[sensor_index];
 		debug_print(addr.term_trans_tid, "train %d is currently at sensor %s\r\n", my_id, localization.last_node->name);
@@ -1633,12 +1606,6 @@ void TrainStatus::handle_train_locate(int sensor_index) {
 void Planning::TrainStatus::sensor_notify(int sensor_index) {
 	if (localization.state == TrainState::GO_TO) {
 		handle_train_goto(sensor_index);
-	} else if (localization.state == TrainState::LOOP) {
-		handle_train_loop(sensor_index);
-	} else if (localization.state == TrainState::LOOP_EXIT_B1) {
-		handle_train_exit_loop(sensor_index, SENSOR_B[0]);
-	} else if (localization.state == TrainState::LOOP_EXIT_D4) {
-		handle_train_exit_loop(sensor_index, SENSOR_D[3]);
 	} else if (localization.state == TrainState::CALIBRATE_VELOCITY) {
 		handle_train_calibrate_velocity(sensor_index);
 	} else if (localization.state == TrainState::CALIBRATE_ACCELERATION) {
@@ -1667,6 +1634,7 @@ void Planning::TrainStatus::sensor_notify(int sensor_index) {
 
 void TrainStatus::init_calibration() {
 	localization.distance_traveled = 0;
+	localization.hot_reroute_count = 0;
 	localization.time_traveled = Clock::Time(addr.clock_tid);
 	cali_state.ignore_first = true;
 	cali_state.distance_traveled_since_last_calibration = 0;
@@ -1817,7 +1785,7 @@ void initialize_all_train(TrainStatus* trains,
 			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 3, 30 };
 			trains[i].cali_state.slow_calibration_speed = 4;
 			trains[i].cali_state.slow_calibration_mm = 3205;
-			trains[i].localization.stopping_speed = 3; // will overshoot, but error is accetable
+			trains[i].localization.stopping_speed = 5; // will overshoot, but error is accetable
 			trains[i].cali_state.bunny_ped = -60;
 			trains[i].cali_state.min_stable_dist_margin = -10000;
 
@@ -2017,27 +1985,6 @@ void Planning::global_pathing_server() {
 			trains[train_index].locate();
 			break;
 		}
-		case RequestHeader::GLOBAL_LOOP: {
-			int train_index = Train::train_num_to_index(req.body.command.id);
-			SpeedLevel speed = req.body.routing_request.speed;
-			trains[train_index].enter_loop(speed);
-			Reply::EmptyReply(from);
-			break;
-		}
-		case RequestHeader::GLOBAL_EXIT_LOOP: {
-			int train_index = Train::train_num_to_index(req.body.command.id);
-			int dest = req.body.routing_request.dest;
-			int offset = req.body.routing_request.offset;
-
-			if (trains[train_index].exit_loop(dest, offset)) {
-				trains[train_index].subscribe(from);
-			} else {
-				debug_print(addr.term_trans_tid, "Unreachable destination from loop!\r\n");
-				Reply::EmptyReply(from);
-			}
-
-			break;
-		}
 		case RequestHeader::GLOBAL_SET_TRACK: {
 			Message::Reply::EmptyReply(from);
 			PlanningCourReq req_to_courier;
@@ -2188,21 +2135,21 @@ void Planning::global_pathing_courier() {
 		case RequestHeader::GLOBAL_COUR_BUSY_WAITING_AVAILABILITY: {
 			req_to_admin.header = RequestHeader::GLOBAL_BUSY_WAITING_AVAILABILITY;
 			req_to_admin.body.command = req.body.command;
-			Clock::Delay(addr.clock_tid, 300);
+			Clock::Delay(addr.clock_tid, 100);
 			Send::SendNoReply(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin));
 			break;
 		}
 		case RequestHeader::GLOBAL_COUR_BUSY_WAITING_BUNNY_HOPPING: {
 			req_to_admin.header = RequestHeader::GLOBAL_BUSY_WAITING_BUNNY_HOPPING;
 			req_to_admin.body.command = req.body.command;
-			Clock::Delay(addr.clock_tid, 300);
+			Clock::Delay(addr.clock_tid, 100);
 			Send::SendNoReply(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin));
 			break;
 		}
 		case RequestHeader::GLOBAL_COUR_BUSY_WAITING_REVERSE: {
 			req_to_admin.header = RequestHeader::GLOBAL_BUSY_WAITING_REVERSE;
 			req_to_admin.body.command = req.body.command;
-			Clock::Delay(addr.clock_tid, 300);
+			Clock::Delay(addr.clock_tid, 100);
 			Send::SendNoReply(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin));
 			break;
 		}

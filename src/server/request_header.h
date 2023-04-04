@@ -49,8 +49,6 @@ enum class RequestHeader : uint32_t {
 	TERM_COUR_REV,
 	TERM_COUR_LOCAL_GO,
 	TERM_COUR_LOCAL_LOCATE,
-	TERM_COUR_LOCAL_LOOP,
-	TERM_COUR_LOCAL_EXLOOP,
 	TERM_COUR_LOCAL_INIT,
 	TERM_COUR_LOCAL_CALI,
 	TERM_COUR_LOCAL_CALI_BASE_SPEED,
@@ -85,9 +83,7 @@ enum class RequestHeader : uint32_t {
 	GLOBAL_SET_TRACK,  // determine which trakc are you on
 	GLOBAL_LOCATE,	   // locate all trains
 	GLOBAL_PATH,	   // ask a certain train to complete a certain path
-	GLOBAL_MULTI_PATH, // ask a train to traverse to the given location (up to 3 at a time), note that this call is non-blocking
-	GLOBAL_LOOP,	   // ask a certain train to continuously loop in a certain path
-	GLOBAL_EXIT_LOOP,  // ask a certain train to exit loop
+	GLOBAL_MULTI_PATH, // ask a train to traverse to the given location (up to 3 at a time), note that this call is non-blockin
 	GLOBAL_DEADLOCK_UNBLOCK,
 	GLOBAL_CALIBRATE_VELOCITY, // provide a train id, allow it to calibrate the velocity (running it at max velocity and
 							   // update accordingly)
@@ -141,8 +137,6 @@ enum class RequestHeader : uint32_t {
 	LOCAL_PATH_SET_TRAIN,
 	LOCAL_PATH_SET_PATH,
 	LOCAL_PATH_LOCATE,
-	LOCAL_PATH_LOOP,
-	LOCAL_PATH_EXLOOP,
 	LOCAL_PATH_INIT,
 	LOCAL_PATH_CALI,
 	LOCAL_PATH_CALI_BASE_SPEED,
@@ -155,7 +149,8 @@ enum class RequestHeader : uint32_t {
 	// Track Server Related
 	TRACK_INIT,	  // determine which track are you on
 	TRACK_SWITCH, // try to flip a switch, with state update
-	TRACK_GET_PATH,
+	TRACK_GET_PATH, 
+	TRACK_GET_HOT_PATH, // hot path ignore all reserved path
 	TRACK_TRY_RESERVE,		// provide a path of connected nodes, try to reserve the corresponding section of the tracks
 	TRACK_UNRESERVE,		// used for unreserve your track once your usage is over
 	TRACK_COURIER_COMPLETE, // completion of courier with no side-affect

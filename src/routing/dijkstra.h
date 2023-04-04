@@ -46,7 +46,10 @@ public:
 	int get_cost(const int dest) const;
 	etl::list<int, SHORT_PATH_LIMIT> path_to_next_sensor(const int src) const;
 	bool path(etl::list<int, PATH_LIMIT>* q, const int source, const int dest, const bool enable_reverse = false);
+	bool path_with_ban(etl::list<int, PATH_LIMIT>* q, etl::unordered_set<int, TRACK_MAX>& banned_node, const int source, const int dest, const bool enable_revers, const bool enable_weight);
+
 	bool path(int* q, const int source, const int dest);
+	bool path_with_ban(int* q, etl::unordered_set<int, TRACK_MAX>& banned_node, const int source, const int dest);
 
 	// Weighted-path: used to calculate a full shortest path to a destination, which keeps track of reversing.
 	// This has a complicated type because I need to have two pieces of extra information:
@@ -54,7 +57,7 @@ public:
 	// 2. How much of an offset the end of the path requires (may be necessary to move past merges)
 
 	bool weighted_path(WeightedPath* q, const int source, const int dest);
-	
+
 	bool weighted_path_with_ban(WeightedPath* q, etl::unordered_set<int, TRACK_MAX>& banned_node, const int source, const int dest);
 
 	bool weighted_path_with_ban(int wpath[],

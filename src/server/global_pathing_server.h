@@ -33,8 +33,8 @@ constexpr int FROM_DOWN = 0;
 constexpr int FROM_UP = 1;
 constexpr int DEST_LIMIT = 64;
 constexpr int NUM_TRAIN_SUBS = 16;
-constexpr int64_t MULTI_ERROR_MARGIN_STRAIGHT = 40;
-constexpr int64_t MULTI_ERROR_MARGIN_REVERSE = 190;
+constexpr int64_t MULTI_ERROR_MARGIN_STRAIGHT = 0;
+constexpr int64_t MULTI_ERROR_MARGIN_REVERSE = 40;
 
 const int FAST_CALIBRATION_SPEED = 13;
 const int RESERVE_AHEAD_MIN_SENSOR = 2;
@@ -68,9 +68,6 @@ enum class TrainState : uint32_t {
 	IDLE,
 	LOCATE,
 	GO_TO, // note that GO_TO assume you are the only train on the track,
-	LOOP,
-	LOOP_EXIT_B1,
-	LOOP_EXIT_D4,
 	STOPPING,
 	MULTI_PATHING, // state where you are given the right to go ahead,
 	MULTI_WAITING, // state where you are not given the right to go ahead, come back after like 3 seconds to see if you can go
@@ -202,6 +199,7 @@ public:
 		bool reverse_after = false;
 		int reverse_offset = 0;
 		bool deadlocked = false;
+		int hot_reroute_count = 0;
 	};
 
 	TrainStatus() {};
@@ -224,8 +222,6 @@ public:
 	bool calibrate_base_velocity(int from);
 	void calibrate_starting(int from, SpeedLevel speed);
 	void calibrate_acceleration(int from, SpeedLevel start, SpeedLevel end);
-	void enter_loop(SpeedLevel speed);
-	bool exit_loop(int dest, int offset);
 	Track::PathRespond validate_path(Track::PathRespond& res);
 	Track::TrackServerReq fill_default_banned_node(Track::TrackServerReq& res);
 	Track::TrackServerReq fill_random_banned_node(Track::TrackServerReq& res);
@@ -234,6 +230,7 @@ public:
 	Track::PathRespond get_randomized_path(int source, int dest, bool allow_reverse = false);
 
 	void store_path(Track::PathRespond& res);
+	void store_path_from(Track::PathRespond& res, etl::list<int, PATH_LIMIT>::iterator begin, int64_t missing_dist);
 
 	void updateVelocity(uint64_t velocity);
 	void go_rng();
@@ -257,6 +254,8 @@ public:
 
 	void add_path(int landmark);
 	bool try_reserve(Track::TrackServerReq* reservation_request);
+	bool try_reserve(Track::TrackServerReq* reservation_request, int total_len);
+
 	void cancel_reservation(Track::TrackServerReq* reservation_request);
 	void update_switch_state();
 
@@ -274,11 +273,14 @@ public:
 	void path_end_relocate();
 	void relocate_complete(bool need_reverse = false);
 	void relocate_transition(bool need_reverse = false);
+	bool hot_reroute();
 
 	void handle_train_goto(int sensor_index);
 	void schedule_next_multi();
 	void handle_train_multi_pathing(int sensor_index);
 	void handle_train_multi_waiting(bool should_reverse = false);
+	void train_multi_start();
+
 	void handle_train_multi_stopping(int sensor_index);
 	void handle_train_reversing(int sensor_index);
 
@@ -296,8 +298,6 @@ public:
 	void handle_train_calibrate_starting(int sensor_index);
 	void handle_train_calibrate_stopping_distance_phase_1(int sensor_index);
 	void handle_train_calibrate_stopping_distance_phase_2(int sensor_index);
-	void handle_train_loop(int sensor_index);
-	void handle_train_exit_loop(int sensor_index, int sub_sensor);
 	void handle_train_bunny_hopping(int sensor_index);
 	void manual_subscription();
 
