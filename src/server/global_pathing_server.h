@@ -31,10 +31,10 @@ constexpr int64_t OFFSET_BOUND = 200;
 constexpr int CLEAR_TO_SEND_LIMIT = 1;
 constexpr int FROM_DOWN = 0;
 constexpr int FROM_UP = 1;
-constexpr int DEST_LIMIT = 64;
+constexpr int DEST_LIMIT = 512;
 constexpr int NUM_TRAIN_SUBS = 16;
-constexpr int64_t MULTI_ERROR_MARGIN_STRAIGHT = 0;
-constexpr int64_t MULTI_ERROR_MARGIN_REVERSE = 40;
+constexpr int64_t MULTI_ERROR_MARGIN_STRAIGHT = 40;
+constexpr int64_t MULTI_ERROR_MARGIN_REVERSE = 140;
 
 const int FAST_CALIBRATION_SPEED = 13;
 const int RESERVE_AHEAD_MIN_SENSOR = 2;
@@ -229,7 +229,7 @@ public:
 	Track::PathRespond get_path(int source, int dest, bool allow_reverse = false);
 	Track::PathRespond get_randomized_path(int source, int dest, bool allow_reverse = false);
 
-	void store_path(Track::PathRespond& res);
+	void store_path(Track::PathRespond& res, int original_destination = -1);
 	void store_path_from(Track::PathRespond& res, etl::list<int, PATH_LIMIT>::iterator begin, int64_t missing_dist);
 
 	void updateVelocity(uint64_t velocity);
@@ -254,6 +254,9 @@ public:
 
 	void add_path(int landmark);
 	bool try_reserve(Track::TrackServerReq* reservation_request);
+	bool try_reserve_pre_fill(Track::TrackServerReq* reservation_request);
+	bool try_reserve_no_fill(Track::TrackServerReq* reservation_request);
+
 	bool try_reserve(Track::TrackServerReq* reservation_request, int total_len);
 
 	void cancel_reservation(Track::TrackServerReq* reservation_request);

@@ -59,6 +59,7 @@ struct PathRespond {
 	int dest;
 	bool reverse; // should it reverse at the end
 	int rev_offset;
+	int cost;
 };
 
 struct ReservationStatus {

@@ -101,7 +101,7 @@ void LocalPathing::local_pathing_worker() {
 		case RequestHeader::LOCAL_PATH_RNG: {
 			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_RNG, Planning::RequestBody { 0x0 } };
 			req_to_global.body.routing_request.id = internal_train_num;
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 200; i++) {
 				Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
 			}
 			Reply::EmptyReply(from);

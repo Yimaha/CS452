@@ -247,8 +247,6 @@ bool Dijkstra::weighted_path_with_ban(WeightedPath* q, etl::unordered_set<int, T
 	if (!q->has_reverse) {
 		// No reverse detected
 		return path_with_ban(&q->wpath, banned_node, source, dest, false, true);
-
-		return true;
 	} else {
 		// Reverse detected. Where do we actually need to go?
 		etl::list<int, SHORT_PATH_LIMIT> path_to_sensor = path_to_next_sensor(end);
