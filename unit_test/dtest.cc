@@ -59,8 +59,8 @@ int main() {
 	}
 
 	cout << endl;
-	assert(!dijkstrab.path(&qb, 75, 39)); // E12 to C8
-	assert(dijkstrab.path(&qb, 75, 58));  // E12 to D11
+	// assert(!dijkstrab.path(&qb, 75, 39)); // E12 to C8
+	// assert(dijkstrab.path(&qb, 75, 58));  // E12 to D11
 	while (!qb.empty()) {
 		cout << qb.front() << '|' << trackb[qb.front()].name << ' ';
 		qb.pop_front();
@@ -230,6 +230,97 @@ int main() {
 	while (!wp3.wpath.empty()) {
 		int curr = wp3.wpath.front();
 		cout << curr << '|' << trackb[curr].name << '|' << dijkstrab.get_dist(curr) << ' ';
+		wp3.wpath.pop_front();
+	}
+
+	cout << endl;
+
+	track_node tracka[TRACK_MAX] = { 0 };
+	init_tracka(tracka);
+
+	Dijkstra dijkstraa = Dijkstra(tracka, true);
+	etl::unordered_set<int, TRACK_MAX> banned = { 20, 21, 104, 105 };
+
+	assert(dijkstraa.weighted_path_with_ban(&wp3, banned, 2, 73));
+	cout << "Weighted Path from 2 to 73 (dist = " << dijkstraa.get_dist(73) << ", cost = " << dijkstraa.get_cost(73)
+		 << ", reverse = " << wp3.has_reverse << ", offset = " << wp3.rev_offset << "):" << endl;
+
+	while (!wp3.wpath.empty()) {
+		int curr = wp3.wpath.front();
+		cout << curr << '|' << tracka[curr].name << '|' << dijkstraa.get_dist(curr) << ' ';
+		wp3.wpath.pop_front();
+	}
+
+	cout << endl;
+
+	int dummy1[144];
+	bool dummy4;
+	int dummy2;
+	int dummy3;
+	assert(dijkstraa.weighted_path_with_ban(dummy1, banned, &dummy4, &dummy2, &dummy3, 2, 73));
+	cout << "Weighted Path from 2 to 73 (dist = " << dijkstraa.get_dist(73) << ", cost = " << dijkstraa.get_cost(73) << endl;
+
+	for (int i = 0; i < 144 && dummy1[i] != dummy3; i++) {
+		int curr = dummy1[i];
+		cout << curr << '|' << tracka[curr].name << '|' << dijkstraa.get_dist(curr) << ' ';
+	}
+
+	cout << endl;
+
+	banned = { 72, 133, 134, 15, 2, 38, 81, 53, 65, 95, 30, 26, 19, 137 };
+
+	dijkstraa.weighted_path_with_ban(&wp3, banned, 37, 70);
+	cout << "Weighted Path from 37 to 70 (dist = " << dijkstraa.get_dist(73) << ", cost = " << dijkstraa.get_cost(70)
+		 << ", reverse = " << wp3.has_reverse << ", offset = " << wp3.rev_offset << "):" << endl;
+
+	while (!wp3.wpath.empty()) {
+		int curr = wp3.wpath.front();
+		cout << curr << '|' << tracka[curr].name << '|' << dijkstraa.get_dist(curr) << ' ';
+		wp3.wpath.pop_front();
+	}
+
+	cout << endl;
+	dijkstraa.weighted_path_with_ban(&wp3, banned, 36, 70);
+	cout << "Weighted Path from 36 to 70 (dist = " << dijkstraa.get_dist(73) << ", cost = " << dijkstraa.get_cost(70)
+		 << ", reverse = " << wp3.has_reverse << ", offset = " << wp3.rev_offset << "):" << endl;
+
+	while (!wp3.wpath.empty()) {
+		int curr = wp3.wpath.front();
+		cout << curr << '|' << tracka[curr].name << '|' << dijkstraa.get_dist(curr) << ' ';
+		wp3.wpath.pop_front();
+	}
+
+	cout << endl;
+	dijkstraa.weighted_path_with_ban(&wp3, banned, 36, 71);
+	cout << "Weighted Path from 36 to 71 (dist = " << dijkstraa.get_dist(73) << ", cost = " << dijkstraa.get_cost(70)
+		 << ", reverse = " << wp3.has_reverse << ", offset = " << wp3.rev_offset << "):" << endl;
+
+	while (!wp3.wpath.empty()) {
+		int curr = wp3.wpath.front();
+		cout << curr << '|' << tracka[curr].name << '|' << dijkstraa.get_dist(curr) << ' ';
+		wp3.wpath.pop_front();
+	}
+
+	cout << endl;
+	dijkstraa.weighted_path_with_ban(&wp3, banned, 37, 71);
+	cout << "Weighted Path from 37 to 71 (dist = " << dijkstraa.get_dist(73) << ", cost = " << dijkstraa.get_cost(70)
+		 << ", reverse = " << wp3.has_reverse << ", offset = " << wp3.rev_offset << "):" << endl;
+
+	while (!wp3.wpath.empty()) {
+		int curr = wp3.wpath.front();
+		cout << curr << '|' << tracka[curr].name << '|' << dijkstraa.get_dist(curr) << ' ';
+		wp3.wpath.pop_front();
+	}
+
+	cout << endl;
+
+	dijkstraa.weighted_path_with_ban(&wp3, banned, 3, 8);
+	cout << "Weighted Path from 3 to 8 (dist = " << dijkstraa.get_dist(34) << ", cost = " << dijkstraa.get_cost(34)
+		 << ", reverse = " << wp3.has_reverse << ", offset = " << wp3.rev_offset << "):" << endl;
+
+	while (!wp3.wpath.empty()) {
+		int curr = wp3.wpath.front();
+		cout << curr << '|' << tracka[curr].name << '|' << dijkstraa.get_dist(curr) << ' ';
 		wp3.wpath.pop_front();
 	}
 
