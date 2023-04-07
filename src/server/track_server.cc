@@ -61,6 +61,7 @@ void Track::track_server() {
 		switch_state[i] = '\0';
 	}
 	etl::queue<int, 4> switch_subscriber;
+	char reserve_state[TRACK_MAX];
 
 	/**
 	 * 3 responsibilities
@@ -432,6 +433,14 @@ void Track::track_server() {
 			Message::Reply::Reply(from, switch_state, sizeof(switch_state));
 			break;
 		}
+		case RequestHeader::TRACK_GET_RESERVE_STATE: {
+			for (int i = 0; i < TRACK_MAX; i++) {
+				reserve_state[i] = (track[i].reserved_by == RESERVED_BY_NO_ONE) ? 0 : 1;
+			}
+
+			Message::Reply::Reply(from, reserve_state, sizeof(reserve_state));
+			break;
+		}
 		case RequestHeader::TRACK_RNG: {
 			int source = req.body.start_and_end.start;
 			int dest = dijkstra.random_sensor_dest(source);
@@ -559,8 +568,6 @@ void Track::track_server() {
 		}
 		} // switch
 	}
-
-	Exit();
 }
 
 void Track::track_courier() {
