@@ -1317,7 +1317,6 @@ bool Planning::TrainStatus::handle_deadlock() {
 	}
 }
 
-
 void Planning::TrainStatus::train_multi_start() {
 	localization.deadlocked = false;
 	simple_look_ahead();

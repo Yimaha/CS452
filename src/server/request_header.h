@@ -35,6 +35,7 @@ enum class RequestHeader : uint32_t {
 	TERM_CLOCK,
 	TERM_SENSORS,
 	TERM_SWITCH,
+	TERM_RESERVATION,
 	TERM_TRAIN_STATUS,
 	TERM_TRAIN_STATUS_MORE,
 	TERM_IDLE,
@@ -147,14 +148,15 @@ enum class RequestHeader : uint32_t {
 	// Track Server Related
 	TRACK_INIT,	  // determine which track are you on
 	TRACK_SWITCH, // try to flip a switch, with state update
-	TRACK_GET_PATH, 
-	TRACK_GET_HOT_PATH, // hot path ignore all reserved path
-	TRACK_TRY_RESERVE,		// provide a path of connected nodes, try to reserve the corresponding section of the tracks
-	TRACK_UNRESERVE,		// used for unreserve your track once your usage is over
-	TRACK_COURIER_COMPLETE, // completion of courier with no side-affect
-	TRACK_SWITCH_SUBSCRIBE, // allowing arbitrary server to subscribe to the state of the switch
-	TRACK_GET_SWITCH_STATE, // noneblocking, just get the most up-to-date switch state.
-	TRACK_RNG,				// noneblocking, just get the most up-to-date switch state.
+	TRACK_GET_PATH,
+	TRACK_GET_HOT_PATH,		 // hot path ignore all reserved path
+	TRACK_TRY_RESERVE,		 // provide a path of connected nodes, try to reserve the corresponding section of the tracks
+	TRACK_UNRESERVE,		 // used for unreserve your track once your usage is over
+	TRACK_COURIER_COMPLETE,	 // completion of courier with no side-affect
+	TRACK_SWITCH_SUBSCRIBE,	 // allowing arbitrary server to subscribe to the state of the switch
+	TRACK_GET_SWITCH_STATE,	 // noneblocking, just get the most up-to-date switch state.
+	TRACK_GET_RESERVE_STATE, // get the up-to-date reservation state of the track
+	TRACK_RNG,				 // rng commands
 
 	TRACK_COUR_SWITCH,
 };

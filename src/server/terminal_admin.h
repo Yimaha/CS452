@@ -2,6 +2,7 @@
 
 #include "../etl/queue.h"
 #include "../kernel.h"
+#include "../routing/track_data_new.h"
 #include "../utils/utility.h"
 #include "request_header.h"
 #include "sensor_admin.h"
@@ -14,7 +15,6 @@ constexpr char TERMINAL_CLOCK_COURIER_NAME[] = "TERMINAL_CLOCK";
 constexpr char TERMINAL_SWITCH_COURIER_NAME[] = "TERMINAL_CLOCK";
 constexpr char TERMINAL_SENSOR_COURIER_NAME[] = "TERMINAL_SENSOR";
 constexpr char TERMINAL_PRINTER_NAME[] = "TERMINAL_PRINT";
-constexpr char IDLE_TIME_TASK_NAME[] = "IDLE_TIME_TASK";
 
 constexpr char CLEAR_SCREEN[] = "\033[2J";
 constexpr char TOP_LEFT[] = "\033[H";
@@ -23,7 +23,7 @@ constexpr char RESET_CURSOR[] = "\033[0m";
 constexpr char SAVE_CURSOR[] = "\033[s\033[H";
 constexpr char SAVE_CURSOR_NO_JUMP[] = "\033[s";
 constexpr char RESTORE_CURSOR[] = "\033[u";
-constexpr char SENSOR_CURSOR[] = "\033[5;1H";
+constexpr char SENSOR_CURSOR[] = "\033[45;1H";
 constexpr char BLACK_CURSOR[] = "\033[30m";
 constexpr char RED_CURSOR[] = "\033[31m";
 constexpr char GREEN_CURSOR[] = "\033[32m";
@@ -34,19 +34,21 @@ constexpr char CYAN_CURSOR[] = "\033[36m";
 constexpr char WHITE_CURSOR[] = "\033[37m";
 constexpr char CLEAR_LINE[] = "\r\033[K";
 
-const int SCROLL_TOP = 23;
-const int SCROLL_BOTTOM = 80;
+const char* const TRAIN_COLOURS[] = {
+	// 1, 2, 24, 58, 74, 78
+	GREEN_CURSOR, RED_CURSOR, MAGENTA_CURSOR, WHITE_CURSOR, YELLOW_CURSOR, BLUE_CURSOR
+};
 
 constexpr char START_PROMPT[] = "Press [Dd] to enter debug mode, or any other key to enter OS mode\r\n";
 constexpr char SENSOR_DATA[] = "\r\nRECENT SENSOR DATA:\r\n\r\n\r\n";
 constexpr char DEBUG_TITLE[] = "Debug:\r\n";
-constexpr char WELCOME_MSG[] = "\r\nWelcome to AbyssOS! ©Pi Technologies, 2023\r\n";
+constexpr char WELCOME_MSG[] = "Welcome to AbyssOS! ©Pi Technologies, 2023\r\n";
 constexpr char SWITCH_UI_L0[] = "SWITCHES:\r\n";
 constexpr char PROMPT[] = "\r\nABYSS> ";
 constexpr char PROMPT_NNL[] = "ABYSS> ";
 constexpr char SETUP_SCROLL[] = "\033[%d;%dr";
 constexpr char MOVE_CURSOR_F[] = "\033[%d;%dH";
-constexpr char PROMPT_CURSOR[] = "\033[19;%dH";
+constexpr char PROMPT_CURSOR[] = "\033[28;%dH";
 
 const char ERROR[] = "ERROR: INVALID COMMAND\r\n";
 const char LENGTH_ERROR[] = "ERROR: COMMAND TOO LONG\r\n";
@@ -117,30 +119,102 @@ const char TRAIN_PRINTOUT_L3[] = "S: %5s D: %5s";
 const char TRAIN_PRINTOUT_L4[] = "BgC: %03d BgW: %03d";
 const char* const TRAIN_PRINTOUT[] = { TRAIN_PRINTOUT_L0, TRAIN_PRINTOUT_L1, TRAIN_PRINTOUT_L2, TRAIN_PRINTOUT_L3, TRAIN_PRINTOUT_L4 };
 
+enum class WhichTrack { TRACK_A, TRACK_B };
+
+const char TRACK_A_L00[] = "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁    ";
+const char TRACK_A_L01[] = "                     ╱    ╱                                                     ╲";
+const char TRACK_A_L02[] = "▁▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁╱    ╱ ▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁  o  ";
+const char TRACK_A_L03[] = "                   ╱    ╱ ╱                 ╲             ╱                    ╲  ╲";
+const char TRACK_A_L04[] = "▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁╱    ╱ ╱                   ╲           ╱                      o  ⧫";
+const char TRACK_A_L05[] = "                      ╱ ╱                     o         o                        ╲ │";
+const char TRACK_A_L06[] = "                     ╱ ╱                       ╲   │   ╱                          ╲│";
+const char TRACK_A_L07[] = "                    ⧫ ╱                         o  │  o                            │";
+const char TRACK_A_L08[] = "                    │╱                           ╲ │ ╱                             │";
+const char TRACK_A_L09[] = "                    o                             ╲│╱                              │";
+const char TRACK_A_L10[] = "                    │                              ▼                               │";
+const char TRACK_A_L11[] = "                    │                              │                               │";
+const char TRACK_A_L12[] = "                    o                              ▲                               │";
+const char TRACK_A_L13[] = "                    │╲                            ╱│╲                              │";
+const char TRACK_A_L14[] = "                    ⧫ ╲                          o │ o                             │";
+const char TRACK_A_L15[] = "                     ╲ ╲                        ╱  │  ╲                           ╱│";
+const char TRACK_A_L16[] = "▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁    ╲ ╲                      o       o                         ╱ ⧫";
+const char TRACK_A_L17[] = "                  ╲    ╲ ╲                    ╱         ╲                       o ╱";
+const char TRACK_A_L18[] = "▁o▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁╲    ╲ ╲▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁╱▁o▁▁▁▁▁▁▁o▁╲▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁╱ o";
+const char TRACK_A_L19[] = "                    ╲    ╲                                                      ╱";
+const char TRACK_A_L20[] = "▁o▁▁▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁╲    ╲▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁╱    ";
+const char TRACK_A_L21[] = "                      ╲                  ╲                   ╱   ";
+const char TRACK_A_L22[] = "▁o▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁╲▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁╲▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁╱▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁";
+
+const char TRACK_B_L00[] = "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁o▁";
+const char TRACK_B_L01[] = "                       ╱                 ╲                  ╲                       ";
+const char TRACK_B_L02[] = "     ▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁╱▁▁▁o▁▁▁▁▁▁▁▁▁▁o▁▁▁▁╲▁▁▁▁▁▁▁▁o▁▁▁▁▁    ╲▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁▁o▁";
+const char TRACK_B_L03[] = "    ╱                                                    ╲    ╲                     ";
+const char TRACK_B_L04[] = "   ╱ ▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁ ╲    ╲▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁o▁";
+const char TRACK_B_L05[] = "  o ╱                     ╲           ╱                  ╲ ╲    ╲                   ";
+const char TRACK_B_L06[] = " ╱ o                       ╲         ╱                    ╲ ╲    ╲                  ";
+const char TRACK_B_L07[] = "⧫ ╱                         o       o                      ╲ ╲    ╲                 ";
+const char TRACK_B_L08[] = "│╱                           ╲  │  ╱                        ╲ ╲    ⧫                ";
+const char TRACK_B_L09[] = "│                             o │ o                          ╲ ⧫   │                ";
+const char TRACK_B_L10[] = "│                              ╲│╱                            ╲│   o                ";
+const char TRACK_B_L11[] = "│                               ▼                              o   │                ";
+const char TRACK_B_L12[] = "│                               │                              │   │                ";
+const char TRACK_B_L13[] = "│                               ▲                              │   │                ";
+const char TRACK_B_L14[] = "│                              ╱│╲                             o   │                ";
+const char TRACK_B_L15[] = "│                             ╱ │ ╲                           ╱│   o                ";
+const char TRACK_B_L16[] = "│                            o  │  o                         ╱ ⧫   │                ";
+const char TRACK_B_L17[] = "│╲                          ╱       ╲                       ╱ ╱    ⧫                ";
+const char TRACK_B_L18[] = "⧫ ╲                        o         o                     ╱ ╱    ╱                 ";
+const char TRACK_B_L19[] = " ╲ o                      ╱           ╲                   ╱ ╱    ╱                  ";
+const char TRACK_B_L20[] = "  o ╲▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁╱▁▁o▁▁▁▁▁▁▁o▁▁╲▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁╱ ╱    ╱▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁";
+const char TRACK_B_L21[] = "   ╲                                                      ╱    ╱                    ";
+const char TRACK_B_L22[] = "    ╲▁▁▁▁▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁o▁▁▁▁▁▁╱▁▁▁▁╱▁▁▁▁o▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁";
+
+const char* const TRACK_A[] = { TRACK_A_L00, TRACK_A_L01, TRACK_A_L02, TRACK_A_L03, TRACK_A_L04, TRACK_A_L05, TRACK_A_L06, TRACK_A_L07,
+								TRACK_A_L08, TRACK_A_L09, TRACK_A_L10, TRACK_A_L11, TRACK_A_L12, TRACK_A_L13, TRACK_A_L14, TRACK_A_L15,
+								TRACK_A_L16, TRACK_A_L17, TRACK_A_L18, TRACK_A_L19, TRACK_A_L20, TRACK_A_L21, TRACK_A_L22 };
+
+const char* const TRACK_B[] = { TRACK_B_L00, TRACK_B_L01, TRACK_B_L02, TRACK_B_L03, TRACK_B_L04, TRACK_B_L05, TRACK_B_L06, TRACK_B_L07,
+								TRACK_B_L08, TRACK_B_L09, TRACK_B_L10, TRACK_B_L11, TRACK_B_L12, TRACK_B_L13, TRACK_B_L14, TRACK_B_L15,
+								TRACK_B_L16, TRACK_B_L17, TRACK_B_L18, TRACK_B_L19, TRACK_B_L20, TRACK_B_L21, TRACK_B_L22 };
+const int TRACK_B_LEN = sizeof(TRACK_B) / sizeof(TRACK_B[0]);
+
+const int TRACK_STARTING_ROW = 32;
+const int TRACK_STARTING_COLUMN = 70;
+
 const char DELIMINATION[] = "================================================================";
+const char HUGE_DELIMINATION[] = "==================================================================================================================="
+								 "====================================================================================\r\n";
 
 const int TERM_A_BUFLEN = 100;
 const int SWITCH_UI_LEN = 10;
 const int TRAIN_UI_LEN = 15;
-const int TRAIN_PRINTOUT_ROW = 3;
-const int TRAIN_PRINTOUT_COLUMN = 45;
-const int TRAIN_PRINTOUT_FIRST = 63;
+const int TRAIN_PRINTOUT_ROW = 57;
+const int TRAIN_PRINTOUT_COLUMN = 1;
+const int TRAIN_PRINTOUT_FIRST = 19;
 const int TRAIN_PRINTOUT_WIDTH = 22;
 const int RECENT_SENSOR_COUNT = 10;
 const int MAX_PUTS_LEN = 256;
 const int TRAIN_PRINTOUT_UI_OFFSETS[] = { 0, 0, 1, 2, 3, 4 };
+
+const int SCROLL_TOP = 1;
+const int SCROLL_BOTTOM = 25;
+const int SWITCH_TABLE_BASE = 48;
+const int RESERVE_TABLE_BASE = 31;
+const int UI_TOP = SCROLL_BOTTOM + 5;
+const int UI_BOT = 72;
 
 const int ONE_DIGIT = 10;
 const int TWO_DIGITS = 100;
 const int THREE_DIGITS = 1000;
 const int FOUR_DIGITS = 10000;
 
-// Hardcoded, best-guess TID value.
-const int TERMINAL_ADMIN_TID = 24;
+// Hardcoded, best-guess TID value. Has no purpose anymore.
+const int TERMINAL_ADMIN_TID = 13;
 
 const int MAX_COMMAND_LEN = 8;
 const int MAX_COMMAND_NUMS = 32;
 const int TERM_NUM_TRAINS = 6;
+const int NO_NODE = -1;
 
 const int CLOCK_UPDATE_FREQUENCY = 10;
 constexpr int CMD_LEN = 64;
@@ -153,6 +227,7 @@ void sensor_query_courier();
 void idle_time_courier();
 void user_input_courier();
 void switch_state_courier();
+void reservation_courier();
 void train_state_courier();
 
 struct GenericCommand {
@@ -199,6 +274,7 @@ union RequestBody
 	char regular_msg;
 	WorkerRequestBody worker_msg;
 	GlobalTrainInfo train_info[TERM_NUM_TRAINS];
+	char reserve_state[TRACK_MAX];
 };
 
 struct TerminalServerReq {
