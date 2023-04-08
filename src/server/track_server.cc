@@ -208,6 +208,7 @@ void Track::track_server() {
 		if (allow_reverse) {
 			res.successful = false;
 			res.cost = INT_MAX;
+			res.reverse = false;
 			decide_optimal_path(res, source, dest, banned_node);
 			decide_optimal_path(res, track[source].reverse->num, dest, banned_node);
 			decide_optimal_path(res, source, track[dest].reverse->num, banned_node);
@@ -243,6 +244,36 @@ void Track::track_server() {
 		return -1;
 	};
 
+	auto recursively_detect_deadlock = [&](int original_id, int current_id, etl::unordered_set<int, 12>& visited_train, auto& recursive_ref) {
+		debug_print(addr.term_trans_tid, "trying to recursively detect deadlock for %d, current_owener %d:  ", original_id, current_id);
+		visited_train.insert(current_id);
+		for (auto it = train_wanted_nodes[Train::train_num_to_index(current_id)].begin();
+			 it != train_wanted_nodes[Train::train_num_to_index(current_id)].end();
+			 it++) {
+			debug_print(addr.term_trans_tid, "%s : %d, ", track[*it].name, track[*it].reserved_by);
+		}
+		debug_print(addr.term_trans_tid, "\r\n");
+
+		for (auto it = train_wanted_nodes[Train::train_num_to_index(current_id)].begin();
+			 it != train_wanted_nodes[Train::train_num_to_index(current_id)].end();
+			 it++) {
+			if (track[*it].reserved_by == original_id || track[*it].reverse->reserved_by == original_id) {
+				return current_id;
+			} else if (track[*it].reserved_by != RESERVED_BY_NO_ONE && visited_train.count(track[*it].reserved_by) == 0) {
+				int potential_travese_deadlock = recursive_ref(original_id, track[*it].reserved_by, visited_train, recursive_ref);
+				if (potential_travese_deadlock != -1) {
+					return potential_travese_deadlock;
+				}
+			} else if (track[*it].reverse->reserved_by != RESERVED_BY_NO_ONE && visited_train.count(track[*it].reserved_by) == 0) {
+				int potential_travese_deadlock = recursive_ref(original_id, track[*it].reverse->reserved_by, visited_train, recursive_ref);
+				if (potential_travese_deadlock != -1) {
+					return potential_travese_deadlock;
+				}
+			}
+		}
+		return -1;
+	};
+
 	auto detect_deadlock = [&](track_node* node, int id) {
 		if (node->reserved_by == RESERVED_BY_NO_ONE) {
 			_KernelCrash("A node reserve by no one is causing deadlock %s", node->name);
@@ -262,6 +293,19 @@ void Track::track_server() {
 			 it++) {
 			if (track[*it].reserved_by == id || track[*it].reverse->reserved_by == id) {
 				return current_owner;
+			} else if (track[*it].reserved_by != RESERVED_BY_NO_ONE && track[*it].reserved_by != current_owner) {
+				etl::unordered_set<int, 12> visited_train = { id, current_owner };
+				int potential_travese_deadlock = recursively_detect_deadlock(id, track[*it].reserved_by, visited_train, recursively_detect_deadlock);
+				if (potential_travese_deadlock != -1) {
+					return potential_travese_deadlock;
+				}
+			} else if (track[*it].reverse->reserved_by != RESERVED_BY_NO_ONE && track[*it].reverse->reserved_by != current_owner) {
+				etl::unordered_set<int, 12> visited_train = { id, current_owner };
+				int potential_travese_deadlock
+					= recursively_detect_deadlock(id, track[*it].reverse->reserved_by, visited_train, recursively_detect_deadlock);
+				if (potential_travese_deadlock != -1) {
+					return potential_travese_deadlock;
+				}
 			}
 		}
 		return -1;

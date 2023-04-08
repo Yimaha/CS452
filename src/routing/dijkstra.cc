@@ -45,13 +45,12 @@ void Dijkstra::dijkstra_update(const int curr,
 	int w = edge.dist;
 	int cw = w;
 	if (weight_brms && (track[v].type == NODE_BRANCH || track[v].type == NODE_MERGE)) {
-		cw *= 15;
-		cw /= 10;
+		cw *= BRANCH_MULTIPLIER;
 	}
 
 	if (use_reservations && track[v].reserved_by != RESERVED_BY_NO_ONE) {
 		// Double cost for reserved nodes
-		cw = 2 * cw + RESERVED_FLAT_COST;
+		cw = RESERVATION_MULTIPLIER * cw + RESERVED_FLAT_COST;
 	}
 
 	if (cost[v] > cost[curr] + cw && !edge.broken && banned_node.count(v) == 0) {

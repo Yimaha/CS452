@@ -15,6 +15,8 @@ namespace Routing
 const int NO_REVERSE = -1;
 const int NO_PREV = -1;
 const int PATH_LIMIT = 150;
+const int BRANCH_MULTIPLIER = 2;
+const int RESERVATION_MULTIPLIER= 4;
 const int NO_SWITCH = -1;
 const int NO_SENSOR = -1;
 const int SHORT_PATH_LIMIT = 128;

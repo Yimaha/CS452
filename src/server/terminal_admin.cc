@@ -482,35 +482,35 @@ void Terminal::terminal_admin() {
 				}
 			}
 
-			if (isReserveModified) {
-				isReserveModified = false;
-				for (int i = 0; i < TRACK_MAX; ++i) {
-					if (reserve_dirty_bits[i]) {
-						reserve_dirty_bits[i] = false;
-						etl::pair<int, int> pos = track_node_to_reserve_cursor_pos(i);
-						if (pos.first == NO_NODE) {
-							// bad node
-							continue;
-						}
+			// if (isReserveModified) {
+			// 	isReserveModified = false;
+			// 	for (int i = 0; i < TRACK_MAX; ++i) {
+			// 		if (reserve_dirty_bits[i]) {
+			// 			reserve_dirty_bits[i] = false;
+			// 			etl::pair<int, int> pos = track_node_to_reserve_cursor_pos(i);
+			// 			if (pos.first == NO_NODE) {
+			// 				// bad node
+			// 				continue;
+			// 			}
 
-						sprintf(buf, MOVE_CURSOR_F, pos.first, pos.second);
-						str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
+			// 			sprintf(buf, MOVE_CURSOR_F, pos.first, pos.second);
+			// 			str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
 
-						const char* colour = reserve_table[i] ? RED_CURSOR : GREEN_CURSOR;
-						str_cpy(colour, printing_buffer, &printing_index, sizeof(RED_CURSOR) - 1);
+			// 			const char* colour = reserve_table[i] ? RED_CURSOR : GREEN_CURSOR;
+			// 			str_cpy(colour, printing_buffer, &printing_index, sizeof(RED_CURSOR) - 1);
 
-						if (i < Planning::TOTAL_SENSORS) {
-							const int num = i % Planning::SENSORS_PER_LETTER;
-							const char l = SENSOR_LETTERS[i / Planning::SENSORS_PER_LETTER];
-							char ones = '0' + (num % 10);
-							char write[4] = { l, (num > 9) ? '1' : '0', ones, ' ' };
-							str_cpy(write, printing_buffer, &printing_index, 4);
-						} else {
-							str_cpy(track[i].name, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
-						}
-					}
-				}
-			}
+			// 			if (i < Planning::TOTAL_SENSORS) {
+			// 				const int num = i % Planning::SENSORS_PER_LETTER;
+			// 				const char l = SENSOR_LETTERS[i / Planning::SENSORS_PER_LETTER];
+			// 				char ones = '0' + (num % 10);
+			// 				char write[4] = { l, (num > 9) ? '1' : '0', ones, ' ' };
+			// 				str_cpy(write, printing_buffer, &printing_index, 4);
+			// 			} else {
+			// 				str_cpy(track[i].name, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
+			// 			}
+			// 		}
+			// 	}
+			// }
 
 			str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
 			UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);

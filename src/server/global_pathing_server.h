@@ -33,8 +33,7 @@ constexpr int FROM_DOWN = 0;
 constexpr int FROM_UP = 1;
 constexpr int DEST_LIMIT = 512;
 constexpr int NUM_TRAIN_SUBS = 16;
-constexpr int64_t MULTI_ERROR_MARGIN_STRAIGHT = 40;
-constexpr int64_t MULTI_ERROR_MARGIN_REVERSE = 140;
+constexpr int DEAD_LOCK_ATTEMPT_LIMIT = 0;
 
 const int FAST_CALIBRATION_SPEED = 13;
 const int RESERVE_AHEAD_MIN_SENSOR = 2;
@@ -172,6 +171,15 @@ public:
 		int64_t bunny_ped = 0;
 		int64_t expected_sensor_hit = 0;
 		int64_t min_stable_dist_margin = 0;
+		int64_t multi_error_margin_straight = 40;
+		int64_t multi_error_margin_reverse = 140;
+		int64_t path_end_reverse_after_straight_mm = 6000;
+		int64_t path_end_reverse_after_reversed_mm = 3000;
+		int64_t path_end_branch_safe_straight = 8000;
+		int64_t path_end_branch_safe_reverse = 13000;
+		int64_t reverse_delay_straight = 3000;
+		int64_t reverse_delay_reverse = 1000;
+
 	};
 
 	struct LocalizationInfo {
@@ -182,7 +190,7 @@ public:
 		bool direction = true;
 		track_node* last_node = nullptr;
 		int last_reserved_node = -1;
-		etl::queue<int, DEST_LIMIT> destinations;
+		etl::list<int, DEST_LIMIT> destinations;
 		etl::list<int, PATH_LIMIT> path;
 		int next_sensor = 0;
 
@@ -201,6 +209,7 @@ public:
 		int reverse_offset = 0;
 		bool deadlocked = false;
 		int hot_reroute_count = 0;
+		int deadlocked_count = 0;
 	};
 
 	TrainStatus() {};
@@ -209,10 +218,11 @@ public:
 	// initialization related functions
 	void seedSpeedInfo(uint64_t velocity_1, uint64_t velocity_1_from_up, uint64_t velocity_max);
 	bool isAccelerating(int current_time);
+	void deadlock_init(bool deadlocked);
 	// setup function before setting state for each state transition
 	void locate();
 	void pre_compute_path(bool early_bird_reservation = true);
-	void simple_pre_compute_path(); // pre_compute_path with no side affect
+	void simple_pre_compute_path(bool should_subscribe = true); // pre_compute_path with no side affect
 
 	bool goTo(int dest, SpeedLevel speed);
 	void multi_path(int dest);
@@ -243,6 +253,8 @@ public:
 	int64_t getMinStableDist();
 	int64_t getRemainDistance();
 
+
+	int64_t get_reverse_tick();
 	void raw_reverse(); // nonblocking edition
 	void reverse();
 	void reverse_stopping();
@@ -251,7 +263,11 @@ public:
 	void subscribe(int from);
 	void sensor_unsub();
 	void sub_to_sensor(int sensor_id);
+	void sub_to_sensor(etl::unordered_set<int, 32> sensor_ids);
+
 	void sub_to_sensor_no_delete(int sensor_id);
+	void sub_to_sensor_no_delete(etl::unordered_set<int, 32> sensor_ids);
+
 
 	void add_path(int landmark);
 	bool try_reserve(Track::TrackServerReq* reservation_request);
@@ -282,7 +298,7 @@ public:
 	void handle_train_goto(int sensor_index);
 	void schedule_next_multi();
 	void handle_train_multi_pathing(int sensor_index);
-	void handle_train_multi_waiting(bool should_reverse = false);
+	void handle_train_multi_waiting();
 	void train_multi_start();
 
 	void handle_train_multi_stopping(int sensor_index);
@@ -305,6 +321,8 @@ public:
 	void handle_train_bunny_hopping(int sensor_index);
 	void manual_subscription();
 
+	void set_path_len(int path_len);
+
 	void clear_calibration();
 	void init_calibration();
 
@@ -324,7 +342,8 @@ public:
 	// shared attribute with main thread
 	AddressBook addr;
 	Courier::CourierPool<PlanningCourReq, 32>* courier_pool = nullptr;
-	etl::list<etl::pair<int, int>, Train::NUM_TRAINS>* sensor_subs = nullptr;
+	etl::list<etl::pair<int, etl::unordered_set<int, 32>>, Train::NUM_TRAINS>* sensor_subs = nullptr;
+
 	etl::queue<int, NUM_TRAIN_SUBS> train_sub;
 	track_node* track;
 	int* track_id;
