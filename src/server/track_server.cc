@@ -479,7 +479,7 @@ void Track::track_server() {
 		}
 		case RequestHeader::TRACK_GET_RESERVE_STATE: {
 			for (int i = 0; i < TRACK_MAX; i++) {
-				reserve_state[i] = (track[i].reserved_by == RESERVED_BY_NO_ONE) ? 0 : 1;
+				reserve_state[i] = (track[i].reserved_by == RESERVED_BY_NO_ONE) ? 0 : track[i].reserved_by;
 			}
 
 			Message::Reply::Reply(from, reserve_state, sizeof(reserve_state));

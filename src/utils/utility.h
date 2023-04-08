@@ -5,6 +5,7 @@
 #include <cstdint>
 
 int min(int a, int b);
+int max(int a, int b);
 bool is_digit(char c);
 bool is_alpha(char c);
 char lower(char c);
