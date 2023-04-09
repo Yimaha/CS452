@@ -11,7 +11,7 @@ static void* memset(void* s, int c, unsigned int n) {
 }
 
 // Returns the distance to the next sensor, traveling forwards
-int dist_to_next_sensor(track_node* track, int node) {
+int dist_to_next_sensor(const track_node* track, int node) {
 	int dist = 0;
 	while (track[node].type != NODE_SENSOR) {
 		if (track[node].type == NODE_EXIT) {
@@ -30,6 +30,19 @@ int dist_to_next_sensor(track_node* track, int node) {
 	}
 
 	return dist;
+}
+
+// Returns the ID of the next branch, traveling forwards
+int next_branch_id(const track_node* track, int node) {
+	while (track[node].type != NODE_BRANCH) {
+		if (track[node].type == NODE_EXIT) {
+			return TRACK_DATA_NO_SWITCH;
+		}
+
+		node = track[node].edge[DIR_AHEAD].dest - track;
+	}
+
+	return track[node].num;
 }
 
 void init_tracka(track_node* track) {
