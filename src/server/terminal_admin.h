@@ -6,6 +6,7 @@
 #include "../utils/utility.h"
 #include "request_header.h"
 #include "sensor_admin.h"
+#include "train_admin.h"
 
 namespace Terminal
 {
@@ -23,7 +24,7 @@ constexpr char RESET_CURSOR[] = "\033[0m";
 constexpr char SAVE_CURSOR[] = "\033[s\033[H";
 constexpr char SAVE_CURSOR_NO_JUMP[] = "\033[s";
 constexpr char RESTORE_CURSOR[] = "\033[u";
-constexpr char SENSOR_CURSOR[] = "\033[45;1H";
+constexpr char SENSOR_CURSOR[] = "\033[44;2H";
 constexpr char BLACK_CURSOR[] = "\033[30m";
 constexpr char RED_CURSOR[] = "\033[31m";
 constexpr char GREEN_CURSOR[] = "\033[32m";
@@ -40,7 +41,7 @@ const char* const TRAIN_COLOURS[] = {
 };
 
 constexpr char START_PROMPT[] = "Press [Dd] to enter debug mode, or any other key to enter OS mode\r\n";
-constexpr char SENSOR_DATA[] = "\r\nRECENT SENSOR DATA:\r\n\r\n\r\n";
+constexpr char SENSOR_DATA[] = "\r\nRECENT SENSOR DATA:\r\n|";
 constexpr char DEBUG_TITLE[] = "Debug:\r\n";
 constexpr char WELCOME_MSG[] = "Welcome to AbyssOS! ©Pi Technologies, 2023\r\n";
 constexpr char SWITCH_UI_L0[] = "SWITCHES:\r\n";
@@ -49,13 +50,26 @@ constexpr char PROMPT[] = "\r\nABYSS> ";
 constexpr char PROMPT_NNL[] = "ABYSS> ";
 constexpr char SETUP_SCROLL[] = "\033[%d;%dr";
 constexpr char MOVE_CURSOR_F[] = "\033[%d;%dH";
-constexpr char MOVE_CURSOR_FO[] = "\033[%d;%dHo";
+constexpr char MOVE_CURSOR_FO[] = "\033[%d;%dH%c";
 constexpr char MOVE_CURSOR_FT[] = "\033[%d;%dH▄";
+constexpr char MOVE_CURSOR_FS[] = "\033[%d;%dH🗡️";
 constexpr char PROMPT_CURSOR[] = "\033[28;%dH";
 
+const char TARGETS_TITLE[] = "UNREACHED DESTINATIONS:";
+const char TARGETS[] = "| B13-B14 |  C1-C2  |  D1-D2  |  E1-E2  |";
+const char* const TARGET_SENSORS[] = { "B13-B14", " C1-C2", " D1-D2", " E1-E2" };
+const int TARGET_IDS[] = { 28, 29, 32, 33, 48, 49, 64, 65 };
+const int NUM_TARGETS = 4;
+const int TARGET_IDS_LEN = 2 * NUM_TARGETS;
+
+const int FINISH_SENSORS[] = { 0, 1, 12, 13, 14, 15 };
+const int NUM_FINISH_SENSORS = sizeof(FINISH_SENSORS) / sizeof(int);
+
+const char INIT_WARN[] = "DON'T FORGET TO INITIALISE THE TRACK!";
 const char ERROR[] = "ERROR: INVALID COMMAND\r\n";
 const char LENGTH_ERROR[] = "ERROR: COMMAND TOO LONG\r\n";
 const char QUIT[] = "\r\nQUITTING...\r\n\r\n";
+const char WIN[] = "YOU WIN!\r\n";
 
 const char SWITCH_UI_L1[] = "+-----+-----+-----+-----+-----+-----+\r\n";
 const char SWITCH_UI_L2[] = "|01 $ |02 $ |03 $ |04 $ |05 $ |06 $ |\r\n";
@@ -185,7 +199,7 @@ const char* const TRACK_B[] = { TRACK_B_L00, TRACK_B_L01, TRACK_B_L02, TRACK_B_L
 const int TRACK_B_LEN = sizeof(TRACK_B) / sizeof(TRACK_B[0]);
 const char* const* const TRACKS[] = { TRACK_A, TRACK_B };
 
-const char WASD[] = { 'W', 'A', 'S', 'D' };
+const char WASD[] = { 'W', 'A', 'S', 'D', 'E' };
 const int WASD_LEN = sizeof(WASD) / sizeof(WASD[0]);
 
 const char NAIL_L0[] = "                                                 __";
@@ -199,10 +213,33 @@ const char NAIL_L6[] = "                                ▀-------__▄▄█▀
 const char* const NAIL[] = { NAIL_L0, NAIL_L1, NAIL_L2, NAIL_L3, NAIL_L4, NAIL_L5, NAIL_L6 };
 const int NAIL_LEN = sizeof(NAIL) / sizeof(NAIL[0]);
 
+const char KNIGHT_L00[] = "⠀⠀⠀⡄⡀⠀⠀⠀⠀⠀⠀⠀";
+const char KNIGHT_L01[] = "⠀⠀⣼⣿⠇⠀⠀⠈⢿⣿⣦⠀";
+const char KNIGHT_L02[] = "⠀⢰⣿⣿⠀⠀⠀⠀⠀⢿⣿⡇";
+const char KNIGHT_L03[] = "⠀⠸⣿⣿⣷⣶⣿⣿⣿⣿⣿⡇";
+const char KNIGHT_L04[] = "⠀⠀⢹⣿⣿⣿⣿⣿⣿⣿⣿⡆";
+const char KNIGHT_L05[] = "⠀⠀⡾⢿⣿⣿⠛⢿⣿⣿⣿⣿";
+const char KNIGHT_L06[] = "⠀⠀⢷⡈⣿⣿⣆⢘⣿⣿⣿⡟";
+const char KNIGHT_L07[] = "⠀⠀⠘⢿⣿⣿⣿⣿⣿⣿⡟⠁";
+const char KNIGHT_L08[] = "⠀⣀⡄⣰⣿⣿⣿⣿⣿⣿⣿⠀";
+const char KNIGHT_L09[] = "⠈⠛⢸⣿⣿⣿⣿⣿⣿⣿⣿⡇";
+const char KNIGHT_L10[] = "⠀⠀⠈⠿⣿⣿⣿⣿⣿⣿⣿⡇";
+const char KNIGHT_L11[] = "⠀⠀⠀⠀⢻⣿⣿⣿⣿⣿⣿⠇";
+const char KNIGHT_L12[] = "⠀⠀⠀⠀⠸⣿⠁⠙⠃⢿⠟⠀";
+
+const char* const KNIGHT_SPRITE[] = { KNIGHT_L00, KNIGHT_L01, KNIGHT_L02, KNIGHT_L03, KNIGHT_L04, KNIGHT_L05, KNIGHT_L06,
+									  KNIGHT_L07, KNIGHT_L08, KNIGHT_L09, KNIGHT_L10, KNIGHT_L11, KNIGHT_L12 };
+const int KNIGHT_SPRITE_LEN = sizeof(KNIGHT_SPRITE) / sizeof(KNIGHT_SPRITE[0]);
+
 const int TRACK_STARTING_ROW = 32;
 const int TRACK_STARTING_COLUMN = 130;
 const int NAIL_ROW = 47;
 const int NAIL_COL = 45;
+const int KNIGHT_ROW = 42;
+const int KNIGHT_COL = 105;
+const int TARGET_ROW = 43;
+const int TARGET_COL = 54;
+const int TARGET_WIDTH = 10;
 
 struct UIPosition {
 	int r;
@@ -261,6 +298,22 @@ const char SWITCH_RIGHTS[] = { 's', 's', 's', 'c', 's', 'c', 's', 'c', 's', 's',
 const int SET_AHEAD_ALSO[] = { 154, 156 };
 const int SET_AHEAD_ALSO_LEN = sizeof(SET_AHEAD_ALSO) / sizeof(int);
 
+// Places the Knight should leapfrog to when you press W or E
+const int STOPS[] = {
+	0,	1,	10, 11, 12, 13, 14, 15, 22, 23, 24, 25, 26, 27, 28, 29, 32, 33, 34, 35,
+	36, 37, 40, 41, 42, 43, 44, 45, 48, 49, 64, 65, 68, 69, 70, 71, 74, 75, 76, 77,
+};
+const int STOPS_LEN = sizeof(STOPS) / sizeof(int);
+const bool STOP_CHECK[] = {
+	true,  true,  false, false, false, false, false, false, false, false, true,	 true,	true,  true,  true,	 true,	false, false, false, false, false,
+	false, true,  true,	 true,	true,  true,  true,	 true,	true,  false, false, true,	true,  true,  true,	 true,	true,  false, false, true,	true,
+	true,  true,  true,	 true,	false, false, true,	 true,	false, false, false, false, false, false, false, false, false, false, false, false, false,
+	false, true,  true,	 false, false, true,  true,	 true,	true,  false, false, true,	true,  true,  true,	 false, false, false, false, false, false,
+	false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
+	false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
+	false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
+};
+
 const char DELIMINATION[] = "================================================================";
 const char HUGE_DELIMINATION[] = "==================================================================================================================="
 								 "========================================================================================================\r\n";
@@ -277,8 +330,9 @@ const int TRAIN_PRINTOUT_WIDTH = 22;
 const int RECENT_SENSOR_COUNT = 10;
 const int MAX_PUTS_LEN = 256;
 const int TRAIN_PRINTOUT_UI_OFFSETS[] = { 0, 0, 1, 2, 3, 4 };
-const int KNIGHT = 24;
-const int KNIGHT_INDEX = 2; // Index of train 24 in the train array
+
+constexpr int KNIGHT = 78;
+constexpr int KNIGHT_INDEX = Train::train_num_to_index(KNIGHT);
 
 const int SCROLL_TOP = 1;
 const int SCROLL_BOTTOM = 25;
@@ -291,9 +345,6 @@ const int ONE_DIGIT = 10;
 const int TWO_DIGITS = 100;
 const int THREE_DIGITS = 1000;
 const int FOUR_DIGITS = 10000;
-
-// Hardcoded, best-guess TID value. Has no purpose anymore.
-const int TERMINAL_ADMIN_TID = 13;
 
 const int MAX_COMMAND_LEN = 8;
 const int MAX_COMMAND_NUMS = 32;

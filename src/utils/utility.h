@@ -33,3 +33,14 @@ bool contains(const T arr[], const size_t len, const T val) {
 	}
 	return false;
 }
+
+// Array all true
+template <typename T>
+bool all_true(const T arr[], const size_t len) {
+	for (size_t i = 0; i < len; i++) {
+		if (!arr[i]) {
+			return false;
+		}
+	}
+	return true;
+}

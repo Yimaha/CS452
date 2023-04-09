@@ -438,9 +438,8 @@ void Track::track_server() {
 				break;
 			}
 		}
-		// incase path exhausted and still havn't reached safety distance, continue
+		// incase path exhausted and still haven't reached safety distance, continue
 		while (res.successful && safety_distance < SAFETY_DISTANCE) {
-
 			if (node->type == node_type::NODE_MERGE || node->type == node_type::NODE_SENSOR) {
 				safety_distance += node->edge[DIR_AHEAD].dist;
 				node = node->edge[DIR_AHEAD].dest;
@@ -453,7 +452,8 @@ void Track::track_server() {
 					safety_distance += node->edge[DIR_CURVED].dist;
 					node = node->edge[DIR_CURVED].dest;
 				} else {
-					Task::_KernelCrash("impossible path passed from try reserve %d %s %d\r\n", switch_index, node->name, switch_state[switch_index]);
+					Task::_KernelCrash(
+						"impossible path passed from try reserve %d %s %d. Did you init?\r\n", switch_index, node->name, switch_state[switch_index]);
 				}
 			} else {
 				// you have to be node end, break
