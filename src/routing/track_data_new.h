@@ -20,10 +20,6 @@ const int TRACK_MIN_REV_COST = 210;
 const int TRACK_REV_FLAT_COST = 0;
 
 // Gets the distance to the next sensor in the track, or -1 if there is no next sensor.
-int dist_to_next_sensor(const track_node* track, int node);
-
-// Gets the ID of the next branch in the track, or -1 if there is no next branch.
-int next_branch_id(const track_node* track, int node);
-
+int dist_to_next_sensor(track_node* track, int node);
 void init_tracka(track_node* track);
 void init_trackb(track_node* track);

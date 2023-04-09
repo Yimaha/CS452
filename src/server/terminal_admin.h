@@ -36,7 +36,7 @@ constexpr char CLEAR_LINE[] = "\r\033[K";
 
 const char* const TRAIN_COLOURS[] = {
 	// 1, 2, 24, 58, 74, 78
-	CYAN_CURSOR, RED_CURSOR, MAGENTA_CURSOR, WHITE_CURSOR, YELLOW_CURSOR, BLUE_CURSOR
+	GREEN_CURSOR, RED_CURSOR, MAGENTA_CURSOR, WHITE_CURSOR, YELLOW_CURSOR, BLUE_CURSOR
 };
 
 constexpr char START_PROMPT[] = "Press [Dd] to enter debug mode, or any other key to enter OS mode\r\n";
@@ -44,13 +44,10 @@ constexpr char SENSOR_DATA[] = "\r\nRECENT SENSOR DATA:\r\n\r\n\r\n";
 constexpr char DEBUG_TITLE[] = "Debug:\r\n";
 constexpr char WELCOME_MSG[] = "Welcome to AbyssOS! ©Pi Technologies, 2023\r\n";
 constexpr char SWITCH_UI_L0[] = "SWITCHES:\r\n";
-constexpr char RESERVE_UI_L0[] = "RESERVATIONS:\r\n";
 constexpr char PROMPT[] = "\r\nABYSS> ";
 constexpr char PROMPT_NNL[] = "ABYSS> ";
 constexpr char SETUP_SCROLL[] = "\033[%d;%dr";
 constexpr char MOVE_CURSOR_F[] = "\033[%d;%dH";
-constexpr char MOVE_CURSOR_FO[] = "\033[%d;%dHo";
-constexpr char MOVE_CURSOR_FT[] = "\033[%d;%dH▄";
 constexpr char PROMPT_CURSOR[] = "\033[28;%dH";
 
 const char ERROR[] = "ERROR: INVALID COMMAND\r\n";
@@ -110,7 +107,6 @@ const char TRAIN_UI_L13[]
 const char TRAIN_UI_L14[]
 	= "=========================================================================================================================="
 	  "====================================\r\n";
-
 const char* const TRAIN_UI[] = { TRAIN_UI_L0, TRAIN_UI_L1, TRAIN_UI_L2,	 TRAIN_UI_L3,  TRAIN_UI_L4,	 TRAIN_UI_L5,  TRAIN_UI_L6, TRAIN_UI_L7,
 								 TRAIN_UI_L8, TRAIN_UI_L9, TRAIN_UI_L10, TRAIN_UI_L11, TRAIN_UI_L12, TRAIN_UI_L13, TRAIN_UI_L14 };
 
@@ -122,8 +118,6 @@ const char TRAIN_PRINTOUT_L2[] = "T: %04dt P: %04dmm";
 const char TRAIN_PRINTOUT_L3[] = "S: %5s D: %5s";
 const char TRAIN_PRINTOUT_L4[] = "BgC: %03d BgW: %03d";
 const char* const TRAIN_PRINTOUT[] = { TRAIN_PRINTOUT_L0, TRAIN_PRINTOUT_L1, TRAIN_PRINTOUT_L2, TRAIN_PRINTOUT_L3, TRAIN_PRINTOUT_L4 };
-
-const char TRAIN_LEGEND[] = "██ %02d";
 
 enum class WhichTrack { TRACK_A, TRACK_B };
 
@@ -183,89 +177,13 @@ const char* const TRACK_B[] = { TRACK_B_L00, TRACK_B_L01, TRACK_B_L02, TRACK_B_L
 								TRACK_B_L08, TRACK_B_L09, TRACK_B_L10, TRACK_B_L11, TRACK_B_L12, TRACK_B_L13, TRACK_B_L14, TRACK_B_L15,
 								TRACK_B_L16, TRACK_B_L17, TRACK_B_L18, TRACK_B_L19, TRACK_B_L20, TRACK_B_L21, TRACK_B_L22 };
 const int TRACK_B_LEN = sizeof(TRACK_B) / sizeof(TRACK_B[0]);
-const char* const* const TRACKS[] = { TRACK_A, TRACK_B };
-
-const char WASD[] = { 'W', 'A', 'S', 'D' };
-const int WASD_LEN = sizeof(WASD) / sizeof(WASD[0]);
-
-const char NAIL_L0[] = "                                                 __";
-const char NAIL_L1[] = "                                    _______------  |               ";
-const char NAIL_L2[] = "                __________-----▄▄█▀▀         ▄▄▄▄█▀▀▌              ";
-const char NAIL_L3[] = "     _--------▄█__________▄▄█▀▀__________▄▄▀▀▀______█▄▄▄▄▄▄▄▄▄▄▄▄▄▄";
-const char NAIL_L4[] = "---▄█______▄█▀__       ▄█▀           ▄▄██▀▀▀▀▀▀▀▀▀▀▀█▀▀▀▀▀▀▀▀▀▀▀▀▀▀";
-const char NAIL_L5[] = "                ------▀---______ ▄▄█▀         ▄▄▄█▀▀▌              ";
-const char NAIL_L6[] = "                                ▀-------__▄▄█▀▀____|               ";
-
-const char* const NAIL[] = { NAIL_L0, NAIL_L1, NAIL_L2, NAIL_L3, NAIL_L4, NAIL_L5, NAIL_L6 };
-const int NAIL_LEN = sizeof(NAIL) / sizeof(NAIL[0]);
 
 const int TRACK_STARTING_ROW = 32;
-const int TRACK_STARTING_COLUMN = 130;
-const int NAIL_ROW = 47;
-const int NAIL_COL = 45;
-
-struct UIPosition {
-	int r;
-	int c;
-};
-
-enum class Arrangement { Vertical, HLeft, HRight };
-
-const UIPosition TRACK_A_SENSORS[] = {
-	{ 0, 16 },	{ 0, 16 },	{ 9, 20 },	{ 9, 20 },	{ 22, 18 }, { 22, 18 }, { 20, 16 }, { 20, 16 }, { 18, 14 }, { 18, 14 }, { 16, 12 }, { 16, 12 },
-	{ 2, 13 },	{ 2, 13 },	{ 4, 12 },	{ 4, 12 },	{ 18, 47 }, { 18, 47 }, { 16, 47 }, { 16, 47 }, { 2, 47 },	{ 2, 47 },	{ 18, 1 },	{ 18, 1 },
-	{ 22, 1 },	{ 22, 1 },	{ 20, 1 },	{ 20, 1 },	{ 14, 53 }, { 14, 53 }, { 12, 20 }, { 12, 20 }, { 14, 49 }, { 14, 49 }, { 22, 66 }, { 22, 66 },
-	{ 20, 32 }, { 20, 32 }, { 22, 34 }, { 22, 34 }, { 18, 31 }, { 18, 31 }, { 2, 35 },	{ 2, 35 },	{ 0, 33 },	{ 0, 33 },	{ 20, 46 }, { 20, 46 },
-	{ 7, 54 },	{ 7, 54 },	{ 2, 55 },	{ 2, 55 },	{ 4, 80 },	{ 4, 80 },	{ 2, 81 },	{ 2, 81 },	{ 18, 81 }, { 18, 81 }, { 20, 57 }, { 20, 57 },
-	{ 18, 55 }, { 18, 55 }, { 16, 55 }, { 16, 55 }, { 7, 48 },	{ 7, 48 },	{ 5, 56 },	{ 5, 56 },	{ 2, 68 },	{ 2, 68 },	{ 0, 70 },	{ 0, 70 },
-	{ 17, 80 }, { 17, 80 }, { 20, 70 }, { 20, 70 }, { 18, 68 }, { 18, 68 }, { 5, 46 },	{ 5, 46 },
-};
-
-const Arrangement TRACK_A_ARRANGEMENTS[]
-	= { Arrangement::HRight,   Arrangement::HRight,	  Arrangement::Vertical, Arrangement::Vertical, Arrangement::HRight,   Arrangement::HRight,
-		Arrangement::HRight,   Arrangement::HRight,	  Arrangement::HRight,	 Arrangement::HRight,	Arrangement::HRight,   Arrangement::HRight,
-		Arrangement::HRight,   Arrangement::HRight,	  Arrangement::HRight,	 Arrangement::HRight,	Arrangement::HRight,   Arrangement::HRight,
-		Arrangement::Vertical, Arrangement::Vertical, Arrangement::HRight,	 Arrangement::HRight,	Arrangement::HRight,   Arrangement::HRight,
-		Arrangement::HRight,   Arrangement::HRight,	  Arrangement::HRight,	 Arrangement::HRight,	Arrangement::Vertical, Arrangement::Vertical,
-		Arrangement::Vertical, Arrangement::Vertical, Arrangement::Vertical, Arrangement::Vertical, Arrangement::HLeft,	   Arrangement::HLeft,
-		Arrangement::HRight,   Arrangement::HRight,	  Arrangement::HRight,	 Arrangement::HRight,	Arrangement::HRight,   Arrangement::HRight,
-		Arrangement::HRight,   Arrangement::HRight,	  Arrangement::HRight,	 Arrangement::HRight,	Arrangement::HRight,   Arrangement::HRight,
-		Arrangement::Vertical, Arrangement::Vertical, Arrangement::HLeft,	 Arrangement::HLeft,	Arrangement::Vertical, Arrangement::Vertical,
-		Arrangement::Vertical, Arrangement::Vertical, Arrangement::Vertical, Arrangement::Vertical, Arrangement::HLeft,	   Arrangement::HLeft,
-		Arrangement::HLeft,	   Arrangement::HLeft,	  Arrangement::Vertical, Arrangement::Vertical, Arrangement::Vertical, Arrangement::Vertical,
-		Arrangement::Vertical, Arrangement::Vertical, Arrangement::HLeft,	 Arrangement::HLeft,	Arrangement::HLeft,	   Arrangement::HLeft,
-		Arrangement::Vertical, Arrangement::Vertical, Arrangement::HLeft,	 Arrangement::HLeft,	Arrangement::HLeft,	   Arrangement::HLeft,
-		Arrangement::Vertical, Arrangement::Vertical };
-
-const UIPosition TRACK_B_SENSORS[] = {
-	{ 22, 67 }, { 22, 67 }, { 14, 63 }, { 14, 63 }, { 0, 65 },	{ 0, 65 },	{ 2, 67 },	{ 2, 67 },	{ 4, 69 },	{ 4, 69 },	{ 10, 67 }, { 10, 67 },
-	{ 20, 70 }, { 20, 70 }, { 15, 67 }, { 15, 67 }, { 4, 36 },	{ 4, 36 },	{ 7, 36 },	{ 7, 36 },	{ 20, 36 }, { 20, 36 }, { 4, 82 },	{ 4, 82 },
-	{ 0, 82 },	{ 0, 82 },	{ 2, 82 },	{ 2, 82 },	{ 9, 30 },	{ 9, 30 },	{ 11, 63 }, { 11, 63 }, { 9, 34 },	{ 9, 34 },	{ 0, 17 },	{ 0, 17 },
-	{ 2, 51 },	{ 2, 51 },	{ 0, 49 },	{ 0, 49 },	{ 4, 52 },	{ 4, 52 },	{ 20, 48 }, { 20, 48 }, { 22, 50 }, { 22, 50 }, { 2, 37 },	{ 2, 37 },
-	{ 16, 29 }, { 16, 29 }, { 20, 28 }, { 20, 28 }, { 19, 3 },	{ 19, 3 },	{ 20, 2 },	{ 20, 2 },	{ 5, 2 },	{ 5, 2 },	{ 2, 26 },	{ 2, 26 },
-	{ 4, 28 },	{ 4, 28 },	{ 7, 28 },	{ 7, 28 },	{ 16, 35 }, { 16, 35 }, { 18, 27 }, { 18, 27 }, { 20, 15 }, { 20, 15 }, { 22, 13 }, { 22, 13 },
-	{ 6, 3 },	{ 6, 3 },	{ 2, 13 },	{ 2, 13 },	{ 4, 15 },	{ 4, 15 },	{ 18, 37 }, { 18, 37 },
-};
-
-const UIPosition* const TRACK_SENSORS[] = { TRACK_A_SENSORS, TRACK_B_SENSORS };
-
-const UIPosition TRACK_BRANCH_MERGES[] = {
-	{ 0, 0 },  { 0, 1 }, { 0, 2 }, { 0, 3 }, { 0, 4 }, { 0, 5 }, { 0, 6 }, { 0, 7 }, { 0, 8 }, { 0, 9 }, { 0, 10 },
-	{ 0, 11 }, { 1, 0 }, { 1, 1 }, { 1, 2 }, { 1, 3 }, { 1, 4 }, { 1, 5 }, { 1, 6 }, { 1, 7 }, { 1, 8 }, { 1, 9 },
-	{ 2, 0 },  { 2, 1 }, { 2, 2 }, { 2, 3 }, { 2, 4 }, { 2, 5 }, { 2, 6 }, { 2, 7 }, { 2, 8 }, { 2, 9 }, { 2, 10 },
-	{ 2, 11 }, { 3, 0 }, { 3, 1 }, { 3, 2 }, { 3, 3 }, { 3, 4 }, { 3, 5 }, { 3, 6 }, { 3, 7 }, { 3, 8 }, { 3, 9 },
-};
-
-const char SWITCH_LEFTS[] = { 'c', 'c', 'c', 's', 'c', 's', 'c', 's', 'c', 'c', 'c', 'c', 's', 's', 'c', 'c', 's', 's', 's', 'c', 's', 'c' };
-const char SWITCH_RIGHTS[] = { 's', 's', 's', 'c', 's', 'c', 's', 'c', 's', 's', 's', 's', 'c', 'c', 's', 's', 'c', 'c', 'c', 's', 'c', 's' };
-const int SET_AHEAD_ALSO[] = { 154, 156 };
-const int SET_AHEAD_ALSO_LEN = sizeof(SET_AHEAD_ALSO) / sizeof(int);
+const int TRACK_STARTING_COLUMN = 70;
 
 const char DELIMINATION[] = "================================================================";
 const char HUGE_DELIMINATION[] = "==================================================================================================================="
-								 "========================================================================================================\r\n";
-const char THIN_DELIMINATION[]
-	= "----------------------------------------------------------------------------------------------------------------------------\r\n";
+								 "====================================================================================\r\n";
 
 const int TERM_A_BUFLEN = 100;
 const int SWITCH_UI_LEN = 10;
@@ -277,13 +195,11 @@ const int TRAIN_PRINTOUT_WIDTH = 22;
 const int RECENT_SENSOR_COUNT = 10;
 const int MAX_PUTS_LEN = 256;
 const int TRAIN_PRINTOUT_UI_OFFSETS[] = { 0, 0, 1, 2, 3, 4 };
-const int KNIGHT = 24;
-const int KNIGHT_INDEX = 2; // Index of train 24 in the train array
 
 const int SCROLL_TOP = 1;
 const int SCROLL_BOTTOM = 25;
 const int SWITCH_TABLE_BASE = 48;
-const int RESERVE_TABLE_BASE = 32;
+const int RESERVE_TABLE_BASE = 31;
 const int UI_TOP = SCROLL_BOTTOM + 5;
 const int UI_BOT = 72;
 
@@ -301,11 +217,9 @@ const int TERM_NUM_TRAINS = 6;
 const int NO_NODE = -1;
 
 const int CLOCK_UPDATE_FREQUENCY = 10;
-const int CMD_LEN = 64;
-const int CMD_HISTORY_LEN = 128;
-
+constexpr int CMD_LEN = 64;
+constexpr int CMD_HISTORY_LEN = 128;
 enum class TAState : uint32_t { TA_DEFAULT_ARROW_STATE, TA_FOUND_ESCAPE, TA_FOUND_BRACKET };
-
 void terminal_admin();
 void terminal_courier();
 void terminal_clock_courier();
