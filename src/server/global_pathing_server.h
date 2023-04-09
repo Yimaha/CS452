@@ -33,7 +33,7 @@ constexpr int FROM_DOWN = 0;
 constexpr int FROM_UP = 1;
 constexpr int DEST_LIMIT = 512;
 constexpr int NUM_TRAIN_SUBS = 16;
-constexpr int DEAD_LOCK_ATTEMPT_LIMIT = 0;
+constexpr int DEAD_LOCK_ATTEMPT_LIMIT = 5;
 
 const int FAST_CALIBRATION_SPEED = 13;
 const int RESERVE_AHEAD_MIN_SENSOR = 2;
