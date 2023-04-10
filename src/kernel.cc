@@ -205,20 +205,6 @@ int UART::Getc(int tid, int uart) {
 	return (int)c;
 }
 
-int Terminal::TermDebugPuts(const char* msg) {
-	WorkerRequestBody body;
-	uint32_t i = 0;
-	for (; i < MAX_PUTS_LEN - 1 && msg[i] != '\0'; i++) {
-		body.msg[i] = msg[i];
-	}
-
-	body.msg[i] = '\0';
-	body.msg_len = i;
-	TerminalServerReq req = TerminalServerReq(RequestHeader::TERM_DEBUG_PUTS, body);
-	Message::Send::SendNoReply(TERMINAL_ADMIN_TID, reinterpret_cast<char*>(&req), sizeof(TerminalServerReq));
-	return 0;
-}
-
 Kernel::Kernel() {
 	allocate_new_task(Task::MAIDENLESS, Priority::LAUNCH_PRIORITY, &UserTask::launch);
 }

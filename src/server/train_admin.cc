@@ -30,15 +30,6 @@ void get_clear_track_byte(char code[]) {
 	code[0] = '\0' + 32;
 }
 
-int Train::train_num_to_index(int train_num) {
-	for (int i = 0; i < Train::NUM_TRAINS; i++) {
-		if (Train::TRAIN_NUMBERS[i] == train_num) {
-			return i;
-		}
-	}
-	return NO_TRAIN;
-}
-
 struct SwitchDelayMessage {
 	int from;
 	char track_id;

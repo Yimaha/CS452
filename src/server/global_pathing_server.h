@@ -121,6 +121,11 @@ struct AccelerationCalibrationRequest {
 	SpeedLevel to;
 };
 
+struct KnightRequest {
+	char id;
+	Track::PathRespond fake_response;
+};
+
 union RequestBody
 {
 	uint64_t info;
@@ -130,6 +135,7 @@ union RequestBody
 	CalibrationRequest calibration_request;
 	AccelerationCalibrationRequest calibration_request_acceleration;
 	PeddingRequest pedding_request;
+	KnightRequest knight_request;
 	char sensor_state[Sensor::NUM_SENSOR_BYTES];
 };
 
@@ -180,7 +186,6 @@ public:
 		int64_t path_end_branch_safe_reverse = 13000;
 		int64_t reverse_delay_straight = 3000;
 		int64_t reverse_delay_reverse = 1000;
-
 	};
 
 	struct LocalizationInfo {
@@ -218,7 +223,6 @@ public:
 
 	bool is_next_branch();
 	// initialization related functions
-	void seedSpeedInfo(uint64_t velocity_1, uint64_t velocity_1_from_up, uint64_t velocity_max);
 	bool isAccelerating(int current_time);
 	void deadlock_init(bool deadlocked);
 	// setup function before setting state for each state transition
@@ -253,8 +257,6 @@ public:
 	uint64_t getCalibrationLoopCount();
 	int64_t getStoppingDistance();
 	int64_t getMinStableDist();
-	int64_t getRemainDistance();
-
 
 	int64_t get_reverse_tick();
 	void raw_reverse(); // nonblocking edition
@@ -268,7 +270,6 @@ public:
 
 	void sub_to_sensor_no_delete(int sensor_id);
 	void sub_to_sensor_no_delete(etl::unordered_set<int, 32> sensor_ids);
-
 
 	void add_path(int landmark);
 	bool try_reserve(Track::TrackServerReq* reservation_request);
@@ -293,7 +294,6 @@ public:
 	void clear_traveled_sensor_until(int sensor_index, bool cancel_reservation = false);
 	void path_end_relocate();
 	void relocate_complete(bool need_reverse = false);
-	void relocate_complete();
 	void relocate_transition(bool need_reverse = false);
 	bool hot_reroute();
 
@@ -305,9 +305,7 @@ public:
 	void train_bunny_hop();
 
 	void handle_train_multi_stopping(int sensor_index);
-	void handle_train_reversing(int sensor_index);
 
-	void unblock_other_train(int other_id);
 	bool handle_deadlock();
 
 	// void handle_train_multi_stopping(int sensor_index);
@@ -355,9 +353,10 @@ public:
 	etl::unordered_set<int, TRACK_MAX> track_a_banned_nodes = { 10, 11, 22, 23, 26, 27, 24, 25 };
 	etl::unordered_set<int, TRACK_MAX> track_b_banned_nodes = { 22, 23, 26, 27, 24, 25 };
 
+	bool is_knight = false;
+
 	void toIdle();
 	void bunnyHopStopping();
-	void bunnyHopDone();
 	void tryBunnyHopping();
 
 private:

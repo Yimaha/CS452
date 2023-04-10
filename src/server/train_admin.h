@@ -23,9 +23,17 @@ public:
 	bool direction = true;
 };
 
-const int NO_TRAIN = -1;
-const int NO_SWITCH = -1;
-int train_num_to_index(int train_num);
+constexpr int NO_TRAIN = -1;
+constexpr int NO_SWITCH = -1;
+constexpr int train_num_to_index(int train_num) {
+	for (int i = 0; i < Train::NUM_TRAINS; i++) {
+		if (TRAIN_NUMBERS[i] == train_num) {
+			return i;
+		}
+	}
+	return NO_TRAIN;
+}
+
 void train_admin();
 void train_courier();
 

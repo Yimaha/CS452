@@ -161,11 +161,6 @@ enum Exception { INVALID_SERVER_TASK = -1, FAILED_TO_WRITE = -2, FAILED_TO_READ 
 
 }
 
-namespace Terminal
-{
-int TermDebugPuts(const char* msg);
-}
-
 /**
  * Kernel state class, stores important information about the kernel and control the flow
  * */

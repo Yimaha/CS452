@@ -14,7 +14,6 @@ bool Planning::TrainStatus::toSpeed(SpeedLevel s) {
 	// it a massive state machine]
 	localization.acceleration_start_timestamp = Clock::Time(addr.clock_tid);
 	localization.previous_velocity = getVelocity();
-	// localization.acceleration = accelerations[localization.speed][s]; // more redendency, but it works, and it more failure proof
 	if (s != localization.speed) {
 		if (localization.speed < s) {
 			localization.from = FROM_DOWN;
@@ -190,7 +189,7 @@ void Planning::TrainStatus::locate() {
 }
 
 void Planning::TrainStatus::pipe_tr() {
-	debug_print(addr.term_trans_tid, "changing speed of train %d to %d \r\n", my_id,  getTrainSpeedLevel());
+	debug_print(addr.term_trans_tid, "changing speed of train %d to %d \r\n", my_id, getTrainSpeedLevel());
 	req_to_courier.header = RequestHeader::GLOBAL_COUR_SPEED;
 	req_to_courier.body.command.id = my_id;
 	req_to_courier.body.command.action = getTrainSpeedLevel();
@@ -324,11 +323,12 @@ void Planning::TrainStatus::tryBunnyHopping() {
 	if (try_reserve(&reservation_request)) {
 		deadlock_init(false);
 		if (localization.path.front() != localization.last_node->index && localization.path.front() != localization.last_node->reverse->index) {
-			debug_print(addr.term_trans_tid, "\r\ntrain %d got a initial location %s that doesn't match last reserved node %s and the reverse %s",
-							   my_id,
-							   track[localization.path.front()].name,
-							   localization.last_node->name,
-							   localization.last_node->reverse->name);
+			debug_print(addr.term_trans_tid,
+						"\r\ntrain %d got a initial location %s that doesn't match last reserved node %s and the reverse %s",
+						my_id,
+						track[localization.path.front()].name,
+						localization.last_node->name,
+						localization.last_node->reverse->name);
 			Clock::Delay(addr.clock_tid, 1000);
 			Task::_KernelCrash("crash!");
 		}
@@ -347,28 +347,28 @@ void Planning::TrainStatus::tryBunnyHopping() {
 	}
 }
 
-void  Planning::TrainStatus::train_bunny_hop() {
+void Planning::TrainStatus::train_bunny_hop() {
 	if (localization.path.front() != localization.last_node->index) {
-			reverse(TrainState::MULTI_BUNNY_HOP);
-		} else {
-			localization.state = TrainState::MULTI_BUNNY_HOP;
-			toSpeed(SPEED_MAX);
-			int64_t A_1 = accelerations[SPEED_STOP][SPEED_MAX];
-			int64_t A_2 = accelerations[SPEED_MAX][SPEED_STOP];
-			etl::pair<int64_t, int64_t> t = Kinematic::calculate_bunny_hop(A_1, A_2, localization.D_t * 100);
-			// debug_print(addr.term_trans_tid, "%d trying to bunny hop: %lld %lld %lld %d %d \r\n", my_id, D_t, A_1, A_2, t.first, t.second);
+		reverse(TrainState::MULTI_BUNNY_HOP);
+	} else {
+		localization.state = TrainState::MULTI_BUNNY_HOP;
+		toSpeed(SPEED_MAX);
+		int64_t A_1 = accelerations[SPEED_STOP][SPEED_MAX];
+		int64_t A_2 = accelerations[SPEED_MAX][SPEED_STOP];
+		etl::pair<int64_t, int64_t> t = Kinematic::calculate_bunny_hop(A_1, A_2, localization.D_t * 100);
+		// debug_print(addr.term_trans_tid, "%d trying to bunny hop: %lld %lld %lld %d %d \r\n", my_id, D_t, A_1, A_2, t.first, t.second);
 
-			PlanningCourReq req_to_courier;
-			req_to_courier.header = RequestHeader::GLOBAL_COUR_BUNNY_HOP_STOP;
-			req_to_courier.body.stopping_request.id = my_index;
-			req_to_courier.body.stopping_request.delay = t.first + cali_state.bunny_ped;
-			courier_pool->request(&req_to_courier);
-			pipe_tr();
-		}
+		PlanningCourReq req_to_courier;
+		req_to_courier.header = RequestHeader::GLOBAL_COUR_BUNNY_HOP_STOP;
+		req_to_courier.body.stopping_request.id = my_index;
+		req_to_courier.body.stopping_request.delay = t.first + cali_state.bunny_ped;
+		courier_pool->request(&req_to_courier);
+		pipe_tr();
+	}
 }
 
 void Planning::TrainStatus::bunnyHopStopping() {
-	if(localization.path.size() <= 0) {
+	if (localization.path.size() <= 0) {
 		Task::_KernelCrash("stopping received empty path for train %d", my_id);
 	}
 	debug_print(addr.term_trans_tid, "terminating bunny hopping for train %d \r\n", my_id);
@@ -623,24 +623,6 @@ void Planning::TrainStatus::multi_path(int dest) {
 	}
 }
 
-Track::PathRespond Planning::TrainStatus::validate_path(Track::PathRespond& res) {
-	// if (my_id == 24) {
-
-	// 	// special handling for train 24
-	// 	etl::unordered_set<int, 2> banned_MR155_BR153 = { 121, 116 };
-	// 	for (int i = 0; i < res.path_len; i++) {
-	// 		int node_index = res.path[i];
-	// 		if (banned_MR155_BR153.count(node_index) != 0) {
-	// 			banned_MR155_BR153.erase(node_index);
-	// 		}
-	// 	}
-	// 	if (banned_MR155_BR153.empty()) {
-	// 		res.successful = false;
-	// 	}
-	// }
-	return res;
-}
-
 Track::TrackServerReq Planning::TrainStatus::fill_default_banned_node(Track::TrackServerReq& res) {
 	res.body.start_and_end.banned_len = 0;
 	if (*track_id == GLOBAL_PATHING_TRACK_A_ID) {
@@ -677,7 +659,6 @@ Track::PathRespond Planning::TrainStatus::get_path(int source, int dest, bool al
 		Send::Send(addr.track_server_tid, (const char*)&req_to_track, sizeof(req_to_track), (char*)&res, sizeof(res));
 	}
 
-	validate_path(res);
 	return res;
 }
 
@@ -698,13 +679,12 @@ Track::PathRespond Planning::TrainStatus::get_randomized_path(int source, int de
 		Send::Send(addr.track_server_tid, (const char*)&req_to_track, sizeof(req_to_track), (char*)&res, sizeof(res));
 	}
 
-	validate_path(res);
 	return res;
 }
 
 void Planning::TrainStatus::store_path(Track::PathRespond& res) {
 	if (!res.successful || !localization.path.empty()) {
-		Task::_KernelCrash("try to filled a path that failed to route \r\n");
+		Task::_KernelCrash("try to filled a path that failed to route\r\n");
 	}
 	for (int i = 0; i < PATH_LIMIT && res.path[i] != res.dest; i++) {
 		debug_print(addr.term_trans_tid, "%s ", track[res.path[i]].name);
@@ -712,13 +692,13 @@ void Planning::TrainStatus::store_path(Track::PathRespond& res) {
 	}
 
 	localization.path.push_back(res.dest);
-	debug_print(addr.term_trans_tid, "%s \r\n", track[res.dest].name);
+	debug_print(addr.term_trans_tid, "%s\r\n", track[res.dest].name);
 
 	if (res.reverse) {
-		debug_print(addr.term_trans_tid, "store_path, is it wrong? case 2 path_len: %d reverse: %d \r\n", res.path_len, res.reverse);
+		debug_print(addr.term_trans_tid, "store_path, is it wrong? case 2 path_len: %d reverse: %d\r\n", res.path_len, res.reverse);
 		localization.reverse_after = true;
 	} else {
-		debug_print(addr.term_trans_tid, "store_path, is it wrong? case 1 %d \r\n", res.path_len);
+		debug_print(addr.term_trans_tid, "store_path, is it wrong? case 1 %d\r\n", res.path_len);
 	}
 	set_path_len(res.path_len);
 }
@@ -1016,23 +996,13 @@ void Planning::TrainStatus::continuous_velocity_calibration() {
  */
 void Planning::TrainStatus::predict_future_sensor(int64_t* mm_look_ahead) {
 	int64_t current_time = Clock::Time(addr.clock_tid);
-	// int64_t tick_since_last_local = current_time - localization.time_traveled;
 	localization.time_traveled = current_time;
-	// int64_t diff_in_ticks = localization.expected_arrival_ticks[0] - tick_since_last_local;
-	// int64_t diff_in_dist = diff_in_ticks * localization.eventual_velocity / TWO_DECIMAL_PLACE;
-
-	// debug_print(addr.term_trans_tid, "arrival_tick_diff is %ld, arrival_dist_diff is %ld \r\n", diff_in_ticks, diff_in_dist);
-
 	if (!isAccelerating(current_time)) {
 		// we are not accelerating, thus we can actually predict with constant velocity assumption
 		// debug_print(addr.term_trans_tid, "predicting_future: ");
 		for (int i = 1; i < 32 && mm_look_ahead[i] != 0; i++) {
 			localization.expected_arrival_ticks[i - 1] = mm_look_ahead[i] * TWO_DECIMAL_PLACE * TWO_DECIMAL_PLACE / localization.eventual_velocity;
-			// debug_print(addr.term_trans_tid, "%d: %ld ", i, localization.expected_arrival_ticks[i - 1]);
 		}
-		// debug_print(addr.term_trans_tid, "\r\n");
-	} else {
-		// we are actively experiencing acceleration, first ask when will the acceleration end
 	}
 }
 
@@ -1203,7 +1173,7 @@ bool Planning::TrainStatus::reserve_ahead() {
 
 void Planning::TrainStatus::clear_traveled_sensor(int sensor_index, bool clear_reservation) {
 	if (localization.path.empty() || track[localization.path.front()].type != node_type::NODE_SENSOR) {
-		Task::_KernelCrash("you are not suppose to be here \r\n");
+		Task::_KernelCrash("you are not suppose to be here\r\n");
 	} else {
 		Track::TrackServerReq reservation_request;
 		reservation_request.body.reservation.len_until_reservation = 0;
@@ -1239,7 +1209,7 @@ void Planning::TrainStatus::clear_traveled_sensor(int sensor_index, bool clear_r
 			} else if (node->type == node_type::NODE_SENSOR) {
 				localization.distance_traveled += node->edge[DIR_AHEAD].dist;
 				debug_print(addr.term_trans_tid,
-							"received sensor %s, though expecting sensor %s, seems like one of the snesor didn't work \r\n",
+							"received sensor %s, though expecting sensor %s, seems like one of the sensor didn't work\r\n",
 							track[sensor_index].name,
 							node->name);
 			}
@@ -1252,7 +1222,7 @@ void Planning::TrainStatus::clear_traveled_sensor(int sensor_index, bool clear_r
 
 void Planning::TrainStatus::clear_traveled_sensor_until(int sensor_index, bool clear_reservation) {
 	if (localization.path.empty() || track[localization.path.front()].type != node_type::NODE_SENSOR) {
-		Task::_KernelCrash("you are not suppose to be here \r\n");
+		Task::_KernelCrash("you are not suppose to be here\r\n");
 	} else {
 		Track::TrackServerReq reservation_request;
 		reservation_request.body.reservation.len_until_reservation = 0;
@@ -1346,14 +1316,8 @@ void Planning::TrainStatus::schedule_next_multi() {
 				continue;
 			}
 			path_res = get_path(localization.last_reserved_node, localization.destinations.front(), true);
-			// debug_print(addr.term_trans_tid,
-			// 			"%d trying location %s from last_sensor: %s\r\n",
-			// 			my_id,
-			// 			track[localization.destinations.front()].name,
-			// 			track[localization.last_reserved_node].name);
-
 			if (!path_res.successful || !path_res.reverse) {
-				// eithery have the right path, or you reverse, the n have the right path
+				// either you have the right path, or you reverse, then have the right path
 				localization.destinations.pop_front();
 			}
 		}
@@ -1372,7 +1336,7 @@ void Planning::TrainStatus::schedule_next_multi() {
 			}
 
 		} else {
-			debug_print(addr.term_trans_tid, "%d no path \r\n", my_id);
+			debug_print(addr.term_trans_tid, "%d no path\r\n", my_id);
 			toIdle();
 		}
 	}
@@ -1427,11 +1391,12 @@ bool Planning::TrainStatus::handle_deadlock() {
 void Planning::TrainStatus::train_multi_start() {
 	deadlock_init(false);
 	if (localization.path.front() != localization.last_node->index && localization.path.front() != localization.last_node->reverse->index) {
-		debug_print(addr.term_trans_tid, "\r\ntrain %d got a initial location %s that doesn't match last reserved node %s and the reverse %s",
-						   my_id,
-						   track[localization.path.front()].name,
-						   localization.last_node->name,
-						   localization.last_node->reverse->name);
+		debug_print(addr.term_trans_tid,
+					"\r\ntrain %d got a initial location %s that doesn't match last reserved node %s and the reverse %s",
+					my_id,
+					track[localization.path.front()].name,
+					localization.last_node->name,
+					localization.last_node->reverse->name);
 		Clock::Delay(addr.clock_tid, 1000);
 		Task::_KernelCrash("crash!");
 	}
@@ -1494,7 +1459,6 @@ bool Planning::TrainStatus::hot_reroute() {
 			Send::Send(addr.track_server_tid, (const char*)&req_to_track, sizeof(req_to_track), (char*)&res, sizeof(res));
 		}
 		if (res.successful) {
-			validate_path(res);
 			store_path_from(res, it, accumulated_dist);
 			debug_print(addr.term_trans_tid, "hot reroute worked, path_len: %d, dist %d path: \r\n", localization.path_len, hot_reroute_start_dist);
 			for (auto it = localization.path.begin(); it != localization.path.end(); it++) {
@@ -1513,7 +1477,7 @@ bool Planning::TrainStatus::hot_reroute() {
 
 void Planning::TrainStatus::handle_train_multi_waiting() {
 	localization.state = TrainState::MULTI_WAITING;
-	if (localization.deadlocked) {
+	if (localization.deadlocked && !is_knight) {
 		// if you are in deadlock, do a reverse and update your path
 		handle_deadlock();
 	}
@@ -1580,7 +1544,7 @@ void Planning::TrainStatus::multi_stopping_begins() {
 		Task::_KernelCrash("no reserved node, shouldn't be here \r\n");
 	}
 	debug_print(addr.term_trans_tid, "official stopping begin for train %d \r\n", my_id);
-	if(localization.path.front() != localization.last_reserved_node) {
+	if (localization.path.front() != localization.last_reserved_node) {
 		debug_print(addr.term_trans_tid, "slowing down multi stopping for train %d\r\n", my_id);
 		pipe_tr(localization.stopping_speed);
 	} else {
@@ -1590,7 +1554,11 @@ void Planning::TrainStatus::multi_stopping_begins() {
 
 void Planning::TrainStatus::handle_train_multi_stopping(int sensor_index) {
 	clear_traveled_sensor(sensor_index, true);
-	debug_print(addr.term_trans_tid, "train %d trying to stop, last reserved %s and current_sensor %s \r\n", my_id, track[localization.last_reserved_node].name, track[sensor_index].name);
+	debug_print(addr.term_trans_tid,
+				"train %d trying to stop, last reserved %s and current_sensor %s \r\n",
+				my_id,
+				track[localization.last_reserved_node].name,
+				track[sensor_index].name);
 	if (sensor_index == localization.last_reserved_node) {
 		toSpeed(SpeedLevel::SPEED_STOP);
 		pipe_tr();
@@ -1823,32 +1791,7 @@ void TrainStatus::continuous_localization(int sensor_index) {
 
 	// last node is guarenteed to be a sensor nod
 	localization.last_node = &track[sensor_index]; // this is your current location
-	// track_node* next_node = localization.last_node->edge[DIR_AHEAD].dest;
-	// update_switch_state();
 	simple_pre_compute_path(should_subscribe());
-	// while (true) {
-	// 	if (next_node->type == node_type::NODE_MERGE) {
-	// 		// merge node simply ignore and add the length
-	// 		next_node = next_node->edge[DIR_AHEAD].dest;
-	// 	} else if (next_node->type == node_type::NODE_BRANCH) {
-	// 		int switch_id = get_switch_id(next_node->num);
-	// 		if (switch_state[switch_id] == 's') {
-	// 			next_node = next_node->edge[DIR_STRAIGHT].dest;
-	// 		} else if (switch_state[switch_id] == 'c') {
-	// 			next_node = next_node->edge[DIR_CURVED].dest;
-	// 		} else {
-	// 			Task::_KernelCrash(
-	// 				"impossible path passed from continuous localizations %d %s %d\r\n", switch_id, next_node->name, switch_state[switch_id]);
-	// 		}
-	// 	} else if (next_node->type == node_type::NODE_SENSOR) {
-	// 		if (should_subscribe()) {
-	// 			sub_to_sensor_no_delete(next_node->num);
-	// 		}
-	// 		break;
-	// 	} else if (next_node->type == node_type::NODE_EXIT) {
-	// 		break; // break without subscription, in this case there is nothing you can do, no more look ahead possible
-	// 	}
-	// }
 }
 
 void TrainStatus::go_rng() {
@@ -1882,6 +1825,38 @@ void initialize_all_train(TrainStatus* trains,
 		trains[i].addr = getAddressBook();
 		trains[i].track = track;
 		trains[i].track_id = track_id;
+		if (TRAIN_NUMBERS[i] == 1) {
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 27000, 26750 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 30000, 26750 };
+			// 99854
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 52000, 0 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0, 16 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 1, 25 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 2, 29 };
+			trains[i].cali_state.slow_calibration_speed = 4;
+			// 3692, 3620, 3616
+			trains[i].cali_state.slow_calibration_mm = 3630; // 37.00 mm / s
+			trains[i].localization.stopping_speed = 5;		 // will overshoot, but error is accetable
+			trains[i].cali_state.min_stable_dist_margin = -10000;
+			trains[i].cali_state.bunny_ped = -30;
+
+			// mm / s^2 in 2 decimal places
+			// 9191, 9304, 9208
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_1)] = 9200;
+			// 11072, 11072, 10645
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 11072;
+			// 10905, 9201, 9085
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 9200;
+			// -12838, -12864` -12644
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -12838;
+			// -11585, -11585, -11585
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_1)] = -11585;
+			// -13812, -13684, -13231
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -13750;
+		}
+
 		if (TRAIN_NUMBERS[i] == 24) {
 			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
 			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
@@ -1904,46 +1879,6 @@ void initialize_all_train(TrainStatus* trains,
 			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -14901;
 		}
 
-		if (TRAIN_NUMBERS[i] == 78) {
-			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
-			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
-			// 29930, 30390
-			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 27000, 31500 };
-			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 30000, 35824 };
-			// 96334 93352 93918
-			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 49000, 94000 };
-			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0, 16 };
-			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 2, 26 };
-			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 1, 30 };
-			trains[i].cali_state.slow_calibration_speed = 4;
-			// 2561, 2561, 2618,
-			trains[i].cali_state.slow_calibration_mm = 2575;
-			trains[i].localization.stopping_speed = 5; // will overshoot, but error is accetable
-			trains[i].cali_state.bunny_ped = 0;
-			trains[i].cali_state.min_stable_dist_margin = -30000;
-			trains[i].cali_state.multi_error_margin_reverse = 40;
-			trains[i].cali_state.multi_error_margin_straight = 0;
-
-			trains[i].cali_state.path_end_reverse_after_straight_mm = 6000;
-			trains[i].cali_state.path_end_reverse_after_reversed_mm = 1000;
-
-			trains[i].cali_state.reverse_delay_straight = 6000;
-			trains[i].cali_state.reverse_delay_reverse = 3000;
-
-			// mm / s^2 in 2 decimal places
-			// 6752, 5448, 4297, 4847, 5452, 5538, 5451, 5369, 5295, 5432, 5606
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_1)] = 5450;
-			// 5714, 5667, 5781, 5714
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 5700;
-			//-12327
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -12327;
-			// 4627, 4562, 4800, 4846
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 4750;
-			// -8707, -9313, -7661, -8407, -8407
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_1)] = -8407;
-			// 13527, 12827, 12868 12793
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -11800;
-		}
 		if (TRAIN_NUMBERS[i] == 58) { // Train 58, slow af but it seems to be semi-reliable
 			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
 			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
@@ -2009,37 +1944,48 @@ void initialize_all_train(TrainStatus* trains,
 			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -15365;
 		}
 
-		if (TRAIN_NUMBERS[i] == 1) {
+		if (TRAIN_NUMBERS[i] == 78) {
 			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
 			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0 };
-			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 27000, 26750 };
-			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 30000, 26750 };
-			// 99854
-			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 52000, 0 };
+			// 29930, 30390
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_1)] = { 27000, 31500 };
+			trains[i].speeds[FROM_UP][static_cast<int>(SpeedLevel::SPEED_1)] = { 30000, 35824 };
+			// 96334 93352 93918
+			trains[i].speeds[FROM_DOWN][static_cast<int>(SpeedLevel::SPEED_MAX)] = { 49000, 94000 };
 			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_STOP)] = { 0, 0, 16 };
-			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 1, 25 };
-			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 2, 29 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_1)] = { 2, 2, 26 };
+			trains[i].calibration_info[static_cast<int>(SpeedLevel::SPEED_MAX)] = { 2, 1, 30 };
 			trains[i].cali_state.slow_calibration_speed = 4;
-			// 3692, 3620, 3616
-			trains[i].cali_state.slow_calibration_mm = 3630; // 37.00 mm / s
-			trains[i].localization.stopping_speed = 5;		 // will overshoot, but error is accetable
-			trains[i].cali_state.min_stable_dist_margin = -10000;
-			trains[i].cali_state.bunny_ped = -30;
+			// 2561, 2561, 2618,
+			trains[i].cali_state.slow_calibration_mm = 2575;
+			trains[i].localization.stopping_speed = 5; // will overshoot, but error is accetable
+			trains[i].cali_state.bunny_ped = 0;
+			trains[i].cali_state.min_stable_dist_margin = -30000;
+			trains[i].cali_state.multi_error_margin_reverse = 40;
+			trains[i].cali_state.multi_error_margin_straight = 0;
+
+			trains[i].cali_state.path_end_reverse_after_straight_mm = 6000;
+			trains[i].cali_state.path_end_reverse_after_reversed_mm = 1000;
+
+			trains[i].cali_state.reverse_delay_straight = 6000;
+			trains[i].cali_state.reverse_delay_reverse = 3000;
 
 			// mm / s^2 in 2 decimal places
-			// 9191, 9304, 9208
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_1)] = 9200;
-			// 11072, 11072, 10645
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 11072;
-			// 10905, 9201, 9085
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 9200;
-			// -12838, -12864` -12644
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -12838;
-			// -11585, -11585, -11585
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_1)] = -11585;
-			// -13812, -13684, -13231
-			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -13750;
+			// 6752, 5448, 4297, 4847, 5452, 5538, 5451, 5369, 5295, 5432, 5606
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_1)] = 5450;
+			// 5714, 5667, 5781, 5714
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_STOP)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 5700;
+			//-12327
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -12327;
+			// 4627, 4562, 4800, 4846
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_1)][static_cast<int>(SpeedLevel::SPEED_MAX)] = 4750;
+			// -8707, -9313, -7661, -8407, -8407
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_1)] = -8407;
+			// 13527, 12827, 12868 12793
+			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -11800;
 		}
+
+		trains[i].is_knight = false;
 	}
 }
 
@@ -2228,6 +2174,19 @@ void Planning::global_pathing_server() {
 			Reply::EmptyReply(from);
 			break;
 		}
+		case RequestHeader::GLOBAL_MULTI_PATH_KNIGHT_REV: {
+			Reply::EmptyReply(from);
+			int ki = Train::train_num_to_index(req.body.routing_request.id);
+			int dest = req.body.routing_request.dest;
+			Track::PathRespond path_res = trains[ki].get_path(trains[ki].localization.last_node->index, dest, true);
+
+			trains[ki].init_calibration();
+			trains[ki].localization.path.clear();
+			trains[ki].store_path(path_res);
+			trains[ki].handle_train_multi_waiting();
+			trains[ki].manual_subscription();
+			break;
+		}
 		case RequestHeader::GLOBAL_CALIBRATE_VELOCITY: {
 			/**
 			 *  assuming you are starting at location B1 -> D14 on track A
@@ -2302,6 +2261,16 @@ void Planning::global_pathing_server() {
 			break;
 		}
 
+		case RequestHeader::GLOBAL_SET_KNIGHT: {
+			int knight_index = Train::train_num_to_index(req.body.info);
+			for (int i = 0; i < NUM_TRAINS; ++i) {
+				trains[i].is_knight = (i == knight_index);
+			}
+
+			Reply::EmptyReply(from);
+			break;
+		}
+
 		default: {
 			Task::_KernelCrash("Received invalid request: %d at global pathing from %d \r\n", req.header, from);
 		}
@@ -2319,6 +2288,7 @@ void Planning::global_pathing_courier() {
 	Track::TrackServerReq req_to_track = {};
 
 	Sensor::SensorAdminReq req_to_sensor = { RequestHeader::SENSOR_AWAIT_STATE, 0x0 }; // this type of request doesn't need a body
+	etl::random_xorshift rng_boi = etl::random_xorshift();
 
 	// worker only has few types
 	while (true) {
@@ -2340,14 +2310,16 @@ void Planning::global_pathing_courier() {
 		case RequestHeader::GLOBAL_COUR_BUSY_WAITING_AVAILABILITY: {
 			req_to_admin.header = RequestHeader::GLOBAL_BUSY_WAITING_AVAILABILITY;
 			req_to_admin.body.command = req.body.command;
-			Clock::Delay(addr.clock_tid, 100);
+			int rand_delay = rng_boi.range(0, 200);
+			Clock::Delay(addr.clock_tid, rand_delay);
 			Send::SendNoReply(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin));
 			break;
 		}
 		case RequestHeader::GLOBAL_COUR_BUSY_WAITING_BUNNY_HOPPING: {
 			req_to_admin.header = RequestHeader::GLOBAL_BUSY_WAITING_BUNNY_HOPPING;
 			req_to_admin.body.command = req.body.command;
-			Clock::Delay(addr.clock_tid, 100);
+			int rand_delay = rng_boi.range(0, 200);
+			Clock::Delay(addr.clock_tid, rand_delay);
 			Send::SendNoReply(addr.global_pathing_tid, (const char*)&req_to_admin, sizeof(req_to_admin));
 			break;
 		}

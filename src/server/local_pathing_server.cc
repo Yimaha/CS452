@@ -161,7 +161,7 @@ void LocalPathing::local_pathing_worker() {
 			// then start calibration
 			calibrate_starting(SPEED_MAX, true, LONG_DELAY);
 			send_to_b1(SPEED_1, LONG_DELAY);
-			// 4627, 
+			// 4627,
 			calibrate_acceleration(SPEED_1, SPEED_MAX, LONG_DELAY);
 			send_to_b1(SPEED_1, LONG_DELAY);
 			// 8707
