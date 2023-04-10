@@ -184,7 +184,8 @@ void Track::track_server() {
 		 * 4 cases, start reverse / don't start with reveres, end with reverse, don't end with reverse
 		 */
 		WeightedPath wp;
-		bool successful = dijkstra.weighted_path_with_ban(&wp, banned_node, source, dest);
+		bool successful = false;
+		successful = dijkstra.weighted_path_with_ban(&wp, banned_node, source, dest);
 		int cost = dijkstra.get_cost(dest);
 		if (successful && cost < res.cost) {
 			res.successful = true;
@@ -195,10 +196,19 @@ void Track::track_server() {
 			res.path_len = dijkstra.get_dist(res.dest);
 			res.source = source;
 			int psize = wp.wpath.size();
+			debug_print(addr.term_trans_tid, "getting route for source %d, dest %d: ", source, dest);
+			;
 			for (int i = 0; i < psize; ++i) {
+				debug_print(addr.term_trans_tid, "%s ", track[wp.wpath.front()].name);
 				res.path[i] = wp.wpath.front();
 				wp.wpath.pop_front();
 			}
+
+			debug_print(addr.term_trans_tid, "trying to show banned node");
+			for (auto it = banned_node.begin(); it != banned_node.end(); it++) {
+				debug_print(addr.term_trans_tid, "%d, ", *it);
+			}
+			debug_print(addr.term_trans_tid, "\r\n");
 			return true;
 		}
 		return false;
@@ -209,10 +219,11 @@ void Track::track_server() {
 			res.successful = false;
 			res.cost = INT_MAX;
 			res.reverse = false;
+			debug_print(addr.term_trans_tid, "trying %d %d, %d %d \r\n", source, dest, track[source].reverse->index,  track[dest].reverse->index);
 			decide_optimal_path(res, source, dest, banned_node);
-			decide_optimal_path(res, track[source].reverse->num, dest, banned_node);
-			decide_optimal_path(res, source, track[dest].reverse->num, banned_node);
-			decide_optimal_path(res, track[source].reverse->num, track[dest].reverse->num, banned_node);
+			decide_optimal_path(res, track[source].reverse->index, dest, banned_node);
+			decide_optimal_path(res, source, track[dest].reverse->index, banned_node);
+			decide_optimal_path(res, track[source].reverse->index, track[dest].reverse->index, banned_node);
 		} else {
 			res.reverse = false;
 			res.successful = dijkstra.path(res.path, source, dest);
@@ -514,6 +525,7 @@ void Track::track_server() {
 			int dest = req.body.start_and_end.end;
 			bool reverse_allowed = req.body.start_and_end.allow_reverse;
 			etl::unordered_set<int, TRACK_MAX> banned_node;
+			debug_print(addr.term_trans_tid, "trying to get path from %s to %s, allow reverse %d \r\n", track[source].name, track[dest].name, reverse_allowed);
 			for (int i = 0; i < req.body.start_and_end.banned_len; i++) {
 				banned_node.insert(req.body.start_and_end.banned[i]);
 				debug_print(addr.term_trans_tid, "%d, ", req.body.start_and_end.banned[i]);
@@ -521,6 +533,8 @@ void Track::track_server() {
 			debug_print(addr.term_trans_tid, "\r\n");
 			PathRespond res;
 			try_dijkstra(res, source, dest, banned_node, reverse_allowed);
+			debug_print(addr.term_trans_tid, "is successful %d\r\n", res.successful);
+
 			Reply::Reply(from, (const char*)&res, sizeof(res));
 
 			break;
@@ -530,11 +544,11 @@ void Track::track_server() {
 			int len = req.body.reservation.len_until_reservation;
 			int* path = req.body.reservation.path;
 			int id = req.body.reservation.train_id;
-			// debug_print(addr.term_trans_tid, "%d trying to unreserve: ", id);
-			// for (int i = 0; i < len; i++) {
-			// 	debug_print(addr.term_trans_tid, "%s ", track[path[i]].name);
-			// }
-			// debug_print(addr.term_trans_tid, "\r\n");
+			debug_print(addr.term_trans_tid, "%d trying to unreserve: ", id);
+			for (int i = 0; i < len; i++) {
+				debug_print(addr.term_trans_tid, "%s ", track[path[i]].name);
+			}
+			debug_print(addr.term_trans_tid, "\r\n");
 			for (int i = 0; i < len; i++) {
 				cancel_reserve(track[path[i]], id);
 			}

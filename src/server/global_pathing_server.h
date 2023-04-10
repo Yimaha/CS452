@@ -94,6 +94,7 @@ struct StoppingRequset {
 	char id;
 	uint64_t delay;
 	bool need_reverse;
+	TrainState future_state;
 };
 
 struct PeddingRequest {
@@ -210,6 +211,7 @@ public:
 		bool deadlocked = false;
 		int hot_reroute_count = 0;
 		int deadlocked_count = 0;
+		uint64_t D_t = 0;
 	};
 
 	TrainStatus() {};
@@ -240,7 +242,7 @@ public:
 	Track::PathRespond get_path(int source, int dest, bool allow_reverse = false);
 	Track::PathRespond get_randomized_path(int source, int dest, bool allow_reverse = false);
 
-	void store_path(Track::PathRespond& res, int original_destination = -1);
+	void store_path(Track::PathRespond& res);
 	void store_path_from(Track::PathRespond& res, etl::list<int, PATH_LIMIT>::iterator begin, int64_t missing_dist);
 
 	void updateVelocity(uint64_t velocity);
@@ -256,9 +258,8 @@ public:
 
 	int64_t get_reverse_tick();
 	void raw_reverse(); // nonblocking edition
-	void reverse();
-	void reverse_stopping();
-	void reverse_complete();
+	void reverse(TrainState future_state);
+	void reverse_complete(TrainState state);
 
 	void subscribe(int from);
 	void sensor_unsub();
@@ -292,6 +293,7 @@ public:
 	void clear_traveled_sensor_until(int sensor_index, bool cancel_reservation = false);
 	void path_end_relocate();
 	void relocate_complete(bool need_reverse = false);
+	void relocate_complete();
 	void relocate_transition(bool need_reverse = false);
 	bool hot_reroute();
 
@@ -300,6 +302,7 @@ public:
 	void handle_train_multi_pathing(int sensor_index);
 	void handle_train_multi_waiting();
 	void train_multi_start();
+	void train_bunny_hop();
 
 	void handle_train_multi_stopping(int sensor_index);
 	void handle_train_reversing(int sensor_index);
