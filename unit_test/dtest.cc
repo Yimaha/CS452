@@ -325,4 +325,19 @@ int main() {
 	}
 
 	cout << endl;
+
+	banned = { 28, 53, 65, 67, 68, 76, 88, 102, 109, 112, 135, 139 };
+	WeightedPath wpC;
+
+	assert(!dijkstraa.weighted_path_with_ban(&wpC, banned, 35, 69));
+	cout << "Weighted Path from 35 to 69 (dist = " << dijkstraa.get_dist(69) << ", cost = " << dijkstraa.get_cost(69)
+		 << ", reverse = " << wpC.has_reverse << ", offset = " << wpC.rev_offset << "):" << endl;
+
+	while (!wpC.wpath.empty()) {
+		int curr = wpC.wpath.front();
+		cout << curr << '|' << tracka[curr].name << '|' << dijkstraa.get_dist(curr) << ' ';
+		wpC.wpath.pop_front();
+	}
+
+	cout << endl;
 }

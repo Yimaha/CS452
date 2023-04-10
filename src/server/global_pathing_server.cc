@@ -1513,7 +1513,7 @@ bool Planning::TrainStatus::hot_reroute() {
 
 void Planning::TrainStatus::handle_train_multi_waiting() {
 	localization.state = TrainState::MULTI_WAITING;
-	if (localization.deadlocked) {
+	if (localization.deadlocked && !is_knight) {
 		// if you are in deadlock, do a reverse and update your path
 		handle_deadlock();
 	}
@@ -2040,6 +2040,8 @@ void initialize_all_train(TrainStatus* trains,
 			// -13812, -13684, -13231
 			trains[i].accelerations[static_cast<int>(SpeedLevel::SPEED_MAX)][static_cast<int>(SpeedLevel::SPEED_STOP)] = -13750;
 		}
+
+		trains[i].is_knight = false;
 	}
 }
 
@@ -2299,6 +2301,16 @@ void Planning::global_pathing_server() {
 			}
 
 			Reply::Reply(from, reinterpret_cast<char*>(global_info), sizeof(global_info));
+			break;
+		}
+
+		case RequestHeader::GLOBAL_SET_KNIGHT: {
+			int knight_index = Train::train_num_to_index(req.body.info);
+			for (int i = 0; i < NUM_TRAINS; ++i) {
+				trains[i].is_knight = (i == knight_index);
+			}
+
+			Reply::EmptyReply(from);
 			break;
 		}
 

@@ -180,7 +180,6 @@ public:
 		int64_t path_end_branch_safe_reverse = 13000;
 		int64_t reverse_delay_straight = 3000;
 		int64_t reverse_delay_reverse = 1000;
-
 	};
 
 	struct LocalizationInfo {
@@ -255,7 +254,6 @@ public:
 	int64_t getMinStableDist();
 	int64_t getRemainDistance();
 
-
 	int64_t get_reverse_tick();
 	void raw_reverse(); // nonblocking edition
 	void reverse(TrainState future_state);
@@ -268,7 +266,6 @@ public:
 
 	void sub_to_sensor_no_delete(int sensor_id);
 	void sub_to_sensor_no_delete(etl::unordered_set<int, 32> sensor_ids);
-
 
 	void add_path(int landmark);
 	bool try_reserve(Track::TrackServerReq* reservation_request);
@@ -354,6 +351,8 @@ public:
 	char switch_state[NUM_SWITCHES];
 	etl::unordered_set<int, TRACK_MAX> track_a_banned_nodes = { 10, 11, 22, 23, 26, 27, 24, 25 };
 	etl::unordered_set<int, TRACK_MAX> track_b_banned_nodes = { 22, 23, 26, 27, 24, 25 };
+
+	bool is_knight = false;
 
 	void toIdle();
 	void bunnyHopStopping();

@@ -176,8 +176,12 @@ bool Dijkstra::path(etl::list<int, PATH_LIMIT>* q, const int source, const int d
 	return true;
 }
 
-
-bool Dijkstra::path_with_ban(etl::list<int, PATH_LIMIT>* q, etl::unordered_set<int, TRACK_MAX>& banned_node, const int source, const int dest, const bool enable_reverse, const bool using_weight) {
+bool Dijkstra::path_with_ban(etl::list<int, PATH_LIMIT>* q,
+							 etl::unordered_set<int, TRACK_MAX>& banned_node,
+							 const int source,
+							 const int dest,
+							 const bool enable_reverse,
+							 const bool using_weight) {
 	dijkstra(source, banned_node, enable_reverse, using_weight);
 	int curr = dest;
 	if (prev[curr] == NO_PREV) {
@@ -222,52 +226,52 @@ bool Dijkstra::weighted_path(WeightedPath* q, const int source, const int dest) 
 }
 
 bool Dijkstra::weighted_path_with_ban(WeightedPath* q, etl::unordered_set<int, TRACK_MAX>& banned_node, const int source, const int dest) {
-    q->has_reverse = false;
-    q->rev_offset = 0;
-    dijkstra(source, banned_node, true, true);
-    int curr = dest;
-    if (prev[curr] == NO_PREV) {
-        return false; // nothing you can do, dead end
-    }
+	q->has_reverse = false;
+	q->rev_offset = 0;
+	dijkstra(source, banned_node, true, true);
+	int curr = dest;
+	if (prev[curr] == NO_PREV) {
+		return false; // nothing you can do, dead end
+	}
 
-    // First, check if there are any reverses in the path
-    int end = dest;
-    while (curr != NO_PREV) {
-        if (prev[curr] == track[curr].reverse - track) {
-            // Reverse detected
-            q->has_reverse = true;
-            end = track[curr].reverse - track;
-        }
+	// First, check if there are any reverses in the path
+	int end = dest;
+	while (curr != NO_PREV) {
+		if (prev[curr] == track[curr].reverse - track) {
+			// Reverse detected
+			q->has_reverse = true;
+			end = track[curr].reverse - track;
+		}
 
-        curr = prev[curr];
-    }
+		curr = prev[curr];
+	}
 
-    // So now we build the path
-    if (!q->has_reverse) {
-        // No reverse detected
-        return path_with_ban(&q->wpath, banned_node, source, dest, false, true);
-    } else {
-        // Reverse detected. Where do we actually need to go?
-        etl::list<int, SHORT_PATH_LIMIT> path_to_sensor = path_to_next_sensor(end);
-        int actual_end = path_to_sensor.back();
-        if (get_dist(actual_end) == INT_MAX) {
-            // No path to sensor
-            return false;
-        }
+	// So now we build the path
+	if (!q->has_reverse) {
+		// No reverse detected
+		return path_with_ban(&q->wpath, banned_node, source, dest, false, true);
+	} else {
+		// Reverse detected. Where do we actually need to go?
+		etl::list<int, SHORT_PATH_LIMIT> path_to_sensor = path_to_next_sensor(end);
+		int actual_end = path_to_sensor.back();
+		if (get_dist(actual_end) == INT_MAX) {
+			// No path to sensor
+			return false;
+		}
 
-        // Also modify the offset
-        q->rev_offset = track[end].rev_offset;
+		// Also modify the offset
+		q->rev_offset = track[end].rev_offset;
 
-        // Now we just go back to the beginning as usual
-        curr = actual_end;
-        while (curr != NO_PREV) {
-            q->wpath.push_front(curr);
-            curr = prev[curr];
-        }
+		// Now we just go back to the beginning as usual
+		curr = actual_end;
+		while (curr != NO_PREV) {
+			q->wpath.push_front(curr);
+			curr = prev[curr];
+		}
 
-        // And we're done!
-        return true;
-    }
+		// And we're done!
+		return true;
+	}
 }
 
 bool Dijkstra::weighted_path_with_ban(int wpath[],

@@ -472,6 +472,7 @@ void Terminal::terminal_admin() {
 	bool reached_targets[NUM_TARGETS] = { false };
 
 	bool abyssJumping = false;
+	bool knightReversed = false;
 	int knight = KNIGHT;
 
 	WhichTrack which_track = WhichTrack::TRACK_A;
@@ -540,7 +541,7 @@ void Terminal::terminal_admin() {
 					if (reserve_dirty_bits[i]) {
 						reserve_dirty_bits[i] = false;
 						etl::pair<int, int> pos = track_node_to_reserve_cursor_pos(i);
-						if (pos.first == NO_NODE || contains<int>(prev_train_sensors, Train::NUM_TRAINS, i)) {
+						if (pos.first == NO_NODE || contains<int>(curr_train_sensors, Train::NUM_TRAINS, i)) {
 							// bad node, or node that a train is sitting on
 							continue;
 						}
@@ -562,7 +563,7 @@ void Terminal::terminal_admin() {
 							// Try to modify it on the map as well
 							const UIPosition* smap = TRACK_SENSORS[static_cast<int>(which_track)];
 							const UIPosition p = smap[i];
-							const char c = STOP_CHECK[i] ? 'O' : 'o';
+							const char c = STOP_CHECK[i] ? '0' : 'o';
 							sprintf(buf, MOVE_CURSOR_FO, p.r + TRACK_STARTING_ROW, p.c + TRACK_STARTING_COLUMN, c);
 							str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
 						} else {
@@ -663,7 +664,7 @@ void Terminal::terminal_admin() {
 							if (prev_train_sensors[i] != Train::NO_TRAIN) {
 								// set the previous sensor back to an o
 								const UIPosition p = smap[prev_train_sensors[i]];
-								const char c = STOP_CHECK[prev_train_sensors[i]] ? 'O' : 'o';
+								const char c = STOP_CHECK[prev_train_sensors[i]] ? '0' : 'o';
 								sprintf(buf, MOVE_CURSOR_FO, p.r + TRACK_STARTING_ROW, p.c + TRACK_STARTING_COLUMN, c);
 								str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
 							}
@@ -839,6 +840,7 @@ void Terminal::terminal_admin() {
 
 			str_cpy(YELLOW_CURSOR, printing_buffer, &printing_index, sizeof(YELLOW_CURSOR) - 1);
 			str_cpy(SENSOR_DATA, printing_buffer, &printing_index, sizeof(SENSOR_DATA) - 1);
+			str_cpy(WHITE_CURSOR, printing_buffer, &printing_index, sizeof(WHITE_CURSOR) - 1);
 			for (int i = 0; i < RECENT_SENSOR_COUNT; ++i) {
 				str_cpy("   |", printing_buffer, &printing_index, 4, true);
 			}
@@ -884,7 +886,7 @@ void Terminal::terminal_admin() {
 			auto sensor_positions = TRACK_SENSORS[static_cast<int>(which_track)];
 			str_cpy(GREEN_CURSOR, printing_buffer, &printing_index, sizeof(GREEN_CURSOR) - 1);
 			for (int i = 0; i < Planning::TOTAL_SENSORS; i += 2) {
-				const char c = STOP_CHECK[i] ? 'O' : 'o';
+				const char c = STOP_CHECK[i] ? '0' : 'o';
 				const UIPosition p = sensor_positions[i];
 				sprintf(buf, MOVE_CURSOR_FO, p.r + TRACK_STARTING_ROW, p.c + TRACK_STARTING_COLUMN, c);
 				str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
@@ -1124,14 +1126,21 @@ void Terminal::terminal_admin() {
 					int skip = (c == 'E') ? 1 : 0;
 					if (loc < 0 || loc >= TRACK_MAX) {
 						break;
+					} else if (knightReversed) {
+						loc = track[loc].reverse - track;
 					}
 
 					int upcoming_stop = next_stop(loc, skip);
+					if (upcoming_stop == TRACK_DATA_NO_SENSOR) {
+						break;
+					}
+
 					debug_print(addr.term_trans_tid, "Next stop: %d\r\n", upcoming_stop);
 					handle_generic_two_arg(courier_pool, knight, upcoming_stop, RequestHeader::TERM_COUR_LOCAL_DEST);
 					break;
 				}
 				case 'S': {
+					knightReversed = true;
 					TerminalCourierMessage req = { RequestHeader::TERM_COUR_REV, knight };
 					courier_pool.request(&req);
 					break;
@@ -1243,7 +1252,7 @@ void Terminal::terminal_admin() {
 						global_train_info[tindex].prev_sensor = sensor - (sensor % 2 == 1);
 						isTrainStateModified = true;
 					}
-				} else if (strncmp(cmd_parsed.name, "abyss", MAX_COMMAND_LEN) == 0) {
+				} else if (strncmp(cmd_parsed.name, "abyss", MAX_COMMAND_LEN) == 0 || strncmp(cmd_parsed.name, "knight", MAX_COMMAND_LEN) == 0) {
 					abyssJumping = true;
 					int tindex = KNIGHT_INDEX;
 					int old_knight_ind = Train::train_num_to_index(knight);
@@ -1267,6 +1276,10 @@ void Terminal::terminal_admin() {
 					sprintf(buf, MOVE_CURSOR_F, r, c);
 					str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
 					str_cpy("  ", printing_buffer, &printing_index, 2);
+
+					// And ALSO notify the global pathing server of the change
+					TerminalCourierMessage req = { RequestHeader::TERM_COUR_LOCAL_KNIGHT, knight };
+					courier_pool.request(&req);
 
 					sprintf(buf, PROMPT_CURSOR, sizeof(PROMPT_NNL) + char_count);
 					str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
@@ -1450,6 +1463,12 @@ void Terminal::terminal_courier() {
 		}
 		case RequestHeader::TERM_COUR_LOCAL_BUN_DIST: {
 			local_server_redirect(RequestHeader::LOCAL_PATH_BUNNY_DIST);
+			break;
+		}
+		case RequestHeader::TERM_COUR_LOCAL_KNIGHT: {
+			req_to_global.header = Message::RequestHeader::GLOBAL_SET_KNIGHT;
+			req_to_global.body.info = req.body.courier_body.args[0];
+			Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
 			break;
 		}
 		default: {

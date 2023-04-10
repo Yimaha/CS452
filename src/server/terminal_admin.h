@@ -300,13 +300,13 @@ const int SET_AHEAD_ALSO_LEN = sizeof(SET_AHEAD_ALSO) / sizeof(int);
 
 // Places the Knight should leapfrog to when you press W or E
 const int STOPS[] = {
-	0,	1,	10, 11, 12, 13, 14, 15, 22, 23, 24, 25, 26, 27, 28, 29, 32, 33, 34, 35,
-	36, 37, 40, 41, 42, 43, 44, 45, 48, 49, 64, 65, 68, 69, 70, 71, 74, 75, 76, 77,
+	0,	1,	10, 11, 12, 13, 14, 15, 22, 23, 24, 25, 26, 27, 28, 29, 32, 33, 34, 35, 36,
+	37, 38, 39, 40, 41, 42, 43, 44, 45, 48, 49, 64, 65, 68, 69, 70, 71, 74, 75, 76, 77,
 };
 const int STOPS_LEN = sizeof(STOPS) / sizeof(int);
 const bool STOP_CHECK[] = {
 	true,  true,  false, false, false, false, false, false, false, false, true,	 true,	true,  true,  true,	 true,	false, false, false, false, false,
-	false, true,  true,	 true,	true,  true,  true,	 true,	true,  false, false, true,	true,  true,  true,	 true,	true,  false, false, true,	true,
+	false, true,  true,	 true,	true,  true,  true,	 true,	true,  false, false, true,	true,  true,  true,	 true,	true,  true,  true,	 true,	true,
 	true,  true,  true,	 true,	false, false, true,	 true,	false, false, false, false, false, false, false, false, false, false, false, false, false,
 	false, true,  true,	 false, false, true,  true,	 true,	true,  false, false, true,	true,  true,  true,	 false, false, false, false, false, false,
 	false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
