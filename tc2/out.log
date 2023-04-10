@@ -1,0 +1,693 @@
+Debug:
+changing speed of train 1 to 4 
+heading into idle for train 1
+changing speed of train 1 to 16 
+desire: 
+owned: 
+1 reserving successful 1 with len 1 total_len 1: E7 
+train 1 is currently at sensor E7
+changing speed of train 78 to 4 
+heading into idle for train 78
+changing speed of train 78 to 16 
+desire: 
+owned: 
+78 reserving successful 1 with len 1 total_len 1: D6 
+train 78 is currently at sensor D6
+changing speed of train 24 to 4 
+heading into idle for train 24
+changing speed of train 24 to 16 
+desire: 
+owned: 
+24 reserving successful 1 with len 1 total_len 1: C4 
+train 24 is currently at sensor C4
+1 no path
+trying to get path from E7 to A9, allow reverse 1 
+
+trying 70 8, 71 9 
+getting route for source 70, dest 8: E7 D7 MR9 BR8 D9 E12 BR7 MR5 BR18 C8 BR3 BR2 BR1 A9 trying to show banned node
+is successful 1
+E7 D7 MR9 BR8 D9 E12 BR7 MR5 BR18 C8 BR3 BR2 BR1 A9 
+store_path, is it wrong? case 1 3070 
+desire: 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to MR9 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+desire: D5 D7 D8 E7 MR9 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to MR9 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+desire: D5 D7 D8 E7 MR9 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to MR9 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+trying to get path from D6 to D8, allow reverse 1 
+
+trying 53 55, 52 54 
+getting route for source 53, dest 55: D6 MR9 BR8 D9 trying to show banned node
+is successful 1
+D6 MR9 BR8 D9 
+store_path, is it wrong? case 2 path_len: 710 reverse: 1 
+desire: 
+owned: D5 D6 
+78 reserving successful 1 with len 4 total_len 4: D6 MR9 BR8 D9 
+changing speed of train 78 to 26 
+78 trying to multi stop from zero remain_dist -27325, velocity 27000, ticks 394, acceleration_dist 66825, acceleration_time 495
+desire: D5 D7 D8 E7 MR9 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to MR9 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+desire: D7 E7 MR9 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to MR9 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+desire: D7 E7 MR9 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to MR9 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+desire: D7 E7 MR9 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to MR9 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+desire: D7 E7 MR9 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to MR9 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+official stopping begin for train 78 
+slowing down multi stopping for train 78
+changing speed of train 78 to 5 
+desire: D7 E7 MR9 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to MR9 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+78 trying to unreserve: D6 MR9 BR8 
+train 78 trying to stop, last reserved D9 and current_sensor D9 
+changing speed of train 78 to 16 
+path end relocating 78train 78 trying to reverse_after adjustment, with direction 1 
+changing speed of train 78 to 5 
+desire: D7 E7 MR9 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to BR8 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+desire: D5 D7 D8 D9 E7 E10 BR8 MR9 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to BR8 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+changing speed of train 78 to 16 
+desire: D5 D7 D8 D9 E7 E10 BR8 MR9 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to BR8 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+reversing 78 
+trying to get path from D10 to D8, allow reverse 1 
+
+trying 57 55, 56 54 
+getting route for source 57, dest 55: D10 MR8 BR9 D8 trying to show banned node
+is successful 1
+D10 MR8 BR9 D8 
+store_path, is it wrong? case 1 780 
+desire: 
+owned: D9 D10 
+trying to detect deadlock for 78, current_owener 1:  D5 : -1, D7 : -1, D8 : -1, D9 : 78, E7 : 1, E10 : -1, BR8 : -1, MR9 : -1, 
+train 78 reservation failed due to E8 on stage 3 
+78 reserving successful 0 with len 4 total_len 4: D10 MR8 BR9 D8 
+desire: D5 D7 D8 D9 E7 E10 BR8 MR9 
+owned: E7 E8 
+trying to detect deadlock for 1, current_owener 78:  D5 : -1, D8 : -1, D9 : 78, D10 : 78, E8 : 1, E10 : -1, MR8 : -1, BR9 : -1, 
+train 1 reservation failed due to BR8 on stage 1
+1 reserving successful 0 with len 5 total_len 14: E7 D7 MR9 BR8 D9 
+trying to get path from E7 to A9, allow reverse 1 
+0, 63, 66, 121, 33, 78, 60, 29, 94, 35, 143, 27, 65, 97, 
+trying 70 8, 71 9 
+getting route for source 71, dest 8: E8 C14 BR11 MR14 A4 B16 BR15 C5 BR6 MR18 BR5 C3 trying to show banned node0, 27, 29, 33, 35, 60, 63, 65, 66, 78, 94, 97, 121, 143, 
+is successful 1
+1 detected deadlock! resolving E7 A9 E8 C3 3202 
+E8 C14 BR11 MR14 A4 B16 BR15 C5 BR6 MR18 BR5 C3 
+store_path, is it wrong? case 2 path_len: 3202 reverse: 1 
+desire: D5 D7 D8 D9 E7 E10 BR8 MR9 
+owned: E7 E8 
+1 reserving successful 1 with len 5 total_len 12: E8 C14 BR11 MR14 A4 
+train 1 trying to reverse(), witth direction 1 
+changing speed of train 1 to 5 
+trying to get path from D10 to D8, allow reverse 1 
+0, 63, 66, 121, 33, 78, 60, 29, 94, 35, 143, 27, 65, 97, 
+trying 57 55, 56 54 
+getting route for source 57, dest 55: D10 MR8 BR9 D8 trying to show banned node0, 27, 29, 33, 35, 60, 63, 65, 66, 78, 94, 97, 121, 143, 
+is successful 1
+78 detected deadlock! resolving D10 D8 D10 D8 780 
+D10 MR8 BR9 D8 
+store_path, is it wrong? case 1 780 
+desire: D5 D8 D9 D10 E8 E10 MR8 BR9 
+owned: D9 D10 
+trying to detect deadlock for 78, current_owener 1:  
+train 78 reservation failed due to E8 on stage 3 
+78 reserving successful 0 with len 4 total_len 4: D10 MR8 BR9 D8 
+reversing 1 
+changing speed of train 1 to 25 
+desire: D5 D8 D9 D10 E8 E10 MR8 BR9 
+owned: D9 D10 
+trying to detect deadlock for 78, current_owener 1:  
+train 78 reservation failed due to E8 on stage 3 
+78 reserving successful 0 with len 4 total_len 4: D10 MR8 BR9 D8 
+desire: D5 D8 D9 D10 E8 E10 MR8 BR9 
+owned: D9 D10 
+trying to detect deadlock for 78, current_owener 1:  
+train 78 reservation failed due to E8 on stage 3 
+78 reserving successful 0 with len 4 total_len 4: D10 MR8 BR9 D8 
+desire: D5 D8 D9 D10 E8 E10 MR8 BR9 
+owned: D9 D10 
+trying to detect deadlock for 78, current_owener 1:  
+train 78 reservation failed due to E8 on stage 3 
+78 reserving successful 0 with len 4 total_len 4: D10 MR8 BR9 D8 
+desire: D5 D8 D9 D10 E8 E10 MR8 BR9 
+owned: D9 D10 
+trying to detect deadlock for 78, current_owener 1:  
+train 78 reservation failed due to E8 on stage 3 
+78 reserving successful 0 with len 4 total_len 4: D10 MR8 BR9 D8 
+1 trying to unreserve: E8 
+desire: 
+owned: A3 A4 C13 C14 BR11 MR11 BR14 MR14 
+1 reserving successful 1 with len 5 total_len 11: C14 BR11 MR14 A4 B16 
+desire: D5 D8 D9 D10 E8 E10 MR8 BR9 
+owned: D9 D10 
+trying to detect deadlock for 78, current_owener 1:  
+train 78 reservation failed due to C14 on stage 3 
+78 reserving successful 0 with len 4 total_len 4: D10 MR8 BR9 D8 
+Loc: 35, next branch: 18
+desire: C14 D5 D8 D9 D10 E8 E10 MR8 BR9 
+owned: D9 D10 
+trying to detect deadlock for 78, current_owener 1:  
+train 78 reservation failed due to C14 on stage 3 
+78 reserving successful 0 with len 4 total_len 4: D10 MR8 BR9 D8 
+Next stop: 37
+trying to get path from C4 to C6, allow reverse 1 
+
+trying 35 37, 34 36 
+getting route for source 35, dest 37: C4 MR5 BR18 MR6 C6 trying to show banned node
+is successful 1
+C4 MR5 BR18 MR6 C6 
+store_path, is it wrong? case 1 826 
+desire: 
+owned: C3 C4 
+24 reserving successful 1 with len 5 total_len 5: C4 MR5 BR18 MR6 C6 
+changing speed of train 24 to 23 
+24 trying to multi stop from zero remain_dist 53940, velocity 16000, ticks 539, acceleration_dist 16160, acceleration_time 202
+1 trying to unreserve: C14 BR11 MR14 
+desire: 
+owned: A3 A4 B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 4 total_len 8: A4 B16 BR15 C5 
+1 trying to multi stop remain_dist 10450, velocity 27000, ticks 38
+official stopping begin for train 1 
+slowing down multi stopping for train 1
+changing speed of train 1 to 5 
+desire: C14 D5 D8 D9 D10 E8 E10 MR8 BR9 
+owned: D9 D10 
+78 reserving successful 1 with len 4 total_len 4: D10 MR8 BR9 D8 
+changing speed of train 78 to 26 
+78 trying to multi stop from zero remain_dist -20325, velocity 27000, ticks 420, acceleration_dist 66825, acceleration_time 495
+1 trying to unreserve: A4 
+train 1 trying to stop, last reserved B16 and current_sensor B16 
+changing speed of train 1 to 16 
+path end relocating 1train 1 trying to avoid branch head on adjustment, with direction 0 
+reversing 1 
+changing speed of train 1 to 5 
+official stopping begin for train 78 
+slowing down multi stopping for train 78
+changing speed of train 78 to 5 
+official stopping begin for train 24 
+slowing down multi stopping for train 24
+changing speed of train 24 to 5 
+24 trying to unreserve: C4 MR5 BR18 MR6 
+train 24 trying to stop, last reserved C6 and current_sensor C6 
+changing speed of train 24 to 16 
+path end relocating 24changing speed of train 24 to 16 
+changing speed of train 1 to 16 
+heading into idle for train 24
+changing speed of train 24 to 16 
+reversing 1 
+desire: A4 B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+78 trying to unreserve: D10 MR8 BR9 
+train 78 trying to stop, last reserved D8 and current_sensor D8 
+changing speed of train 78 to 16 
+path end relocating 78changing speed of train 78 to 16 
+trying to get path from D8 to E3, allow reverse 1 
+
+trying 55 66, 54 67 
+getting route for source 55, dest 66: D8 E8 C14 BR11 MR14 A4 trying to show banned node
+getting route for source 54, dest 66: D7 MR9 BR8 D9 trying to show banned node
+is successful 1
+D7 MR9 BR8 D9 
+store_path, is it wrong? case 2 path_len: 780 reverse: 1 
+desire: 
+owned: D7 D8 
+78 reserving successful 1 with len 4 total_len 4: D7 MR9 BR8 D9 
+train 78 trying to reverse(), witth direction 0 
+changing speed of train 78 to 5 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+reversing 78 
+changing speed of train 78 to 26 
+78 trying to multi stop from zero remain_dist -20325, velocity 27000, ticks 420, acceleration_dist 66825, acceleration_time 495
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+official stopping begin for train 78 
+slowing down multi stopping for train 78
+changing speed of train 78 to 5 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+Next stop: 74
+trying to get path from C6 to E11, allow reverse 1 
+
+trying 37 74, 36 75 
+getting route for source 37, dest 74: C6 MR15 B15 trying to show banned node
+getting route for source 36, dest 74: C5 BR6 C15 D12 MR7 E11 trying to show banned node
+is successful 1
+C5 BR6 C15 D12 MR7 E11 
+store_path, is it wrong? case 1 985 
+desire: 
+owned: C5 C6 
+trying to detect deadlock for 24, current_owener 78:  
+train 24 reservation failed due to D10 on stage 3 
+24 reserving successful 0 with len 4 total_len 6: C5 BR6 C15 D12 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  C5 : 24, C15 : -1, D10 : 78, D11 : -1, D12 : -1, E11 : -1, MR5 : -1, BR6 : -1, MR7 : -1, MR18 : -1, 
+trying to recursively detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+78 trying to unreserve: D7 MR9 BR8 
+train 78 trying to stop, last reserved D9 and current_sensor D9 
+changing speed of train 78 to 16 
+path end relocating 78train 78 trying to reverse_after adjustment, with direction 1 
+changing speed of train 78 to 5 
+desire: C5 C15 D10 D11 D12 E11 MR5 BR6 MR7 MR18 
+owned: C5 C6 
+trying to detect deadlock for 24, current_owener 78:  
+train 24 reservation failed due to D10 on stage 3 
+24 reserving successful 0 with len 4 total_len 6: C5 BR6 C15 D12 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  C5 : 24, C15 : -1, D10 : 78, D11 : -1, D12 : -1, E11 : -1, MR5 : -1, BR6 : -1, MR7 : -1, MR18 : -1, 
+trying to recursively detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+Next stop: 74
+desire: C5 C15 D10 D11 D12 E11 MR5 BR6 MR7 MR18 
+owned: C5 C6 
+trying to detect deadlock for 24, current_owener 78:  
+train 24 reservation failed due to D10 on stage 3 
+24 reserving successful 0 with len 4 total_len 6: C5 BR6 C15 D12 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  C5 : 24, C15 : -1, D10 : 78, D11 : -1, D12 : -1, E11 : -1, MR5 : -1, BR6 : -1, MR7 : -1, MR18 : -1, 
+trying to recursively detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  C5 : 24, C15 : -1, D10 : 78, D11 : -1, D12 : -1, E11 : -1, MR5 : -1, BR6 : -1, MR7 : -1, MR18 : -1, 
+trying to recursively detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: C5 C15 D10 D11 D12 E11 MR5 BR6 MR7 MR18 
+owned: C5 C6 
+trying to detect deadlock for 24, current_owener 78:  
+train 24 reservation failed due to D10 on stage 3 
+24 reserving successful 0 with len 4 total_len 6: C5 BR6 C15 D12 
+changing speed of train 78 to 16 
+reversing 78 
+trying to get path from D10 to E3, allow reverse 1 
+
+trying 57 66, 56 67 
+getting route for source 57, dest 66: D10 MR8 BR9 D5 E6 BR10 E3 trying to show banned node
+is successful 1
+D10 MR8 BR9 D5 E6 BR10 E3 
+store_path, is it wrong? case 1 1375 
+desire: 
+owned: D9 D10 
+78 reserving successful 1 with len 5 total_len 7: D10 MR8 BR9 D5 E6 
+changing speed of train 78 to 26 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  C5 : 24, C15 : -1, D10 : 78, D11 : -1, D12 : -1, E11 : -1, MR5 : -1, BR6 : -1, MR7 : -1, MR18 : -1, 
+trying to recursively detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: C5 C15 D10 D11 D12 E11 MR5 BR6 MR7 MR18 
+owned: C5 C6 
+trying to detect deadlock for 24, current_owener 78:  
+train 24 reservation failed due to D10 on stage 3 
+24 reserving successful 0 with len 4 total_len 6: C5 BR6 C15 D12 
+desire: C5 C15 D10 D11 D12 E11 MR5 BR6 MR7 MR18 
+owned: C5 C6 
+trying to detect deadlock for 24, current_owener 78:  
+train 24 reservation failed due to D10 on stage 3 
+24 reserving successful 0 with len 4 total_len 6: C5 BR6 C15 D12 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  C5 : 24, C15 : -1, D10 : 78, D11 : -1, D12 : -1, E11 : -1, MR5 : -1, BR6 : -1, MR7 : -1, MR18 : -1, 
+trying to recursively detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: C5 C15 D10 D11 D12 E11 MR5 BR6 MR7 MR18 
+owned: C5 C6 
+trying to detect deadlock for 24, current_owener 78:  
+train 24 reservation failed due to D10 on stage 3 
+24 reserving successful 0 with len 4 total_len 6: C5 BR6 C15 D12 
+desire: C5 C15 D10 D11 D12 E11 MR5 BR6 MR7 MR18 
+owned: C5 C6 
+trying to detect deadlock for 24, current_owener 78:  
+train 24 reservation failed due to D10 on stage 3 
+24 reserving successful 0 with len 4 total_len 6: C5 BR6 C15 D12 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  C5 : 24, C15 : -1, D10 : 78, D11 : -1, D12 : -1, E11 : -1, MR5 : -1, BR6 : -1, MR7 : -1, MR18 : -1, 
+trying to recursively detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: C5 C15 D10 D11 D12 E11 MR5 BR6 MR7 MR18 
+owned: C5 C6 
+trying to detect deadlock for 24, current_owener 78:  
+train 24 reservation failed due to D10 on stage 3 
+24 reserving successful 0 with len 4 total_len 6: C5 BR6 C15 D12 
+desire: C5 C15 D10 D11 D12 E11 MR5 BR6 MR7 MR18 
+owned: C5 C6 
+trying to detect deadlock for 24, current_owener 78:  
+train 24 reservation failed due to D10 on stage 3 
+24 reserving successful 0 with len 4 total_len 6: C5 BR6 C15 D12 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  C5 : 24, C15 : -1, D10 : 78, D11 : -1, D12 : -1, E11 : -1, MR5 : -1, BR6 : -1, MR7 : -1, MR18 : -1, 
+trying to recursively detect deadlock for 1, current_owener 78:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+Next stop: 74
+desire: C5 C15 D10 D11 D12 E11 MR5 BR6 MR7 MR18 
+owned: C5 C6 
+trying to detect deadlock for 24, current_owener 78:  
+train 24 reservation failed due to D10 on stage 3 
+24 reserving successful 0 with len 4 total_len 6: C5 BR6 C15 D12 
+78 trying to unreserve: D10 MR8 BR9 
+desire: 
+owned: D5 D6 E5 E6 
+78 reserving successful 1 with len 4 total_len 4: D5 E6 BR10 E3 
+78 trying to multi stop remain_dist 31000, velocity 27000, ticks 114
+Next stop: 74
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  C5 : 24, C15 : -1, D10 : -1, D11 : -1, D12 : -1, E11 : -1, MR5 : -1, BR6 : -1, MR7 : -1, MR18 : -1, 
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+Next stop: 74
+official stopping begin for train 78 
+slowing down multi stopping for train 78
+changing speed of train 78 to 5 
+desire: C5 C15 D10 D11 D12 E11 MR5 BR6 MR7 MR18 
+owned: C5 C6 
+24 reserving successful 1 with len 4 total_len 6: C5 BR6 C15 D12 
+train 24 trying to reverse(), witth direction 1 
+changing speed of train 24 to 5 
+reversing 24 
+changing speed of train 24 to 23 
+78 trying to unreserve: D5 
+train 78 trying to stop, last reserved E3 and current_sensor E6 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+78 trying to unreserve: E6 BR10 
+train 78 trying to stop, last reserved E3 and current_sensor E3 
+changing speed of train 78 to 16 
+path end relocating 78changing speed of train 78 to 16 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+trying to get path from E3 to C11, allow reverse 1 
+
+trying 66 42, 67 43 
+getting route for source 66, dest 42: E3 D1 MR155 MR156 BR154 BR153 C1 B4 MR16 C9 MR15 B15 A3 BR14 C11 trying to show banned node
+getting route for source 66, dest 43: E3 D1 MR155 MR156 BR154 BR153 C1 trying to show banned node
+getting route for source 67, dest 43: E4 MR10 E5 trying to show banned node
+is successful 1
+E4 MR10 E5 
+store_path, is it wrong? case 2 path_len: 289 reverse: 1 
+desire: 
+owned: E3 E4 
+78 reserving successful 1 with len 3 total_len 3: E4 MR10 E5 
+train 78 trying to reverse(), witth direction 0 
+changing speed of train 78 to 5 
+reversing 78 
+changing speed of train 78 to 30 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+terminating bunny hopping for train 78 
+slow down bunny hopping for train 78 
+changing speed of train 78 to 5 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+78 trying to unreserve: E4 MR10 
+changing speed of train 78 to 16 
+path end relocating 78train 78 trying to reverse_after adjustment, with direction 1 
+changing speed of train 78 to 5 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+changing speed of train 78 to 16 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+reversing 78 
+trying to get path from E6 to C11, allow reverse 1 
+
+trying 69 42, 68 43 
+getting route for source 69, dest 42: E6 BR10 D4 B6 MR13 C12 MR14 A4 trying to show banned node
+getting route for source 69, dest 43: E6 BR10 D4 B6 MR13 C12 trying to show banned node
+is successful 1
+E6 BR10 D4 B6 MR13 C12 
+store_path, is it wrong? case 1 1044 
+desire: 
+owned: E5 E6 
+78 reserving successful 1 with len 4 total_len 6: E6 BR10 D4 B6 
+changing speed of train 78 to 26 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+78 trying to unreserve: E6 BR10 
+desire: 
+owned: B5 B6 D3 D4 
+trying to detect deadlock for 78, current_owener 1:  B16 : 1, C5 : 24, C10 : -1, BR15 : -1, 
+trying to recursively detect deadlock for 78, current_owener 24:  
+train 78 reservation failed due to B16 on stage 3 
+78 reserving successful 0 with len 4 total_len 4: D4 B6 MR13 C12 
+78 trying to multi stop remain_dist 4900, velocity 27000, ticks 18
+official stopping begin for train 78 
+slowing down multi stopping for train 78
+changing speed of train 78 to 5 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+desire: B16 C5 C10 BR15 
+owned: B15 B16 
+trying to detect deadlock for 1, current_owener 24:  
+train 1 reservation failed due to BR15 on stage 1
+1 reserving successful 0 with len 7 total_len 7: B16 BR15 C5 BR6 MR18 BR5 C3 
+
+

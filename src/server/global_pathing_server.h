@@ -121,6 +121,11 @@ struct AccelerationCalibrationRequest {
 	SpeedLevel to;
 };
 
+struct KnightRequest {
+	char id;
+	Track::PathRespond fake_response;
+};
+
 union RequestBody
 {
 	uint64_t info;
@@ -130,6 +135,7 @@ union RequestBody
 	CalibrationRequest calibration_request;
 	AccelerationCalibrationRequest calibration_request_acceleration;
 	PeddingRequest pedding_request;
+	KnightRequest knight_request;
 	char sensor_state[Sensor::NUM_SENSOR_BYTES];
 };
 
@@ -217,7 +223,6 @@ public:
 
 	bool is_next_branch();
 	// initialization related functions
-	void seedSpeedInfo(uint64_t velocity_1, uint64_t velocity_1_from_up, uint64_t velocity_max);
 	bool isAccelerating(int current_time);
 	void deadlock_init(bool deadlocked);
 	// setup function before setting state for each state transition
@@ -252,7 +257,6 @@ public:
 	uint64_t getCalibrationLoopCount();
 	int64_t getStoppingDistance();
 	int64_t getMinStableDist();
-	int64_t getRemainDistance();
 
 	int64_t get_reverse_tick();
 	void raw_reverse(); // nonblocking edition
@@ -290,7 +294,6 @@ public:
 	void clear_traveled_sensor_until(int sensor_index, bool cancel_reservation = false);
 	void path_end_relocate();
 	void relocate_complete(bool need_reverse = false);
-	void relocate_complete();
 	void relocate_transition(bool need_reverse = false);
 	bool hot_reroute();
 
@@ -302,9 +305,7 @@ public:
 	void train_bunny_hop();
 
 	void handle_train_multi_stopping(int sensor_index);
-	void handle_train_reversing(int sensor_index);
 
-	void unblock_other_train(int other_id);
 	bool handle_deadlock();
 
 	// void handle_train_multi_stopping(int sensor_index);
@@ -356,7 +357,6 @@ public:
 
 	void toIdle();
 	void bunnyHopStopping();
-	void bunnyHopDone();
 	void tryBunnyHopping();
 
 private:

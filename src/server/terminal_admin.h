@@ -41,7 +41,7 @@ const char* const TRAIN_COLOURS[] = {
 };
 
 constexpr char START_PROMPT[] = "Press [Dd] to enter debug mode, or any other key to enter OS mode\r\n";
-constexpr char SENSOR_DATA[] = "\r\nRECENT SENSOR DATA:\r\n|";
+constexpr char SENSOR_DATA[] = "\r\nRECENT SENSOR DATA:\r\n";
 constexpr char DEBUG_TITLE[] = "Debug:\r\n";
 constexpr char WELCOME_MSG[] = "Welcome to AbyssOS! ©Pi Technologies, 2023\r\n";
 constexpr char SWITCH_UI_L0[] = "SWITCHES:\r\n";

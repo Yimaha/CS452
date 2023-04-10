@@ -447,7 +447,7 @@ void Terminal::terminal_admin() {
 	etl::deque<etl::pair<int, int>, RECENT_SENSOR_COUNT> recent_sensor = etl::deque<etl::pair<int, int>, RECENT_SENSOR_COUNT>();
 	bool sensor_table[Sensor::NUM_SENSOR_BYTES][CHAR_BIT] = { false };
 	char reserve_table[TRACK_MAX] = { 0 };
-	bool reserve_dirty_bits[TRACK_MAX] = { false };
+	// bool reserve_dirty_bits[TRACK_MAX] = { false };
 
 	int prev_train_sensors[Train::NUM_TRAINS] = {
 		Train::NO_TRAIN, Train::NO_TRAIN, Train::NO_TRAIN, Train::NO_TRAIN, Train::NO_TRAIN, Train::NO_TRAIN,
@@ -472,7 +472,6 @@ void Terminal::terminal_admin() {
 	bool reached_targets[NUM_TARGETS] = { false };
 
 	bool abyssJumping = false;
-	bool knightReversed = false;
 	int knight = KNIGHT;
 
 	WhichTrack which_track = WhichTrack::TRACK_A;
@@ -537,39 +536,39 @@ void Terminal::terminal_admin() {
 
 			if (isReserveModified) {
 				isReserveModified = false;
-				for (int i = 0; i < TRACK_MAX; ++i) {
-					if (reserve_dirty_bits[i]) {
-						reserve_dirty_bits[i] = false;
-						etl::pair<int, int> pos = track_node_to_reserve_cursor_pos(i);
-						if (pos.first == NO_NODE || contains<int>(curr_train_sensors, Train::NUM_TRAINS, i)) {
-							// bad node, or node that a train is sitting on
-							continue;
-						}
-
-						sprintf(buf, MOVE_CURSOR_F, pos.first, pos.second);
-						str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
-
-						int tindex = Train::train_num_to_index(reserve_table[i]);
-						const char* colour = (reserve_table[i] != 0) ? TRAIN_COLOURS[tindex] : GREEN_CURSOR;
-						str_cpy(colour, printing_buffer, &printing_index, sizeof(RED_CURSOR) - 1);
-
-						if (i < Planning::TOTAL_SENSORS) {
-							const int num = i % Planning::SENSORS_PER_LETTER + 1;
-							const char l = SENSOR_LETTERS[i / Planning::SENSORS_PER_LETTER];
-							const char ones = '0' + (num % 10);
-							const char write[3] = { l, (num > 9) ? '1' : '0', ones };
-							str_cpy(write, printing_buffer, &printing_index, 3);
-
-							// Try to modify it on the map as well
-							const UIPosition* smap = TRACK_SENSORS[static_cast<int>(which_track)];
-							const UIPosition p = smap[i];
-							const char c = STOP_CHECK[i] ? '0' : 'o';
-							sprintf(buf, MOVE_CURSOR_FO, p.r + TRACK_STARTING_ROW, p.c + TRACK_STARTING_COLUMN, c);
-							str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
-						} else {
-							str_cpy(track[i].name, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
-						}
+				for (int i = 0; i < Planning::TOTAL_SENSORS + 2 * Track::NUM_SWITCHES; ++i) {
+					// if (reserve_dirty_bits[i]) {
+					// 	reserve_dirty_bits[i] = false;
+					etl::pair<int, int> pos = track_node_to_reserve_cursor_pos(i);
+					if (pos.first == NO_NODE || contains<int>(curr_train_sensors, Train::NUM_TRAINS, i)) {
+						// bad node, or node that a train is sitting on
+						continue;
 					}
+
+					sprintf(buf, MOVE_CURSOR_F, pos.first, pos.second);
+					str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
+
+					int tindex = Train::train_num_to_index(reserve_table[i]);
+					const char* colour = (reserve_table[i] != 0) ? TRAIN_COLOURS[tindex] : GREEN_CURSOR;
+					str_cpy(colour, printing_buffer, &printing_index, sizeof(RED_CURSOR) - 1);
+
+					if (i < Planning::TOTAL_SENSORS) {
+						const int num = i % Planning::SENSORS_PER_LETTER + 1;
+						const char l = SENSOR_LETTERS[i / Planning::SENSORS_PER_LETTER];
+						const char ones = '0' + (num % 10);
+						const char write[3] = { l, (num > 9) ? '1' : '0', ones };
+						str_cpy(write, printing_buffer, &printing_index, 3);
+
+						// Try to modify it on the map as well
+						// const UIPosition* smap = TRACK_SENSORS[static_cast<int>(which_track)];
+						// const UIPosition p = smap[i];
+						// const char c = STOP_CHECK[i] ? '0' : 'o';
+						// sprintf(buf, MOVE_CURSOR_FO, p.r + TRACK_STARTING_ROW, p.c + TRACK_STARTING_COLUMN, c);
+						// str_cpy(buf, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
+					} else {
+						str_cpy(track[i].name, printing_buffer, &printing_index, TERM_A_BUFLEN, true);
+					}
+					// }
 
 					if (printing_index > UART::UART_MESSAGE_LIMIT / 2) {
 						str_cpy(RESTORE_CURSOR, printing_buffer, &printing_index, sizeof(RESTORE_CURSOR) - 1);
@@ -584,6 +583,7 @@ void Terminal::terminal_admin() {
 			UART::Puts(addr.term_trans_tid, 0, printing_buffer, printing_index);
 			printing_index = 0;
 			str_cpy(SAVE_CURSOR, printing_buffer, &printing_index, sizeof(SAVE_CURSOR) - 1);
+			str_cpy(WHITE_CURSOR, printing_buffer, &printing_index, sizeof(WHITE_CURSOR) - 1);
 
 			if (isTrainStateModified) {
 				isTrainStateModified = false;
@@ -758,7 +758,7 @@ void Terminal::terminal_admin() {
 			if (ticks % 50 == 0) {
 				for (int i = 0; i < TRACK_MAX; ++i) {
 					reserve_table[i] = 0;
-					reserve_dirty_bits[i] = true;
+					// reserve_dirty_bits[i] = true;
 				}
 			}
 
@@ -841,6 +841,7 @@ void Terminal::terminal_admin() {
 			str_cpy(YELLOW_CURSOR, printing_buffer, &printing_index, sizeof(YELLOW_CURSOR) - 1);
 			str_cpy(SENSOR_DATA, printing_buffer, &printing_index, sizeof(SENSOR_DATA) - 1);
 			str_cpy(WHITE_CURSOR, printing_buffer, &printing_index, sizeof(WHITE_CURSOR) - 1);
+			str_cpy("|", printing_buffer, &printing_index, 1, true);
 			for (int i = 0; i < RECENT_SENSOR_COUNT; ++i) {
 				str_cpy("   |", printing_buffer, &printing_index, 4, true);
 			}
@@ -884,7 +885,6 @@ void Terminal::terminal_admin() {
 
 			// Modify the sensors to show if they are stop checks or not
 			auto sensor_positions = TRACK_SENSORS[static_cast<int>(which_track)];
-			str_cpy(GREEN_CURSOR, printing_buffer, &printing_index, sizeof(GREEN_CURSOR) - 1);
 			for (int i = 0; i < Planning::TOTAL_SENSORS; i += 2) {
 				const char c = STOP_CHECK[i] ? '0' : 'o';
 				const UIPosition p = sensor_positions[i];
@@ -1003,8 +1003,8 @@ void Terminal::terminal_admin() {
 		case RequestHeader::TERM_RESERVATION: {
 			Reply::EmptyReply(from);
 			for (int i = 0; i < TRACK_MAX; ++i) {
-				reserve_dirty_bits[i] = (reserve_table[i] != req.body.reserve_state[i]);
-				isReserveModified = isReserveModified || reserve_dirty_bits[i];
+				// reserve_dirty_bits[i] = (reserve_table[i] != req.body.reserve_state[i]);
+				isReserveModified = isReserveModified || (reserve_table[i] != req.body.reserve_state[i]);
 				reserve_table[i] = req.body.reserve_state[i];
 			}
 			break;
@@ -1126,8 +1126,6 @@ void Terminal::terminal_admin() {
 					int skip = (c == 'E') ? 1 : 0;
 					if (loc < 0 || loc >= TRACK_MAX) {
 						break;
-					} else if (knightReversed) {
-						loc = track[loc].reverse - track;
 					}
 
 					int upcoming_stop = next_stop(loc, skip);
@@ -1139,10 +1137,16 @@ void Terminal::terminal_admin() {
 					handle_generic_two_arg(courier_pool, knight, upcoming_stop, RequestHeader::TERM_COUR_LOCAL_DEST);
 					break;
 				}
-				case 'S': {
-					knightReversed = true;
-					TerminalCourierMessage req = { RequestHeader::TERM_COUR_REV, knight };
-					courier_pool.request(&req);
+				case 'S': { // HIGHLY VOLATILE
+					int knight_index = Train::train_num_to_index(knight);
+					int loc = global_train_info[knight_index].prev_sensor;
+					loc = track[loc].reverse - track;
+					int upcoming_stop = next_stop(loc, 0);
+					if (upcoming_stop == TRACK_DATA_NO_SENSOR) {
+						break;
+					}
+
+					handle_generic_two_arg(courier_pool, knight, upcoming_stop, RequestHeader::TERM_COUR_KNIGHT_REV);
 					break;
 				}
 				case 'A':
@@ -1228,11 +1232,11 @@ void Terminal::terminal_admin() {
 					} else {
 						int res = cmd_parsed.args.front();
 						if (res >= 0 && res < TRACK_MAX) {
-							reserve_dirty_bits[res] = true;
+							// reserve_dirty_bits[res] = true;
 							reserve_table[res] = 24;
 						} else {
 							for (int i = 0; i < Planning::TOTAL_SENSORS + 2 * Track::NUM_SWITCHES; ++i) {
-								reserve_dirty_bits[i] = true;
+								// reserve_dirty_bits[i] = true;
 								reserve_table[i] = 24;
 							}
 						}
@@ -1455,6 +1459,13 @@ void Terminal::terminal_courier() {
 		}
 		case RequestHeader::TERM_COUR_LOCAL_DEST: {
 			local_server_redirect(RequestHeader::LOCAL_PATH_DEST);
+			break;
+		}
+		case RequestHeader::TERM_COUR_KNIGHT_REV: {
+			req_to_global.header = RequestHeader::GLOBAL_MULTI_PATH_KNIGHT_REV;
+			req_to_global.body.routing_request.id = req.body.courier_body.args[0];
+			req_to_global.body.routing_request.dest = req.body.courier_body.args[1];
+			Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
 			break;
 		}
 		case RequestHeader::TERM_COUR_LOCAL_RNG: {

@@ -59,6 +59,7 @@ enum class RequestHeader : uint32_t {
 	TERM_COUR_LOCAL_RNG,
 	TERM_COUR_LOCAL_BUN_DIST,
 	TERM_COUR_LOCAL_KNIGHT,
+	TERM_COUR_KNIGHT_REV,
 
 	// train related
 	TRAIN_SPEED,
@@ -82,13 +83,13 @@ enum class RequestHeader : uint32_t {
 	UART_PUTS,
 
 	// Global Pathing Related,
-	GLOBAL_SET_TRACK,  // determine which trakc are you on
-	GLOBAL_LOCATE,	   // locate all trains
-	GLOBAL_PATH,	   // ask a certain train to complete a certain path
-	GLOBAL_MULTI_PATH, // ask a train to traverse to the given location (up to 3 at a time), note that this call is non-blockin
+	GLOBAL_SET_TRACK,			  // determine which trakc are you on
+	GLOBAL_LOCATE,				  // locate all trains
+	GLOBAL_PATH,				  // ask a certain train to complete a certain path
+	GLOBAL_MULTI_PATH,			  // ask a train to traverse to the given location (up to 3 at a time), note that this call is non-blocking
+	GLOBAL_MULTI_PATH_KNIGHT_REV, // make the knight reverse
 	GLOBAL_DEADLOCK_UNBLOCK,
-	GLOBAL_CALIBRATE_VELOCITY, // provide a train id, allow it to calibrate the velocity (running it at max velocity and
-							   // update accordingly)
+	GLOBAL_CALIBRATE_VELOCITY, // provide a train id, allow it to calibrate the velocity (running it at max velocity and update accordingly)
 	GLOBAL_CALIBRATE_ACCELERATION,
 	GLOBAL_CALIBRATE_STARTING,
 	GLOBAL_CALIBRATE_STOPPING_DISTANCE, // you have to do the calibration manually, but it just run the train and stop
