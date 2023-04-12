@@ -1,5 +1,5 @@
 #pragma once
-#define MAX_BUFFER_SIZE 256
+#define MAX_BUFFER_SIZE 512
 #include "../rpi.h"
 #include "utility.h"
 

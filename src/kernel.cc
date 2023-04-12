@@ -161,9 +161,13 @@ int UART::Putc(int tid, int uart, char ch) {
 
 int UART::Puts(int tid, int uart, const char* s, uint64_t len) {
 	// since we only have uart0, uart param is ignored
-	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID) || len > UART::UART_MESSAGE_LIMIT) {
-		Task::_KernelCrash("either id is not correct or len is too big in Puts\r\n");
+	if ((uart == 0 && tid != UART::UART_0_TRANSMITTER_TID) || (uart == 1 && tid != UART::UART_1_TRANSMITTER_TID)) {
+		
+		Task::_KernelCrash("%d: id is not correct Puts\r\n", Task::MyTid());
+	} else if (len >= UART::UART_MESSAGE_LIMIT) {
+		Task::_KernelCrash("%d: len is too big in Puts\r\n", Task::MyTid());
 	}
+
 	UART::WorkerRequestBody body;
 	body.msg_len = len;
 	for (uint64_t i = 0; i < len; i++) {
@@ -199,20 +203,6 @@ int UART::Getc(int tid, int uart) {
 	char c;
 	Message::Send::Send(tid, reinterpret_cast<const char*>(&req), sizeof(UART::UARTServerReq), &c, 1);
 	return (int)c;
-}
-
-int Terminal::TermDebugPuts(const char* msg) {
-	WorkerRequestBody body;
-	uint32_t i = 0;
-	for (; i < MAX_PUTS_LEN - 1 && msg[i] != '\0'; i++) {
-		body.msg[i] = msg[i];
-	}
-
-	body.msg[i] = '\0';
-	body.msg_len = i;
-	TerminalServerReq req = TerminalServerReq(RequestHeader::TERM_DEBUG_PUTS, body);
-	Message::Send::SendNoReply(TERMINAL_ADMIN_TID, reinterpret_cast<char*>(&req), sizeof(TerminalServerReq));
-	return 0;
 }
 
 Kernel::Kernel() {

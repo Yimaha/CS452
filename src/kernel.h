@@ -26,7 +26,7 @@ namespace Task
 constexpr int MAIDENLESS = -1;
 constexpr uint64_t USER_TASK_START_ADDRESS = 0x10000000;
 constexpr uint64_t USER_TASK_LIMIT
-	= 256; // We exactly how much task we are going to create, thus, we can afford to a large quantity of User Task
+	= SCHEDULER_QUEUE_SIZE; // We exactly how much task we are going to create, thus, we can afford to a large quantity of User Task
 
 int MyTid();
 int MyParentTid();
@@ -161,11 +161,6 @@ enum Exception { INVALID_SERVER_TASK = -1, FAILED_TO_WRITE = -2, FAILED_TO_READ 
 
 }
 
-namespace Terminal
-{
-int TermDebugPuts(const char* msg);
-}
-
 /**
  * Kernel state class, stores important information about the kernel and control the flow
  * */
@@ -226,13 +221,11 @@ private:
 	Task::Scheduler scheduler;				  // scheduler doesn't hold the actual task descriptor,
 											  // simply an id and the priority
 
-	Descriptor::TaskDescriptor* tasks[Task::USER_TASK_LIMIT]
-		= { nullptr }; // points to the starting location of taskDescriptors, default all nullptr
+	Descriptor::TaskDescriptor* tasks[Task::USER_TASK_LIMIT] = { nullptr }; // points to the starting location of taskDescriptors, default all nullptr
 
 	// define the type, and follow by the constructor variable you want to pass to i
 	SlabAllocator<Descriptor::TaskDescriptor, int, int, Priority, void (*)()> task_allocator
-		= SlabAllocator<Descriptor::TaskDescriptor, int, int, Priority, void (*)()>(
-			(char*)Task::USER_TASK_START_ADDRESS, Task::USER_TASK_LIMIT);
+		= SlabAllocator<Descriptor::TaskDescriptor, int, int, Priority, void (*)()>((char*)Task::USER_TASK_START_ADDRESS, Task::USER_TASK_LIMIT);
 
 	Clock::TimeKeeper time_keeper = Clock::TimeKeeper();
 
@@ -256,8 +249,7 @@ private:
 	};
 
 	// Backtrace stack
-	etl::circular_buffer<KernelEntryInfo, BACK_TRACE_SIZE> backtrace_stack
-		= etl::circular_buffer<KernelEntryInfo, BACK_TRACE_SIZE>();
+	etl::circular_buffer<KernelEntryInfo, BACK_TRACE_SIZE> backtrace_stack = etl::circular_buffer<KernelEntryInfo, BACK_TRACE_SIZE>();
 	// list of interrupt related parking log
 	// note that fail to handle interrupt means death, and we only have 1 parking spot for each type
 	// clock notifier "list", a pointer to the notifier
@@ -276,8 +268,7 @@ private:
 	bool enable_receive_interrupt[2] = { false, false };
 	bool enable_CTS[2] = { false, true };
 
-	void allocate_new_task(int parent_id,
-						   Priority priority,
+	void allocate_new_task(int parent_id, Priority priority,
 						   void (*pc)()); // create, and push a new task onto the actual scheduler
 	void handle_create();
 	void handle_send();
@@ -310,12 +301,7 @@ template <typename... Args>
 void Kernel::kcrash(const char* msg, Args... args) {
 	printf(msg, args...);
 	for (auto& keinfo : backtrace_stack) {
-		printf("Task [%d], HandlerCode %d, Arg1 %d, Arg2 %d, ICode %d\r\n",
-			   keinfo.tid,
-			   keinfo.handler_code,
-			   keinfo.arg1,
-			   keinfo.arg2,
-			   keinfo.icode);
+		printf("Task [%d], HandlerCode %d, Arg1 %d, Arg2 %d, ICode %d\r\n", keinfo.tid, keinfo.handler_code, keinfo.arg1, keinfo.arg2, keinfo.icode);
 	}
 
 	while (true) {

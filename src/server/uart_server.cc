@@ -37,7 +37,7 @@ void UART::uart_0_server_transmit() {
 			put_successful = UART::UartWriteRegister(uart_channel, UART_THR, s[i]);
 			i++;
 		}
-		if (i != len) { // we couldn't push everything
+		if (put_successful != UART::SUCCESSFUL) { // we couldn't push everything
 			for (i = i - 1; i < len; i++) {
 				transmit_queue.push(s[i]);
 			}

@@ -4,6 +4,7 @@
 #include "local_pathing_server.h"
 #include "train_admin.h"
 #include "uart_server.h"
+#include "track_server.h"
 
 Message::AddressBook Message::getAddressBook() {
 	AddressBook book;
@@ -16,6 +17,7 @@ Message::AddressBook Message::getAddressBook() {
 	book.sensor_admin_tid = Name::WhoIs(Sensor::SENSOR_ADMIN_NAME);
 	book.terminal_admin_tid = Name::WhoIs(Terminal::TERMINAL_ADMIN);
 	book.global_pathing_tid = Name::WhoIs(Planning::GLOBAL_PATHING_SERVER_NAME);
+	book.track_server_tid = Name::WhoIs(Track::TRACK_SERVER_NAME);
 
 	char buf[Name::MAX_NAME_LENGTH];
 	for (int i = 0; i < Train::NUM_TRAINS; ++i) {

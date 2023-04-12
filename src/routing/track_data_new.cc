@@ -10,6 +10,41 @@ static void* memset(void* s, int c, unsigned int n) {
 	return s;
 }
 
+// Returns the distance to the next sensor, traveling forwards
+int dist_to_next_sensor(const track_node* track, int node) {
+	int dist = 0;
+	while (track[node].type != NODE_SENSOR) {
+		if (track[node].type == NODE_EXIT) {
+			return TRACK_DATA_NO_SENSOR;
+		}
+
+		int dir = DIR_STRAIGHT; // aka DIR_AHEAD, same difference
+		if (track[node].type == NODE_BRANCH && track[node].edge[DIR_AHEAD].broken) {
+			dir = DIR_CURVED;
+		} else if (track[node].edge[dir].dest->type == NODE_EXIT) {
+			dir = DIR_CURVED;
+		}
+
+		dist += track[node].edge[dir].dist;
+		node = track[node].edge[dir].dest - track;
+	}
+
+	return dist;
+}
+
+// Returns the ID of the next branch, traveling forwards
+int next_branch_id(const track_node* track, int node) {
+	while (track[node].type != NODE_BRANCH) {
+		if (track[node].type == NODE_EXIT) {
+			return TRACK_DATA_NO_SWITCH;
+		}
+
+		node = track[node].edge[DIR_AHEAD].dest - track;
+	}
+
+	return track[node].num;
+}
+
 void init_tracka(track_node* track) {
 	memset(track, 0, TRACK_MAX * sizeof(track_node));
 	track[0].name = "A1";
@@ -1195,13 +1230,32 @@ void init_tracka(track_node* track) {
 
 	for (int i = 0; i < TRACK_MAX; ++i) {
 		track[i].edge[DIR_AHEAD].broken = false;
+		track[i].reserved_by = RESERVED_BY_NO_ONE;
+		track[i].reserve_dir = RESERVED_BY_NO_ONE;
+		track[i].index = i;
 		if (track[i].type == NODE_BRANCH) {
-			// track[i].edge[DIR_STRAIGHT].broken = false;
 			track[i].edge[DIR_CURVED].broken = false;
 		}
 	}
-
+	track[120].edge[DIR_CURVED].broken = true;
 	track[122].edge[DIR_STRAIGHT].broken = true;
+
+	// Reverse costs
+	for (int i = 0; i < TRACK_MAX; ++i) {
+		if (track[i].type == NODE_MERGE) {
+			int dist = dist_to_next_sensor(track, i);
+			// int cost = (dist < TRACK_MIN_REV_COST) ? TRACK_MIN_REV_COST : dist;
+			int cost = dist + TRACK_MIN_REV_COST;
+			track[i].rev_cost = 2 * cost + TRACK_REV_FLAT_COST;
+			track[i].rev_offset = TRACK_MIN_REV_COST;
+		} else {
+			track[i].rev_cost = 0;
+		}
+	}
+
+	// track[85].rev_offset = 40;
+	// track[87].rev_offset = 200;
+	// track[103].rev_offset = 200;
 }
 
 void init_trackb(track_node* track) {
@@ -2368,7 +2422,10 @@ void init_trackb(track_node* track) {
 	track[139].reverse = &track[138];
 
 	for (int i = 0; i < TRACK_MAX; ++i) {
+		track[i].reserved_by = RESERVED_BY_NO_ONE;
+		track[i].reserve_dir = RESERVED_BY_NO_ONE;
 		track[i].edge[DIR_AHEAD].broken = false;
+		track[i].index = i;
 		if (track[i].type == NODE_BRANCH) {
 			// track[i].edge[DIR_STRAIGHT].broken = false;
 			track[i].edge[DIR_CURVED].broken = false;
@@ -2377,7 +2434,31 @@ void init_trackb(track_node* track) {
 
 	track[86].edge[DIR_CURVED].broken = true;
 	track[88].edge[DIR_STRAIGHT].broken = true;
-	track[92].edge[DIR_CURVED].broken = true;
-	track[122].edge[DIR_CURVED].broken = true;
-	track[120].edge[DIR_STRAIGHT].broken = true;
+	track[92].edge[DIR_STRAIGHT].broken = true;
+
+	// track[122].edge[DIR_CURVED].broken = true;
+	// track[116].edge[DIR_CURVED].broken = true;
+	// track[118].edge[DIR_STRAIGHT].broken = true;
+	// track[120].edge[DIR_STRAIGHT].broken = true;
+
+	// Reverse costs. First, from each branch, calculate the dist to the next sensor
+	// Reverse costs
+	for (int i = 0; i < TRACK_MAX; ++i) {
+		if (track[i].type == NODE_MERGE) {
+			int dist = dist_to_next_sensor(track, i);
+			// int cost = (dist < TRACK_MIN_REV_COST) ? TRACK_MIN_REV_COST : dist;
+			int cost = dist + TRACK_MIN_REV_COST;
+			track[i].rev_cost = 2 * cost + TRACK_REV_FLAT_COST;
+			track[i].rev_offset = TRACK_MIN_REV_COST;
+		} else {
+			track[i].rev_cost = 0;
+		}
+	}
+
+	// add some hardcoded reverse offsets because the tracks are iffy
+	// track[85].rev_offset = 40;
+	// track[87].rev_offset = 200;
+	// track[103].rev_offset = 200;
+	// track[105].rev_offset = 40;
+	// track[111].rev_offset = 40;
 }

@@ -3,6 +3,7 @@
 
 using namespace Train;
 using namespace Message;
+using namespace Sensor;
 
 static const char extra_switch[] = { 0x99, 0x9A, 0x9B, 0x9C };
 int Train::get_switch_id(int id) {
@@ -11,7 +12,7 @@ int Train::get_switch_id(int id) {
 	} else if (153 <= id && id <= 156) {
 		return id - 153 + 18;
 	} else {
-		return 0;
+		return NO_SWITCH;
 	}
 }
 
@@ -29,20 +30,10 @@ void get_clear_track_byte(char code[]) {
 	code[0] = '\0' + 32;
 }
 
-int Train::train_num_to_index(int train_num) {
-	for (int i = 0; i < Train::NUM_TRAINS; i++) {
-		if (Train::TRAIN_NUMBERS[i] == train_num) {
-			return i;
-		}
-	}
-
-	return NO_TRAIN;
-}
-
 struct SwitchDelayMessage {
 	int from;
-	int track_id;
-	bool straight;
+	char track_id;
+	char dir;
 };
 
 void Train::train_admin() {
@@ -52,30 +43,17 @@ void Train::train_admin() {
 	AddressBook addr = getAddressBook();
 	int uart_tid = addr.train_trans_tid;
 
+	etl::queue<Command, 128> train_command_queue;
+	etl::queue<Command, 128> track_command_queue;
+
 	char command[2];
 	int from;
 	TrainAdminReq req;
 	TrainRaw trains[NUM_TRAINS];
 
-	char switch_state[NUM_SWITCHES] = { 'c' };
 	etl::queue<SwitchDelayMessage, POOL_SIZE> switch_queue;
-	etl::queue<int, POOL_SIZE> switch_subscriber;
-
-	// auto resync = [&]() { Send::SendEmptyReply(sensor_admin, (const char*)&req_to_sensor, sizeof(req_to_sensor));
-	// };
-
-	for (int i = 1; i <= 18; i++) {
-		switch_queue.push({ -1, i, false });
-	}
-
-	for (int i = 153; i <= 156; i++) {
-		switch_queue.push({ -1, i, false });
-	}
-
-	get_curved_byte(command, 1);
-	UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
-	TrainCourierReq req_to_courier = { RequestHeader::TRAIN_COUR_SWITCH_DELAY, { 0x0, 0x0 } };
-	req_to_courier.body.next_delay = Clock::Time(addr.clock_tid) + Sensor::SENSOR_DELAY; // timing is not relevant at startup
+	TrainCourierReq req_to_courier;
+	req_to_courier.header = RequestHeader::TRAIN_COUR_SENSOR_START;
 	courier_pool.request(&req_to_courier);
 
 	// once we pushed all jobs, initialize a job that just setup all the switches
@@ -91,12 +69,13 @@ void Train::train_admin() {
 			// raw call means train server is not responsible for timing.
 			Message::Reply::EmptyReply(from); // unblock after job is done
 			char train_id = req.body.command.id;
+			if (req.body.command.action < 16) {
+				req.body.command.action += 16;
+			}
 			char desire_speed = req.body.command.action; // should be an integer within 0 - 31
 			int train_index = train_num_to_index(train_id);
 			trains[train_index].speed = desire_speed;
-			command[0] = desire_speed;
-			command[1] = train_id;
-			UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
+			train_command_queue.push(req.body.command);
 			break;
 		}
 		case RequestHeader::TRAIN_REV: {
@@ -105,31 +84,21 @@ void Train::train_admin() {
 			char train_id = req.body.command.id;
 			int train_index = train_num_to_index(train_id);
 			trains[train_index].direction = !trains[train_index].direction;
-			command[0] = REV_COMMAND;
-			command[1] = train_id;
-			UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
+			req.body.command.action = REV_COMMAND;
+			train_command_queue.push(req.body.command);
+
 			break;
 		}
 		case RequestHeader::TRAIN_SWITCH: {
-			char track_id = req.body.command.id;
-			if (get_switch_id(track_id) == req.body.command.action) {
-				// no need to do anything
-				Message::Reply::EmptyReply(from);
-			} else {
-				bool s = req.body.command.action == 's'; // if true, then straight, else, curved
-				if (s) {
-					get_straight_byte(command, track_id);
-				} else {
-					get_curved_byte(command, track_id);
-				}
-				if (switch_queue.empty()) {
-					UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
-					switch_state[get_switch_id(track_id)] = req.body.command.action;
-					courier_pool.request(&req_to_courier);
-				}
-				switch_queue.push({ from, track_id, s });
-			}
+			Message::Reply::EmptyReply(from);
 
+			char track_id = req.body.command.id;
+			if (switch_queue.empty()) {
+				track_command_queue.push(req.body.command);
+				req_to_courier.header = RequestHeader::TRAIN_COUR_SWITCH_DELAY;
+				courier_pool.request(&req_to_courier);
+			}
+			switch_queue.push({ from, track_id, req.body.command.action });
 			break;
 		}
 		case RequestHeader::TRAIN_SWITCH_DELAY_COMPLETE: {
@@ -141,38 +110,49 @@ void Train::train_admin() {
 			}
 
 			SwitchDelayMessage info = switch_queue.front();
-			if (info.from > 0) {
-				Message::Reply::EmptyReply(info.from);
-			}
 			switch_queue.pop();
 			// if there is another swtich request queued up
 			if (!switch_queue.empty()) {
 				info = switch_queue.front();
-				if (info.straight) {
-					get_straight_byte(command, info.track_id);
-				} else {
-					get_curved_byte(command, info.track_id);
-				}
-				UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
-				switch_state[get_switch_id(info.track_id)] = info.straight ? 's' : 'c';
+				track_command_queue.push(Command { info.track_id, info.dir });
+				req_to_courier.header = RequestHeader::TRAIN_COUR_SWITCH_DELAY;
 				courier_pool.request(&req_to_courier);
 			} else {
-				get_clear_track_byte(command);
-				UART::Putc(uart_tid, TRAIN_UART_CHANNEL, command[0]);
-				while (!switch_subscriber.empty()) {
-					Message::Reply::Reply(switch_subscriber.front(), switch_state, sizeof(switch_state));
-					switch_subscriber.pop();
-				}
+				track_command_queue.push(Command { 0, 0 });
 			}
 			break;
 		}
-		case RequestHeader::TRAIN_COURIER_COMPLETE: {
-			// default fall through if you don't desire the any job to be done at courier end
+		case RequestHeader::TRAIN_SENSOR_READING_COMPLETE: {
+			// unblock and place the courier back into the pool
 			courier_pool.receive(from);
+			if (!train_command_queue.empty()) {
+				command[0] = train_command_queue.front().action;
+				command[1] = train_command_queue.front().id;
+				UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
+				train_command_queue.pop();
+			} else if (!track_command_queue.empty()) {
+				Command info = track_command_queue.front();
+				if (info.id == 0) // since there is no swtich number 0, this means clear switch
+				{
+					get_clear_track_byte(command);
+					UART::Putc(uart_tid, TRAIN_UART_CHANNEL, command[0]);
+				} else {
+					bool s = info.action == 's'; // if true, then straight, else, curved
+					if (s) {
+						get_straight_byte(command, info.id);
+					} else {
+						get_curved_byte(command, info.id);
+					}
+					UART::Puts(uart_tid, TRAIN_UART_CHANNEL, command, 2);
+				}
+				track_command_queue.pop();
+			}
+			req_to_courier.header = RequestHeader::TRAIN_COUR_SENSOR_START;
+			courier_pool.request(&req_to_courier);
 			break;
 		}
-		case RequestHeader::TRAIN_SWITCH_OBSERVE: {
-			switch_subscriber.push(from);
+		case RequestHeader::TRAIN_COURIER_COMPLETE: {
+			courier_pool.receive(from);
 			break;
 		}
 		case RequestHeader::TRAIN_OBSERVE: {
@@ -192,6 +172,7 @@ void Train::train_courier() {
 	int from;
 	TrainCourierReq req;
 	TrainAdminReq req_to_admin;
+	SensorAdminReq req_to_sensor;
 
 	// worker only has few types
 	while (true) {
@@ -199,10 +180,15 @@ void Train::train_courier() {
 		Message::Reply::EmptyReply(from); // unblock caller right away
 		switch (req.header) {
 		case RequestHeader::TRAIN_COUR_SWITCH_DELAY: {
-			Clock::DelayUntil(addr.clock_tid, Sensor::SENSOR_DELAY * 2);
-			// delay by 2 ticks of sensor intervel, so block until + one following it
-
+			Clock::DelayUntil(addr.clock_tid, 15);
 			req_to_admin = { RequestHeader::TRAIN_SWITCH_DELAY_COMPLETE, RequestBody { 0x0, 0x0 } };
+			Message::Send::SendNoReply(addr.train_admin_tid, (const char*)&req_to_admin, sizeof(TrainAdminReq));
+			break;
+		}
+		case RequestHeader::TRAIN_COUR_SENSOR_START: {
+			req_to_sensor.header = Message::RequestHeader::SENSOR_START_UPDATE;
+			Message::Send::SendNoReply(addr.sensor_admin_tid, (const char*)&req_to_sensor, sizeof(SensorAdminReq));
+			req_to_admin = { RequestHeader::TRAIN_SENSOR_READING_COMPLETE, RequestBody { 0x0, 0x0 } };
 			Message::Send::SendNoReply(addr.train_admin_tid, (const char*)&req_to_admin, sizeof(TrainAdminReq));
 			break;
 		}

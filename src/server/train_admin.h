@@ -8,7 +8,7 @@ namespace Train
 
 constexpr char TRAIN_SERVER_NAME[] = "TRAIN_ADMIN";
 constexpr int TRAIN_UART_CHANNEL = 1;
-constexpr char REV_COMMAND = 15;
+constexpr char REV_COMMAND = 15 + 16;
 constexpr int NUM_TRAINS = 6;
 constexpr int NUM_SWITCHES = 22;
 constexpr int TRAIN_NUMBERS[NUM_TRAINS] = { 1, 2, 24, 58, 74, 78 };
@@ -23,8 +23,17 @@ public:
 	bool direction = true;
 };
 
-const int NO_TRAIN = -1;
-int train_num_to_index(int train_num);
+constexpr int NO_TRAIN = -1;
+constexpr int NO_SWITCH = -1;
+constexpr int train_num_to_index(int train_num) {
+	for (int i = 0; i < Train::NUM_TRAINS; i++) {
+		if (TRAIN_NUMBERS[i] == train_num) {
+			return i;
+		}
+	}
+	return NO_TRAIN;
+}
+
 void train_admin();
 void train_courier();
 

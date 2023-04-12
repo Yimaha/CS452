@@ -32,8 +32,7 @@ void Name::name_server() {
 
 		} else {
 			// Invalid request
-			int reply = Exception::INVALID_IDEN;
-			Message::Reply::Reply(from, (char*)&reply, sizeof(int));
+			Task::_KernelCrash("received invalid request of type %d at Name Server", req.header);
 		}
 	}
 }

@@ -28,7 +28,7 @@ void LocalPathing::local_pathing_worker() {
 	AddressBook addr = Message::getAddressBook();
 	PlanningServerReq req_to_global;
 
-	auto send_to_dest_at_speed = [&addr, &req_to_global, internal_train_num](int dest, SpeedLevel speed, int offset = 0) {
+	auto send_to_dest_at_speed = [&addr, &req_to_global, internal_train_num](int dest, SpeedLevel speed) {
 		req_to_global = { RequestHeader::GLOBAL_PATH, Planning::RequestBody { 0x0 } };
 		req_to_global.body.routing_request.id = internal_train_num;
 		req_to_global.body.routing_request.dest = dest;
@@ -70,7 +70,7 @@ void LocalPathing::local_pathing_worker() {
 		Clock::Delay(addr.clock_tid, delay);
 	};
 
-	auto calibrate_stopping_distance = [&](SpeedLevel level, bool from_up, int delay = 0) {
+	auto calibrate_stopping_distance = [&](SpeedLevel level, bool from_up) {
 		req_to_global = { RequestHeader::GLOBAL_CALIBRATE_STOPPING_DISTANCE, Planning::RequestBody { 0x0 } };
 		req_to_global.body.calibration_request.id = internal_train_num;
 		req_to_global.body.calibration_request.level = level;
@@ -89,35 +89,21 @@ void LocalPathing::local_pathing_worker() {
 			break;
 		}
 
-		case RequestHeader::LOCAL_PATH_LOOP: {
-			// first locate
-			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_LOCATE, Planning::RequestBody { 0x0 } };
-			req_to_global.body.command.id = internal_train_num;
-			Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
-
-			// send yourself to sensor 16, aka B1
-			send_to_b1(SPEED_MAX);
-
-			// then loop
-			req_to_global = { RequestHeader::GLOBAL_LOOP, Planning::RequestBody { 0x0 } };
+		case RequestHeader::LOCAL_PATH_DEST: {
+			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_MULTI_PATH, Planning::RequestBody { 0x0 } };
 			req_to_global.body.routing_request.id = internal_train_num;
-			SpeedLevel speed = (req.body.command.num_args == 0) ? SPEED_MAX : static_cast<SpeedLevel>(req.body.command.args[0]);
-			req_to_global.body.routing_request.speed = speed;
-
+			req_to_global.body.routing_request.dest = req.body.command.args[0];
 			Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
 			Reply::EmptyReply(from);
 			break;
 		}
 
-		case RequestHeader::LOCAL_PATH_EXLOOP: {
-			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_EXIT_LOOP, Planning::RequestBody { 0x0 } };
+		case RequestHeader::LOCAL_PATH_RNG: {
+			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_RNG, Planning::RequestBody { 0x0 } };
 			req_to_global.body.routing_request.id = internal_train_num;
-			req_to_global.body.routing_request.dest = req.body.command.args[0];
-
-			int offset = (req.body.command.num_args >= 2) ? req.body.command.args[1] : 0;
-			req_to_global.body.routing_request.offset = offset;
-
-			Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
+			for (int i = 0; i < 200; i++) {
+				Send::SendNoReply(addr.global_pathing_tid, reinterpret_cast<char*>(&req_to_global), sizeof(req_to_global));
+			}
 			Reply::EmptyReply(from);
 			break;
 		}
@@ -130,18 +116,6 @@ void LocalPathing::local_pathing_worker() {
 			Reply::EmptyReply(from);
 			break;
 		}
-
-		case RequestHeader::LOCAL_PATH_INIT: {
-			debug_print(addr.term_trans_tid, "LOCAL_PATH_INIT_%d", internal_train_num);
-			for (uint32_t i = 0; i < req.body.command.num_args; ++i) {
-				debug_print(addr.term_trans_tid, " %d", req.body.command.args[i]);
-			}
-
-			debug_print(addr.term_trans_tid, "\r\n");
-			Reply::EmptyReply(from);
-			break;
-		}
-
 		case RequestHeader::LOCAL_PATH_CALI: {
 			// first locate
 
@@ -155,13 +129,16 @@ void LocalPathing::local_pathing_worker() {
 			// then start calibration at max speed
 			calibrate_velocity(SPEED_MAX, true, SHORT_DELAY);
 			send_to_b1();
+			debug_print(addr.term_trans_tid, "Cali max speed for train %d finished\r\n", internal_train_num);
 
 			// recalibrate at lower speed
 			calibrate_velocity(SPEED_1, true, SHORT_DELAY);
 			send_to_b1();
+			debug_print(addr.term_trans_tid, "Cali slow speed from up for train %d finished\r\n", internal_train_num);
 
 			// recalibrate at lower speed
 			calibrate_velocity(SPEED_1, false, 0);
+			debug_print(addr.term_trans_tid, "Cali slow speed from down for train %d finished\r\n", internal_train_num);
 
 			Reply::EmptyReply(from);
 			break;
@@ -184,10 +161,10 @@ void LocalPathing::local_pathing_worker() {
 			// then start calibration
 			calibrate_starting(SPEED_MAX, true, LONG_DELAY);
 			send_to_b1(SPEED_1, LONG_DELAY);
-
+			// 4627,
 			calibrate_acceleration(SPEED_1, SPEED_MAX, LONG_DELAY);
 			send_to_b1(SPEED_1, LONG_DELAY);
-
+			// 8707
 			calibrate_acceleration(SPEED_MAX, SPEED_1, LONG_DELAY);
 
 			break;
@@ -210,6 +187,14 @@ void LocalPathing::local_pathing_worker() {
 			// go to 16
 			send_to_b1(SPEED_1, LONG_DELAY);
 			calibrate_stopping_distance(SPEED_1, true);
+			break;
+		}
+		case RequestHeader::LOCAL_PATH_BUNNY_DIST: {
+			// first locate
+			PlanningServerReq req_to_global = { RequestHeader::GLOBAL_BUNNY_DIST, Planning::RequestBody { 0x0 } };
+			req_to_global.body.pedding_request.id = internal_train_num;
+			req_to_global.body.pedding_request.pedding = req.body.command.args[0];
+			Send::SendNoReply(addr.global_pathing_tid, (const char*)&req_to_global, sizeof(req_to_global));
 			break;
 		}
 

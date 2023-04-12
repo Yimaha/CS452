@@ -5,15 +5,20 @@ int min(int a, int b) {
 	return a < b ? a : b;
 }
 
+int max(int a, int b) {
+	return a > b ? a : b;
+}
+
 bool is_digit(char c) {
 	return c >= '0' && c <= '9';
 }
 
 char lower(char c) {
-	if (c >= 'A' && c <= 'Z') {
-		return c + 32;
-	}
-	return c;
+	return (c >= 'A' && c <= 'Z') ? c + 32 : c;
+}
+
+bool is_alpha(char c) {
+	return (lower(c) >= 'a' && lower(c) <= 'z');
 }
 
 int get_length(uint64_t val) {

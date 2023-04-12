@@ -31,6 +31,18 @@ debug: kernel8.img
 opt: CFLAGS += -O3
 opt: kernel8.img
 
+localize:
+	$(eval XDIR:=~/cs452/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf)
+	$(eval XBINDIR:=$(XDIR)/bin)
+	$(eval CC:=$(XBINDIR)/$(TRIPLE)-g++)
+	$(eval OBJCOPY:=$(XBINDIR)/$(TRIPLE)-objcopy)
+	$(eval OBJDUMP:=$(XBINDIR)/$(TRIPLE)-objdump)
+
+# Local: localizes the toolchain and then compiles
+local: localize kernel8.img
+
+lopt: CFLAGS += -O3
+lopt: localize kernel8.img
 
 simu: CFLAGS += -DSIMULATED_UART_1
 simu: kernel8.img
